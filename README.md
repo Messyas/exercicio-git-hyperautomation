@@ -3,15 +3,6 @@
 ## Resumo do Projeto
 Este projeto é uma automação desenvolvida em Python para realizar a triagem e validação da planilha de inspeção diária do controle de qualidade. O bot atua como um filtro de governança inicial, aplicando regras de negócio (RN01 a RN07) para automatizar o trabalho braçal. 
 
-As principais funcionalidades incluem:
-* Validação estrutural e verificação de campos obrigatórios.
-* Cruzamento dos lotes com a base de referência.
-* Normalização de status sistêmicos (ex: conversão automática de "OK" para "APROVADO").
-
-O processamento isola qualquer falha ou status ambíguo em um **Relatório de Divergências** (`.xlsx`), permitindo que o Analista de Qualidade foque apenas nas exceções que realmente exigem intervenção humana.
-
----
-
 ## Pré-requisitos
 * Python 3.11+
 * Gerenciador de pacotes `pip`
@@ -27,7 +18,7 @@ O processamento isola qualquer falha ou status ambíguo em um **Relatório de Di
 
    No Windows:
    ```bash
-   python -m venv venv
+   python -m venv .venv
    venv\Scripts\activate
    ```
 
@@ -55,3 +46,4 @@ Para rodar a suíte de testes unitários e garantir que as validações (RN01-RN
 ```bash
 pytest
 ```
+
