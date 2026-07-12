@@ -27,3 +27,7 @@ htmlcov/
 .vscode/
 .idea/
 *.iml
+
+# Saídas geradas pelo bot
+data/output/
+logs/

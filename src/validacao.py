@@ -39,6 +39,7 @@ CAMPOS_OBRIGATORIOS: list[str] = [
 # nrows=25 captura exatamente os registros úteis (linhas 4–28 do Excel).
 _LINHAS_CABECALHO_PULAR: int = 2
 _TOTAL_REGISTROS_UTEIS: int = 25
+DATA_REFERENCIA_PADRAO: str = "14/06/2026"
 
 
 # ---------------------------------------------------------------------------
@@ -111,12 +112,19 @@ def valida_estrutura(df: pd.DataFrame) -> None:
     colunas_obrigatorias: set[str] = set(COLUNAS_ESPERADAS)
 
     colunas_ausentes: set[str] = colunas_obrigatorias - colunas_presentes
+    colunas_extras: set[str] = colunas_presentes - colunas_obrigatorias
 
-    if colunas_ausentes:
-        lista_ausentes = ", ".join(sorted(colunas_ausentes))
-        raise ErroEstrutural(
-            f"[RN01] Estrutura inválida. Colunas ausentes: {lista_ausentes}"
-        )
+    if colunas_ausentes or colunas_extras:
+        detalhes: list[str] = []
+        if colunas_ausentes:
+            detalhes.append(
+                "Colunas ausentes: " + ", ".join(sorted(colunas_ausentes))
+            )
+        if colunas_extras:
+            detalhes.append(
+                "Colunas extras: " + ", ".join(sorted(colunas_extras))
+            )
+        raise ErroEstrutural(f"[RN01] Estrutura inválida. {'; '.join(detalhes)}")
 
 
 # ---------------------------------------------------------------------------
@@ -147,8 +155,15 @@ def valida_campos_obrigatorios(df: pd.DataFrame) -> pd.DataFrame:
         ``campos_vazios`` com os nomes dos campos ausentes em cada linha.
         Retorna DataFrame vazio se não houver divergências.
     """
-    # Filtra somente as colunas obrigatórias para verificar NaN
-    mascara_com_vazio: pd.Series = df[CAMPOS_OBRIGATORIOS].isnull().any(axis=1)
+    def _campo_vazio(valor: object) -> bool:
+        if pd.isna(valor):
+            return True
+        return isinstance(valor, str) and not valor.strip()
+
+    # RN02 trata tanto células nulas quanto strings vazias como ausentes.
+    mascara_com_vazio: pd.Series = df[CAMPOS_OBRIGATORIOS].map(
+        _campo_vazio
+    ).any(axis=1)
 
     linhas_divergentes: pd.DataFrame = df[mascara_com_vazio].copy()
 
@@ -158,7 +173,9 @@ def valida_campos_obrigatorios(df: pd.DataFrame) -> pd.DataFrame:
     # Adiciona coluna informativa com os campos específicos que estão vazios
     def _listar_campos_vazios(linha: pd.Series) -> str:
         campos: list[str] = [
-            campo for campo in CAMPOS_OBRIGATORIOS if pd.isnull(linha[campo])
+            campo
+            for campo in CAMPOS_OBRIGATORIOS
+            if _campo_vazio(linha[campo])
         ]
         return ", ".join(campos)
 
@@ -166,6 +183,38 @@ def valida_campos_obrigatorios(df: pd.DataFrame) -> pd.DataFrame:
         _listar_campos_vazios, axis=1
     )
 
+    return linhas_divergentes.reset_index(drop=False)
+
+
+def validar_data_referencia(
+    df: pd.DataFrame,
+    data_referencia: str = DATA_REFERENCIA_PADRAO,
+) -> pd.DataFrame:
+    """Detecta datas preenchidas fora da data de referência do processo.
+
+    Regra complementar documentada no PDD como RN01: registros preenchidos
+    com data diferente da data de referência devem ser encaminhados como
+    divergência de dados. Datas vazias permanecem sob responsabilidade da
+    RN02, evitando que o mesmo registro seja contado duas vezes por esse
+    motivo.
+    """
+    if "data" not in df.columns:
+        raise ValueError("[RN01] DataFrame não possui a coluna 'data'.")
+
+    referencia = pd.to_datetime(data_referencia, dayfirst=True, errors="raise")
+    datas = pd.to_datetime(df["data"], dayfirst=True, errors="coerce")
+    preenchida = df["data"].notna() & df["data"].astype(str).str.strip().ne("")
+    mascara_fora_referencia = preenchida & (datas.isna() | datas.ne(referencia))
+
+    linhas_divergentes = df.loc[mascara_fora_referencia].copy()
+    if linhas_divergentes.empty:
+        return linhas_divergentes
+
+    linhas_divergentes["divergencia_rn01"] = linhas_divergentes["data"].apply(
+        lambda valor: (
+            f"[RN01] Data '{valor}' fora da referência '{data_referencia}'."
+        )
+    )
     return linhas_divergentes.reset_index(drop=False)
 
 
@@ -178,11 +227,15 @@ def validar_observacao_reprovado(registro: dict) -> dict:
     demais regras de negócio.
     """
     status = str(registro.get("status", "")).strip().upper()
-    observacao = str(registro.get("observacao", "")).strip()
+    observacao_original = registro.get("observacao", "")
+    observacao_vazia = pd.isna(observacao_original) or (
+        isinstance(observacao_original, str)
+        and not observacao_original.strip()
+    )
 
     registro.setdefault("divergencias", [])
 
-    if status == "REPROVADO" and not observacao:
+    if status == "REPROVADO" and observacao_vazia:
         registro["divergencias"].append(
             {
                 "regra_violada": "RN07",

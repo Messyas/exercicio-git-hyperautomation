@@ -35,10 +35,22 @@ Este projeto é uma automação desenvolvida em Python para realizar a triagem e
 
 ## Como Executar
 
-Para iniciar o bot e processar a planilha do dia:
+Para iniciar o bot e processar a planilha de exemplo:
 
 ```bash
-python src/main.py
+python bot.py
+```
+
+O bot gera os artefatos em `data/output/`:
+
+- `relatorio_divergencias_DDMMAAAA.xlsx`, com as abas `divergencias`,
+  `lotes_validados` e `revisao_humana`;
+- `log_execucao.json`, com o resultado e os totais da execução.
+
+Para informar outro arquivo ou diretório de saída:
+
+```bash
+python bot.py caminho/para/arquivo.xlsx --saida caminho/para/saida
 ```
 
 Para rodar a suíte de testes unitários e garantir que as validações (RN01-RN07) estão funcionando corretamente:

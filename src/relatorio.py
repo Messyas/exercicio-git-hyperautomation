@@ -117,12 +117,15 @@ def _caminho_disponivel(caminho_base: Path) -> Path:
 def gerar_relatorio_divergencias(
     erros: Iterable[Mapping[str, Any]],
     diretorio_saida: str | Path = ".",
+    lotes_validados: pd.DataFrame | Iterable[Mapping[str, Any]] | None = None,
+    revisao_humana: pd.DataFrame | Iterable[Mapping[str, Any]] | None = None,
 ) -> Path:
     """Consolida as falhas RN02–RN07 e exporta o relatório em ``.xlsx``.
 
     O modelo de saída do PDD v0.2 (seções 9 e 15) exige as colunas
     ``lote_id``, ``regra_violada``, ``descricao_do_erro`` e recomenda incluir
-    a ação para o Analista de Qualidade. A data no nome segue o formato
+    a ação para o Analista de Qualidade. O arquivo também contém as abas
+    ``lotes_validados`` e ``revisao_humana``. A data no nome segue o formato
     ``DDMMAAAA``; quando já existir um relatório do mesmo dia, um sufixo
     numérico é acrescentado para preservar o arquivo anterior.
 
@@ -148,5 +151,33 @@ def gerar_relatorio_divergencias(
     data_execucao = datetime.now().strftime("%d%m%Y")
     caminho_base = diretorio / f"relatorio_divergencias_{data_execucao}.xlsx"
     caminho_saida = _caminho_disponivel(caminho_base)
-    tabela.to_excel(caminho_saida, index=False, sheet_name="divergencias")
+    if lotes_validados is None:
+        tabela_validos = pd.DataFrame(
+            columns=["lote_id", "status", "data", "observacao"]
+        )
+    elif isinstance(lotes_validados, pd.DataFrame):
+        tabela_validos = lotes_validados.copy()
+    else:
+        tabela_validos = pd.DataFrame(lotes_validados)
+
+    if revisao_humana is None:
+        tabela_revisao = pd.DataFrame(
+            columns=[
+                "lote_id",
+                "status_original",
+                "status",
+                "data",
+                "descricao_do_erro",
+                "observacao_analista",
+            ]
+        )
+    elif isinstance(revisao_humana, pd.DataFrame):
+        tabela_revisao = revisao_humana.copy()
+    else:
+        tabela_revisao = pd.DataFrame(revisao_humana)
+
+    with pd.ExcelWriter(caminho_saida, engine="openpyxl") as escritor:
+        tabela.to_excel(escritor, index=False, sheet_name="divergencias")
+        tabela_validos.to_excel(escritor, index=False, sheet_name="lotes_validados")
+        tabela_revisao.to_excel(escritor, index=False, sheet_name="revisao_humana")
     return caminho_saida

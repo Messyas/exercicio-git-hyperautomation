@@ -100,8 +100,9 @@ def verificar_existencia_lote(
     Regra aplicada: **RN03 — Verificar Lote na Base de Referência**
     Para cada registro do DataFrame de inspeção, verifica se o ``lote_id``
     pertence ao conjunto ``lotes_validos``. Registros com ``lote_id``
-    ausente ou não encontrado na base são sinalizados como divergentes
-    através da coluna auxiliar ``divergencia_rn03``.
+    preenchido e não encontrado na base são sinalizados como divergentes
+    através da coluna auxiliar ``divergencia_rn03``. Valores vazios ficam
+    sob responsabilidade da RN02 para evitar dupla contagem.
 
     Parâmetros
     ----------
@@ -127,11 +128,15 @@ def verificar_existencia_lote(
         )
 
     # Normaliza os IDs da inspeção para comparação robusta (strip de espaços)
-    ids_inspecao: pd.Series = (
-        df_inspecao[_COLUNA_LOTE_ID].astype(str).str.strip()
-    )
+    ids_originais: pd.Series = df_inspecao[_COLUNA_LOTE_ID]
+    ids_inspecao: pd.Series = ids_originais.astype(str).str.strip()
 
-    mascara_ausente: pd.Series = ~ids_inspecao.isin(lotes_validos)
+    # Lote ausente já é tratado pela RN02. RN03 deve apontar apenas IDs
+    # preenchidos que não existem na base, evitando dupla contagem.
+    lote_preenchido: pd.Series = ids_originais.notna() & ids_inspecao.ne("")
+    mascara_ausente: pd.Series = lote_preenchido & ~ids_inspecao.isin(
+        lotes_validos
+    )
 
     linhas_divergentes: pd.DataFrame = df_inspecao[mascara_ausente].copy()
 

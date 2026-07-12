@@ -18,6 +18,7 @@ from src.validacao import (
     ErroEstrutural,
     valida_campos_obrigatorios,
     valida_estrutura,
+    validar_data_referencia,
     validar_observacao_reprovado,
 )
 
@@ -164,6 +165,13 @@ class TestValidaEstrutura:
         """
         assert len(COLUNAS_ESPERADAS) == 8
 
+    def test_rejeita_coluna_extra(self, df_valido: pd.DataFrame) -> None:
+        """RN01 deve aceitar exatamente as oito colunas previstas."""
+        df_com_extra = df_valido.assign(coluna_extra="valor")
+
+        with pytest.raises(ErroEstrutural, match="Colunas extras"):
+            valida_estrutura(df_com_extra)
+
 
 # ===========================================================================
 # Testes — RN02: valida_campos_obrigatorios
@@ -297,3 +305,23 @@ def test_aprovado_sem_observacao_nao_registra_rn07() -> None:
     resultado = validar_observacao_reprovado(registro)
 
     assert resultado["divergencias"] == []
+
+
+def test_reprovado_com_observacao_nula_registra_rn07() -> None:
+    """RN07 deve tratar NaN/None como observação vazia."""
+    registro = {"status": "REPROVADO", "observacao": None}
+
+    resultado = validar_observacao_reprovado(registro)
+
+    assert resultado["divergencias"][0]["regra_violada"] == "RN07"
+
+
+def test_data_fora_da_referencia_registra_rn01(df_valido: pd.DataFrame) -> None:
+    """O caso de 15/06 do PDD deve ser encaminhado como divergência."""
+    df_valido.loc[0, "data"] = "15/06/2026"
+
+    resultado = validar_data_referencia(df_valido)
+
+    assert len(resultado) == 1
+    assert resultado.loc[0, "index"] == 0
+    assert "RN01" in resultado.loc[0, "divergencia_rn01"]
