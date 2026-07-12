@@ -18,6 +18,7 @@ from src.validacao import (
     ErroEstrutural,
     valida_campos_obrigatorios,
     valida_estrutura,
+    validar_observacao_reprovado,
 )
 
 
@@ -270,3 +271,29 @@ class TestValidaCamposObrigatorios:
         """
         resultado = valida_campos_obrigatorios(df_valido)
         assert isinstance(resultado, pd.DataFrame)
+
+
+def test_reprovado_sem_observacao_registra_rn07() -> None:
+    """RN07 deve registrar divergência para reprovado sem observação."""
+    registro = {
+        "lote_id": "LG-2026-00102",
+        "status": "REPROVADO",
+        "observacao": "",
+    }
+
+    resultado = validar_observacao_reprovado(registro)
+
+    assert resultado["divergencias"][0]["regra_violada"] == "RN07"
+
+
+def test_aprovado_sem_observacao_nao_registra_rn07() -> None:
+    """RN07 não exige observação para status que não sejam REPROVADO."""
+    registro = {
+        "lote_id": "LG-2026-00103",
+        "status": "APROVADO",
+        "observacao": "",
+    }
+
+    resultado = validar_observacao_reprovado(registro)
+
+    assert resultado["divergencias"] == []

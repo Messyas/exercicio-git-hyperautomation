@@ -167,3 +167,29 @@ def valida_campos_obrigatorios(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     return linhas_divergentes.reset_index(drop=False)
+
+
+def validar_observacao_reprovado(registro: dict) -> dict:
+    """
+    Valida a observação obrigatória para status REPROVADO (RN07).
+
+    A função mantém o registro e acumula a divergência na chave
+    ``divergencias``, permitindo que o resultado seja combinado com as
+    demais regras de negócio.
+    """
+    status = str(registro.get("status", "")).strip().upper()
+    observacao = str(registro.get("observacao", "")).strip()
+
+    registro.setdefault("divergencias", [])
+
+    if status == "REPROVADO" and not observacao:
+        registro["divergencias"].append(
+            {
+                "regra_violada": "RN07",
+                "descricao": "Status REPROVADO exige preenchimento da observação.",
+                "acao_recomendada": "Encaminhar ao analista para preenchimento",
+                "severidade": "Alta",
+            }
+        )
+
+    return registro
