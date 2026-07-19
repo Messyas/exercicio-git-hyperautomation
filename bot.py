@@ -16,6 +16,7 @@ from typing import Any
 
 import pandas as pd
 
+from config import settings
 from src.base_referencia import carregar_base_referencia, verificar_existencia_lote
 from src.regras_negocio import normalizar_status, validar_dominio_status
 from src.relatorio import gerar_relatorio_divergencias
@@ -29,8 +30,8 @@ from src.validacao import (
 )
 
 
-ARQUIVO_PADRAO = Path("data/samples/inspecao_lotes_dia.xlsx")
-DIRETORIO_SAIDA_PADRAO = Path("data/output")
+ARQUIVO_PADRAO = settings.default_input_file
+DIRETORIO_SAIDA_PADRAO = settings.output_dir
 
 
 def _indice_original(linha: pd.Series, indice: Any) -> int:
