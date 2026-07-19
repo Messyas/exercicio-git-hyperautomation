@@ -51,14 +51,11 @@ class Settings:
     log_dir: Path
     default_input_file: Path
     maestro_enabled: bool
-    vault_enabled: bool
     maestro_server: str | None
     maestro_login: str | None
     maestro_key: str | None
     maestro_task_id: str | None
     maestro_activity_label: str
-    datapool_queue_name: str
-    vault_credential_label: str
     execution_report_file: Path
 
 
@@ -73,19 +70,12 @@ def get_settings() -> Settings:
             "BOT_INPUT_FILE", "data/samples/inspecao_lotes_dia.xlsx"
         ),
         maestro_enabled=_env_bool("MAESTRO_ENABLED"),
-        vault_enabled=_env_bool("VAULT_ENABLED"),
         maestro_server=os.getenv("MAESTRO_SERVER") or None,
         maestro_login=os.getenv("MAESTRO_LOGIN") or None,
         maestro_key=os.getenv("MAESTRO_KEY") or None,
         maestro_task_id=os.getenv("MAESTRO_TASK_ID") or None,
         maestro_activity_label=os.getenv(
             "MAESTRO_ACTIVITY_LABEL", "auditoria-acessos"
-        ).strip(),
-        datapool_queue_name=os.getenv(
-            "DATAPOOL_QUEUE_NAME", "FilaAuditoriaRH"
-        ).strip(),
-        vault_credential_label=os.getenv(
-            "VAULT_CREDENTIAL_LABEL", "credencial_erp"
         ).strip(),
         execution_report_file=_env_path(
             "BOT_EXECUTION_REPORT_FILE", "logs/resumo_execucao.json"

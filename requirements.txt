@@ -1,5 +1,6 @@
 ﻿colorama==0.4.6
 botcity-maestro-sdk
+requests
 et_xmlfile==2.0.0
 greenlet==3.5.3
 iniconfig==2.3.0

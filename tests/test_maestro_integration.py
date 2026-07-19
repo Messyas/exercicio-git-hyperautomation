@@ -1,13 +1,18 @@
 """Testes da camada de rastreabilidade da Issue 2."""
 
 import json
+import logging
 from datetime import datetime
+
+import pytest
+from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from main import main
 from src.maestro_client import (
     ExecutionResult,
     write_execution_report,
 )
+from src.resilience import call_with_network_retry
 
 
 def test_execution_result_gera_relatorio_json(tmp_path) -> None:
@@ -45,3 +50,45 @@ def test_main_falha_imediatamente_quando_pasta_de_entrada_nao_existe(
     log = (tmp_path / "logs" / "execucao.log").read_text(encoding="utf-8")
     assert "ERROR" in log
     assert "Pasta de entrada" in log
+
+
+def test_retry_tenta_tres_vezes_apenas_para_falha_de_rede() -> None:
+    logger = logging.getLogger("test.retry")
+    tentativas = 0
+
+    def operacao():
+        nonlocal tentativas
+        tentativas += 1
+        if tentativas < 3:
+            raise RequestsConnectionError("rede indisponível")
+        return "ok"
+
+    resultado = call_with_network_retry(
+        operacao,
+        logger=logger,
+        context="teste | lote_id=L1",
+        delay_seconds=0,
+    )
+
+    assert resultado == "ok"
+    assert tentativas == 3
+
+
+def test_retry_repropaga_falha_de_rede_apos_tres_tentativas() -> None:
+    logger = logging.getLogger("test.retry.final")
+    tentativas = 0
+
+    def operacao():
+        nonlocal tentativas
+        tentativas += 1
+        raise RequestsConnectionError("rede indisponível")
+
+    with pytest.raises(RequestsConnectionError):
+        call_with_network_retry(
+            operacao,
+            logger=logger,
+            context="teste | lote_id=L2",
+            delay_seconds=0,
+        )
+
+    assert tentativas == 3

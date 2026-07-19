@@ -16,6 +16,7 @@ from botcity.maestro.model import (
 )
 
 from config import Settings
+from src.resilience import RETRYABLE_NETWORK_ERRORS, call_with_network_retry
 
 
 @dataclass
@@ -146,10 +147,14 @@ class MaestroClient:
                 + ", ".join(missing)
             )
 
-        self.sdk = BotMaestroSDK.from_sys_args(
-            default_server=self.settings.maestro_server or "",
-            default_login=self.settings.maestro_login or "",
-            default_key=self.settings.maestro_key or "",
+        self.sdk = call_with_network_retry(
+            lambda: BotMaestroSDK.from_sys_args(
+                default_server=self.settings.maestro_server or "",
+                default_login=self.settings.maestro_login or "",
+                default_key=self.settings.maestro_key or "",
+            ),
+            logger=self.logger,
+            context="conexao com o Maestro | lote_id=N/A",
         )
         self.task_id = self.task_id or str(self.sdk.task_id or "") or None
         self.logger.info("Conexão com o Maestro estabelecida.")
@@ -205,6 +210,20 @@ class MaestroClient:
             ),
         )
 
+    def close(self) -> None:
+        """Encerra a sessão local do SDK mesmo após uma falha."""
+        if self.sdk is None:
+            return
+        try:
+            self.sdk.logoff()
+        except (OSError, RuntimeError, ValueError) as exc:
+            self.logger.error(
+                "Falha ao encerrar sessao do Maestro | lote_id=N/A | erro=%s",
+                exc,
+            )
+        finally:
+            self.sdk = None
+
     def _register_start(self) -> None:
         if self.task_id:
             self._send_alert(
@@ -243,6 +262,26 @@ class MaestroClient:
             self.logger.warning("Maestro indisponível para %s.", operation)
             return
         try:
-            callback()
+            call_with_network_retry(
+                callback,
+                logger=self.logger,
+                context=f"{operation} | lote_id=N/A",
+            )
+        except RETRYABLE_NETWORK_ERRORS as exc:
+            self.logger.error(
+                "Falha de rede ao %s apos 3 tentativas | lote_id=N/A | erro=%s",
+                operation,
+                exc,
+            )
+        except (OSError, RuntimeError, ValueError, TypeError) as exc:
+            self.logger.error(
+                "Falha ao %s | lote_id=N/A | erro=%s",
+                operation,
+                exc,
+            )
         except Exception as exc:  # integração não deve apagar a evidência local
-            self.logger.error("Falha ao %s no Maestro: %s", operation, exc)
+            self.logger.exception(
+                "Erro inesperado ao %s | lote_id=N/A | erro=%s",
+                operation,
+                exc,
+            )
