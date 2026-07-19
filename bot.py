@@ -364,7 +364,7 @@ def executar_bot(
     }
 
 
-def main(argumentos: list[str] | None = None) -> int:
+def executar_bot_cli(argumentos: list[str] | None = None) -> dict[str, Any]:
     """Expõe o fluxo do bot para execução pelo terminal."""
     parser = argparse.ArgumentParser(description="Bot de conferência de lotes")
     parser.add_argument(
@@ -379,7 +379,11 @@ def main(argumentos: list[str] | None = None) -> int:
         help="Diretório dos relatórios e do log.",
     )
     args = parser.parse_args(argumentos)
-    resultado = executar_bot(args.arquivo, args.saida)
+    return executar_bot(args.arquivo, args.saida)
+
+
+def main(argumentos: list[str] | None = None) -> int:
+    resultado = executar_bot_cli(argumentos)
     print(json.dumps({key: str(value) for key, value in resultado.items()}, ensure_ascii=False))
     return 0 if resultado["status_execucao"] == "SUCESSO" else 1
 

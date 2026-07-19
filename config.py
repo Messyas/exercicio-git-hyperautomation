@@ -55,8 +55,11 @@ class Settings:
     maestro_server: str | None
     maestro_login: str | None
     maestro_key: str | None
+    maestro_task_id: str | None
+    maestro_activity_label: str
     datapool_queue_name: str
     vault_credential_label: str
+    execution_report_file: Path
 
 
 def get_settings() -> Settings:
@@ -74,14 +77,20 @@ def get_settings() -> Settings:
         maestro_server=os.getenv("MAESTRO_SERVER") or None,
         maestro_login=os.getenv("MAESTRO_LOGIN") or None,
         maestro_key=os.getenv("MAESTRO_KEY") or None,
+        maestro_task_id=os.getenv("MAESTRO_TASK_ID") or None,
+        maestro_activity_label=os.getenv(
+            "MAESTRO_ACTIVITY_LABEL", "auditoria-acessos"
+        ).strip(),
         datapool_queue_name=os.getenv(
             "DATAPOOL_QUEUE_NAME", "FilaAuditoriaRH"
         ).strip(),
         vault_credential_label=os.getenv(
             "VAULT_CREDENTIAL_LABEL", "credencial_erp"
         ).strip(),
+        execution_report_file=_env_path(
+            "BOT_EXECUTION_REPORT_FILE", "logs/resumo_execucao.json"
+        ),
     )
 
 
 settings = get_settings()
-
