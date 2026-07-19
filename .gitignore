@@ -31,3 +31,6 @@ htmlcov/
 # Saídas geradas pelo bot
 data/output/
 logs/
+!logs/
+logs/*
+!logs/.gitkeep
