@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -60,7 +61,29 @@ def _erro(
     }
 
 
-def _coletar_erros(df: pd.DataFrame, arquivo: str) -> tuple[list[dict[str, Any]], pd.DataFrame]:
+def _log_exception(
+    logger: logging.Logger | None,
+    exc: BaseException,
+    *,
+    context: str,
+    lote_id: Any = "N/A",
+) -> None:
+    """Registra exceções sem incluir credenciais ou dados sensíveis."""
+    if logger is not None:
+        logger.error(
+            "%s | lote_id=%s | erro=%s",
+            context,
+            lote_id if lote_id not in (None, "") else "N/A",
+            exc,
+        )
+
+
+def _coletar_erros(
+    df: pd.DataFrame,
+    arquivo: str,
+    *,
+    logger: logging.Logger | None = None,
+) -> tuple[list[dict[str, Any]], pd.DataFrame]:
     """Executa RN02–RN07 e retorna erros padronizados e casos para revisão."""
     erros: list[dict[str, Any]] = []
 
@@ -148,16 +171,34 @@ def _coletar_erros(df: pd.DataFrame, arquivo: str) -> tuple[list[dict[str, Any]]
         )
 
     for indice, registro in enumerate(df_normalizado.to_dict("records")):
-        registro_validado = validar_observacao_reprovado(registro)
-        for divergencia in registro_validado.get("divergencias", []):
+        try:
+            registro_validado = validar_observacao_reprovado(registro)
+            for divergencia in registro_validado.get("divergencias", []):
+                erros.append(
+                    _erro(
+                        indice=indice,
+                        lote_id=registro.get("lote_id"),
+                        regra="RN07",
+                        descricao=divergencia["descricao"],
+                        acao=divergencia["acao_recomendada"],
+                        severidade=divergencia["severidade"],
+                    )
+                )
+        except (KeyError, TypeError, ValueError) as exc:
+            _log_exception(
+                logger,
+                exc,
+                context="Falha na validação da observação",
+                lote_id=registro.get("lote_id"),
+            )
             erros.append(
                 _erro(
                     indice=indice,
                     lote_id=registro.get("lote_id"),
-                    regra="RN07",
-                    descricao=divergencia["descricao"],
-                    acao=divergencia["acao_recomendada"],
-                    severidade=divergencia["severidade"],
+                    regra="ERRO_PROCESSAMENTO",
+                    descricao="Falha controlada durante a validação do registro.",
+                    acao="Encaminhar o lote para revisão técnica.",
+                    severidade="Alta",
                 )
             )
 
@@ -247,6 +288,8 @@ def _calcular_md5(arquivo: Path) -> str:
 def executar_bot(
     caminho_arquivo: str | Path = ARQUIVO_PADRAO,
     diretorio_saida: str | Path = DIRETORIO_SAIDA_PADRAO,
+    *,
+    logger: logging.Logger | None = None,
 ) -> dict[str, Any]:
     """Executa o fluxo inicial do bot e retorna as evidências produzidas.
 
@@ -261,6 +304,11 @@ def executar_bot(
     hash_md5: str | None = None
 
     if not arquivo.is_file():
+        _log_exception(
+            logger,
+            FileNotFoundError(str(arquivo)),
+            context="Arquivo de entrada não encontrado",
+        )
         fim = datetime.now().astimezone()
         log_path = _escrever_log(
             caminho=log,
@@ -286,6 +334,7 @@ def executar_bot(
         df = carregar_planilha(str(arquivo))
         valida_estrutura(df)
     except ErroEstrutural as exc:
+        _log_exception(logger, exc, context="Estrutura da planilha inválida")
         fim = datetime.now().astimezone()
         log_path = _escrever_log(
             caminho=log,
@@ -306,6 +355,7 @@ def executar_bot(
             "total_divergencias": 0,
         }
     except (OSError, ValueError, ImportError) as exc:
+        _log_exception(logger, exc, context="Falha na leitura da planilha")
         fim = datetime.now().astimezone()
         log_path = _escrever_log(
             caminho=log,
@@ -326,7 +376,31 @@ def executar_bot(
             "total_divergencias": 0,
         }
 
-    erros, revisao_humana = _coletar_erros(df, str(arquivo))
+    try:
+        erros, revisao_humana = _coletar_erros(
+            df, str(arquivo), logger=logger
+        )
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        _log_exception(logger, exc, context="Falha nas regras de negócio")
+        fim = datetime.now().astimezone()
+        log_path = _escrever_log(
+            caminho=log,
+            inicio=inicio,
+            fim=fim,
+            arquivo=arquivo,
+            total_registros=len(df),
+            total_divergencias=0,
+            status="ERRO_PROCESSAMENTO",
+            hash_md5=hash_md5,
+            erro=str(exc),
+        )
+        return {
+            "status_execucao": "ERRO_PROCESSAMENTO",
+            "log": log_path,
+            "relatorio": None,
+            "total_registros": len(df),
+            "total_divergencias": 0,
+        }
     df_normalizado = normalizar_status(df)
     indices_divergentes = {erro["_indice"] for erro in erros}
     indices_validos = [
@@ -364,7 +438,11 @@ def executar_bot(
     }
 
 
-def main(argumentos: list[str] | None = None) -> int:
+def executar_bot_cli(
+    argumentos: list[str] | None = None,
+    *,
+    logger: logging.Logger | None = None,
+) -> dict[str, Any]:
     """Expõe o fluxo do bot para execução pelo terminal."""
     parser = argparse.ArgumentParser(description="Bot de conferência de lotes")
     parser.add_argument(
@@ -379,7 +457,11 @@ def main(argumentos: list[str] | None = None) -> int:
         help="Diretório dos relatórios e do log.",
     )
     args = parser.parse_args(argumentos)
-    resultado = executar_bot(args.arquivo, args.saida)
+    return executar_bot(args.arquivo, args.saida, logger=logger)
+
+
+def main(argumentos: list[str] | None = None) -> int:
+    resultado = executar_bot_cli(argumentos)
     print(json.dumps({key: str(value) for key, value in resultado.items()}, ensure_ascii=False))
     return 0 if resultado["status_execucao"] == "SUCESSO" else 1
 

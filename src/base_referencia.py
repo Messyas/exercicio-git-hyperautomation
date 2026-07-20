@@ -65,12 +65,16 @@ def carregar_base_referencia(caminho_arquivo: str) -> set[str]:
         Quando a coluna ``lote_id`` não for encontrada na aba após o
         fatiamento, indicando problema de layout no arquivo.
     """
-    df_referencia: pd.DataFrame = pd.read_excel(
-        caminho_arquivo,
-        sheet_name=_ABA_BASE_REFERENCIA,
-        skiprows=_LINHAS_FORMATACAO_PULAR,
-        nrows=_TOTAL_IDS_REFERENCIA,
-    )
+    arquivo_excel = pd.ExcelFile(caminho_arquivo)
+    try:
+        df_referencia: pd.DataFrame = pd.read_excel(
+            arquivo_excel,
+            sheet_name=_ABA_BASE_REFERENCIA,
+            skiprows=_LINHAS_FORMATACAO_PULAR,
+            nrows=_TOTAL_IDS_REFERENCIA,
+        )
+    finally:
+        arquivo_excel.close()
 
     if _COLUNA_LOTE_ID not in df_referencia.columns:
         raise ValueError(
