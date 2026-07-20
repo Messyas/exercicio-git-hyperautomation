@@ -38,7 +38,7 @@ Este projeto é uma automação desenvolvida em Python para realizar a triagem e
 Para iniciar o bot e processar a planilha de exemplo:
 
 ```bash
-python bot.py
+python main.py
 ```
 
 O bot gera os artefatos em `data/output/`:

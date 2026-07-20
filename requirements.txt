@@ -1,3 +1,5 @@
+botcity-maestro-sdk
 pandas==3.0.3
 openpyxl==3.1.5
-pytest==8.3.4
+python-dotenv
+pytest==9.1.1

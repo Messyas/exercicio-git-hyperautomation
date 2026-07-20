@@ -1,0 +1,22 @@
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: bot-inspecao-lotes:latest
+    container_name: bot-inspecao-lotes
+
+    # Carrega as variáveis de ambiente do arquivo .env local
+    env_file:
+      - .env
+
+    volumes:
+      # Pasta de entrada: coloque os arquivos .xlsx aqui no host
+      - ./dados_entrada:/app/dados_entrada
+
+      # Pasta de saída: relatórios e logs ficam persistidos no host
+      - ./data/output:/app/data/output
+      - ./logs:/app/logs
+
+    # Reinicia automaticamente em caso de falha (útil para agendamento externo)
+    restart: on-failure

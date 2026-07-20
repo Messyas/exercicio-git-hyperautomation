@@ -75,13 +75,16 @@ def carregar_planilha(caminho_arquivo: str) -> pd.DataFrame:
         DataFrame com os 25 registros da planilha, utilizando os nomes
         de coluna definidos na linha 3 do Excel.
     """
-    df = pd.read_excel(
-        caminho_arquivo,
-        sheet_name=0,
-        skiprows=_LINHAS_CABECALHO_PULAR,
-        nrows=_TOTAL_REGISTROS_UTEIS,
-    )
-    return df
+    arquivo_excel = pd.ExcelFile(caminho_arquivo)
+    try:
+        return pd.read_excel(
+            arquivo_excel,
+            sheet_name=0,
+            skiprows=_LINHAS_CABECALHO_PULAR,
+            nrows=_TOTAL_REGISTROS_UTEIS,
+        )
+    finally:
+        arquivo_excel.close()
 
 
 # ---------------------------------------------------------------------------
