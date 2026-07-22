@@ -76,8 +76,31 @@ class ExecutionResult:
         )
 
 
-def configure_local_logging(log_dir: Path) -> logging.Logger:
-    """Configura o log local padronizado em ``logs/execucao.log``."""
+class _ContextFilter(logging.Filter):
+    """Injeta execution_id e bot_id em todas as mensagens de log."""
+
+    def __init__(self, execution_id: str, bot_id: str):
+        super().__init__()
+        self.execution_id = execution_id
+        self.bot_id = bot_id
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.execution_id = self.execution_id  # type: ignore[attr-defined]
+        record.bot_id = self.bot_id  # type: ignore[attr-defined]
+        return True
+
+
+def configure_local_logging(
+    log_dir: Path,
+    *,
+    execution_id: str = "local",
+    bot_id: str = "bot-conferencia-lotes",
+) -> logging.Logger:
+    """Configura o log local estruturado em JSON em ``logs/execucao.log``.
+
+    Cada linha de log contém ``execution_id`` e ``bot_id`` para
+    rastreabilidade em ambientes orquestrados (Maestro / BotCity).
+    """
     log_dir.mkdir(parents=True, exist_ok=True)
     log_path = log_dir / "execucao.log"
     logger = logging.getLogger("botcity.auditoria")
@@ -91,14 +114,30 @@ def configure_local_logging(log_dir: Path) -> logging.Logger:
         for handler in logger.handlers
     )
     if not already_configured:
-        handler = logging.FileHandler(log_path, encoding="utf-8")
-        handler.setFormatter(
-            logging.Formatter(
-                fmt="%(asctime)s | %(levelname)s | %(message)s",
+        try:
+            from pythonjsonlogger.json import JsonFormatter
+
+            formatter = JsonFormatter(
+                fmt="%(asctime)s %(levelname)s %(name)s %(execution_id)s %(bot_id)s %(message)s",
+                datefmt="%Y-%m-%dT%H:%M:%S%z",
+                rename_fields={"asctime": "timestamp", "levelname": "level"},
+            )
+        except ImportError:
+            # Fallback se python-json-logger não estiver instalado
+            formatter = logging.Formatter(
+                fmt="%(asctime)s | %(levelname)s | execution_id=%(execution_id)s | bot_id=%(bot_id)s | %(message)s",
                 datefmt="%Y-%m-%d %H:%M:%S%z",
             )
-        )
+
+        handler = logging.FileHandler(log_path, encoding="utf-8")
+        handler.setFormatter(formatter)
         logger.addHandler(handler)
+
+    # Adiciona o filtro de contexto (idempotente: remove filtros antigos)
+    for existing in logger.filters[:]:
+        if isinstance(existing, _ContextFilter):
+            logger.removeFilter(existing)
+    logger.addFilter(_ContextFilter(execution_id, bot_id))
 
     return logger
 

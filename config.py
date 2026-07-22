@@ -57,6 +57,8 @@ class Settings:
     maestro_task_id: str | None
     maestro_activity_label: str
     execution_report_file: Path
+    execution_id: str
+    bot_id: str
 
 
 def get_settings() -> Settings:
@@ -80,6 +82,8 @@ def get_settings() -> Settings:
         execution_report_file=_env_path(
             "BOT_EXECUTION_REPORT_FILE", "logs/resumo_execucao.json"
         ),
+        execution_id=os.getenv("EXECUTION_ID", "local").strip(),
+        bot_id=os.getenv("BOT_ID", "bot-conferencia-lotes").strip(),
     )
 
 
