@@ -21,6 +21,7 @@ __pycache__/
 docs/
 data/output/
 logs/
+artefatos/
 
 # Ignorar arquivos do projeto não necessários na imagem
 README.md
