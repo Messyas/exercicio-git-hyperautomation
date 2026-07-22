@@ -147,3 +147,28 @@ O bot gera logs em **JSON estruturado** (via `python-json-logger`) com os campos
 | `BOT_ID` | Identificador do bot | `bot-conferencia-lotes` |
 
 Configure no `.env` ou via variáveis de ambiente do orquestrador (BotCity Maestro).
+
+## Automação Web com Playwright
+
+O fluxo web é opcional e continua apontando para o ambiente Vercel atual até
+que a página local seja disponibilizada. Instale o navegador uma vez no
+ambiente virtual:
+
+```bash
+python -m pip install -r requirements.txt
+python -m playwright install chromium
+```
+
+Para executar a automação integrada ao `main.py`, habilite-a no ambiente:
+
+```bash
+PLAYWRIGHT_ENABLED=true PLAYWRIGHT_HEADLESS=false python main.py
+```
+
+No PowerShell:
+
+```powershell
+$env:PLAYWRIGHT_ENABLED="true"
+$env:PLAYWRIGHT_HEADLESS="false"
+venv\Scripts\python.exe main.py
+```

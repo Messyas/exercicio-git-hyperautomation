@@ -41,6 +41,26 @@ def _env_bool(name: str, default: bool = False) -> bool:
     )
 
 
+def _env_int(name: str, default: int, *, minimum: int = 0) -> int:
+    """Lê um inteiro do ambiente e valida seu limite mínimo."""
+    valor = os.getenv(name)
+    if valor is None or not valor.strip():
+        return default
+
+    try:
+        convertido = int(valor.strip())
+    except ValueError as exc:
+        raise ValueError(
+            f"A variável {name} deve conter um inteiro (valor recebido: {valor!r})."
+        ) from exc
+
+    if convertido < minimum:
+        raise ValueError(
+            f"A variável {name} deve ser maior ou igual a {minimum}."
+        )
+    return convertido
+
+
 @dataclass(frozen=True)
 class Settings:
     """Configurações usadas pelas etapas atuais e futuras do bot."""
@@ -59,6 +79,12 @@ class Settings:
     execution_report_file: Path
     execution_id: str
     bot_id: str
+    playwright_enabled: bool
+    playwright_url: str
+    playwright_headless: bool
+    playwright_slow_mo: int
+    playwright_quantity: int
+    playwright_artifacts_dir: Path
 
 
 def get_settings() -> Settings:
@@ -84,6 +110,16 @@ def get_settings() -> Settings:
         ),
         execution_id=os.getenv("EXECUTION_ID", "local").strip(),
         bot_id=os.getenv("BOT_ID", "bot-conferencia-lotes").strip(),
+        playwright_enabled=_env_bool("PLAYWRIGHT_ENABLED"),
+        playwright_url=os.getenv(
+            "PLAYWRIGHT_URL", "https://lote-seven.vercel.app/"
+        ).strip(),
+        playwright_headless=_env_bool("PLAYWRIGHT_HEADLESS", default=True),
+        playwright_slow_mo=_env_int("PLAYWRIGHT_SLOW_MO", 300),
+        playwright_quantity=_env_int("PLAYWRIGHT_QUANTITY", 10, minimum=1),
+        playwright_artifacts_dir=_env_path(
+            "PLAYWRIGHT_ARTIFACTS_DIR", "artefatos"
+        ),
     )
 
 

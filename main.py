@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import importlib.util
 from datetime import datetime
 from pathlib import Path
 
@@ -57,6 +58,25 @@ def _persist_report(
             exc,
         )
         return None
+
+
+def _executar_automacao_web(settings, logger: logging.Logger) -> dict | None:
+    """Executa a etapa web somente quando habilitada no ambiente."""
+    if not settings.playwright_enabled:
+        return None
+
+    modulo_path = settings.project_root / "playwright" / "web_automation.py"
+    spec = importlib.util.spec_from_file_location(
+        "project_web_automation",
+        modulo_path,
+    )
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Não foi possível carregar a automação web: {modulo_path}")
+
+    modulo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modulo)
+
+    return modulo.executar_automacao_web(settings=settings, logger=logger)
 
 
 def main(argumentos: list[str] | None = None) -> int:
@@ -118,6 +138,12 @@ def main(argumentos: list[str] | None = None) -> int:
                 str(key): str(value) for key, value in bot_summary.items()
             }
             if bot_summary.get("status_execucao") == "SUCESSO":
+                web_summary = _executar_automacao_web(settings, logger)
+                if web_summary is not None:
+                    summary.update({
+                        f"playwright_{key}": str(value)
+                        for key, value in web_summary.items()
+                    })
                 result = ExecutionResult.success(
                     started_at=started_at,
                     finished_at=finished_at,

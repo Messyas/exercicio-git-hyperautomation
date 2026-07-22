@@ -17,6 +17,7 @@ services:
       # Pasta de saída: relatórios e logs ficam persistidos no host
       - ./data/output:/app/data/output
       - ./logs:/app/logs
+      - ./artefatos:/app/artefatos
 
     # Reinicia automaticamente em caso de falha (útil para agendamento externo)
     restart: on-failure
