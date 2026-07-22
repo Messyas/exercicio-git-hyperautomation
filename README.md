@@ -1,9 +1,26 @@
 # Bot de Inspeção de Lotes Diários
 
-![CI/CD Pipeline](https://github.com/Messyas/exercicio-git-hyperautomation/actions/workflows/ci.yml/badge.svg)
+## Sobre o projeto
 
-## Resumo do Projeto
-Este projeto é uma automação desenvolvida em Python para realizar a triagem e validação da planilha de inspeção diária do controle de qualidade. O bot atua como um filtro de governança inicial, aplicando regras de negócio (RN01 a RN07) para automatizar o trabalho braçal. 
+Este projeto é uma automação desenvolvida em Python para realizar a triagem e
+validação da planilha diária de inspeção de lotes do controle de qualidade.
+O bot atua como um filtro de governança inicial: lê os dados de entrada,
+aplica as regras de negócio RN01 a RN07, identifica divergências e gera um
+relatório Excel para acompanhamento e revisão humana.
+
+Além do processamento da planilha, o projeto oferece:
+
+- logs estruturados em JSON com `execution_id` e `bot_id`;
+- integração opcional com o BotCity Maestro;
+- empacotamento e execução com Docker Compose;
+- workflow de validação contínua com GitHub Actions;
+- automação web opcional com Playwright.
+
+### Fluxo do processo
+
+O fluxo geral da automação está representado no diagrama BPMN abaixo:
+
+![Diagrama BPMN do processo de inspeção de lotes](docs/print_inspecao_lotes_bpmn.png)
 
 ## Pré-requisitos
 * Python 3.11+
@@ -97,7 +114,7 @@ Após a execução, verifique os artefatos em `data/output/` e `logs/` — eles 
 
 ## CI/CD
 
-O projeto utiliza **GitHub Actions** para integração contínua. O pipeline está definido em [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+O projeto utiliza **GitHub Actions** para integração contínua. O pipeline está definido em [`.github/workflows/CI.yml`](.github/workflows/CI.yml).
 
 ### CI — Integração Contínua
 
@@ -109,11 +126,11 @@ Executado automaticamente em **todo push e pull request** para as branches `main
 | **Testes (pytest)** | Executa a suíte de testes em `tests/` |
 | **Segurança** | Verifica ausência de credenciais hardcodadas no código-fonte |
 
-> **Importante:** As branches `main` e `develop` estão protegidas — o merge via PR só é permitido se o CI estiver verde (badge ✅).
+> **Importante:** As branches `main` e `develop` estão protegidas — o merge via PR só é permitido se o CI estiver verde.
 
 ### Secrets necessários no GitHub
 
-Para que o **CD (deploy)** funcione, os seguintes secrets devem ser configurados em **Settings → Secrets and variables → Actions**:
+Para que o **CD (deploy)** funcione, os seguintes secrets devem ser configurados em **Settings > Secrets and variables > Actions**:
 
 | Secret | Descrição |
 |--------|-----------|
@@ -151,7 +168,24 @@ Configure no `.env` ou via variáveis de ambiente do orquestrador (BotCity Maest
 ## Automação Web com Playwright
 
 O fluxo web é opcional e continua apontando para o ambiente Vercel atual até
-que a página local seja disponibilizada. Instale o navegador uma vez no
+que a página local seja disponibilizada.
+
+### Deploy no BotCity
+
+No deploy para o BotCity Maestro/Runner, mantenha o Playwright desativado:
+
+```env
+PLAYWRIGHT_ENABLED=false
+```
+
+Com essa configuração, o Runner executa somente o bot principal. O Playwright
+não é iniciado e não é necessário instalar o navegador Chromium no ambiente
+de deploy. O pacote Python pode permanecer no `requirements.txt`, pois ele
+será apenas instalado e não executado.
+
+### Execução local com Playwright
+
+Para testar a automação web localmente, instale o navegador uma vez no
 ambiente virtual:
 
 ```bash
