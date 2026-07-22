@@ -1,0 +1,2023 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tutorial: Do PDD ao Bot em Produção · LG Electronics / AX Academy</title>
+<style>
+/* ── Reset + Fontes ─────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; font-size: 16px; }
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap');
+
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: #0a0e14;
+  color: #d4dce8;
+  line-height: 1.7;
+  min-height: 100vh;
+}
+
+/* ── Tokens LG ──────────────────────────────────────────── */
+:root {
+  --lg-red:      #a50034;
+  --lg-red-lt:   #d4004a;
+  --lg-red-dim:  rgba(165,0,52,.15);
+  --lg-red-glow: rgba(165,0,52,.35);
+  --surface-0:   #0a0e14;
+  --surface-1:   #111720;
+  --surface-2:   #1a2233;
+  --surface-3:   #222d42;
+  --border:      #2a3550;
+  --border-lt:   #3a4d6a;
+  --text-hi:     #f0f4fa;
+  --text-md:     #d4dce8;
+  --text-lo:     #7a8fa8;
+  --text-dim:    #4a5f7a;
+  --green:       #00d68f;
+  --green-dim:   rgba(0,214,143,.12);
+  --amber:       #ffb300;
+  --amber-dim:   rgba(255,179,0,.12);
+  --blue:        #4d8ef0;
+  --blue-dim:    rgba(77,142,240,.12);
+  --purple:      #9b6dff;
+  --purple-dim:  rgba(155,109,255,.12);
+  --mono:        'IBM Plex Mono', 'Fira Code', monospace;
+  --radius:      10px;
+  --radius-sm:   6px;
+}
+
+/* ── Barra lateral + layout ─────────────────────────────── */
+.layout { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: 272px; flex-shrink: 0;
+  background: var(--surface-1);
+  border-right: 1px solid var(--border);
+  position: fixed; top: 0; left: 0; bottom: 0;
+  overflow-y: auto; z-index: 100;
+  display: flex; flex-direction: column;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--border-lt); border-radius: 2px; }
+
+.sidebar-brand {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-brand .lg-logo {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-weight: 800; font-size: 18px; color: var(--text-hi);
+  letter-spacing: -.5px;
+}
+.sidebar-brand .lg-logo span.dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--lg-red); flex-shrink: 0;
+  box-shadow: 0 0 8px var(--lg-red-glow);
+}
+.sidebar-brand .sub {
+  margin-top: 6px; font-size: 11px; color: var(--text-lo);
+  letter-spacing: .5px; text-transform: uppercase;
+}
+.sidebar-brand .conv {
+  margin-top: 4px; font-size: 11px; color: var(--text-dim);
+  font-family: var(--mono);
+}
+
+.sidebar-section { padding: 18px 12px 4px; }
+.sidebar-section-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--text-dim);
+  padding: 0 8px; margin-bottom: 6px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: var(--radius-sm);
+  cursor: pointer; transition: all .15s;
+  font-size: 13.5px; color: var(--text-lo);
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+.nav-item:hover { background: var(--surface-2); color: var(--text-md); }
+.nav-item.active {
+  background: var(--lg-red-dim); color: var(--lg-red-lt);
+  border-color: rgba(165,0,52,.3);
+  font-weight: 600;
+}
+.nav-item .num {
+  font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+  min-width: 22px;
+}
+.nav-item.active .num { color: var(--lg-red-lt); }
+
+.sidebar-progress {
+  margin-top: auto; padding: 16px 20px;
+  border-top: 1px solid var(--border);
+}
+.progress-label { font-size: 11px; color: var(--text-lo); margin-bottom: 8px; }
+.progress-bar {
+  height: 4px; background: var(--surface-3); border-radius: 2px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; background: var(--lg-red);
+  border-radius: 2px; transition: width .4s;
+}
+
+/* ── Conteúdo principal ─────────────────────────────────── */
+.main {
+  margin-left: 272px; flex: 1;
+  min-height: 100vh; padding: 0;
+}
+
+/* ── Hero ────────────────────────────────────────────────── */
+.hero {
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--border);
+  padding: 56px 64px 48px;
+  position: relative; overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(ellipse 60% 80% at 85% 50%, rgba(165,0,52,.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-eyebrow {
+  font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--lg-red-lt);
+  margin-bottom: 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+.hero-eyebrow::before {
+  content: ''; width: 24px; height: 2px; background: var(--lg-red);
+}
+.hero-title {
+  font-size: 42px; font-weight: 800; line-height: 1.15;
+  color: var(--text-hi); letter-spacing: -1.2px;
+  margin-bottom: 16px;
+}
+.hero-title em { color: var(--lg-red-lt); font-style: normal; }
+.hero-sub {
+  font-size: 17px; color: var(--text-lo); line-height: 1.65;
+  max-width: 620px; margin-bottom: 32px;
+}
+.hero-tags {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.tag {
+  font-size: 12px; font-family: var(--mono);
+  padding: 4px 10px; border-radius: 20px;
+  border: 1px solid var(--border-lt);
+  color: var(--text-lo);
+  background: var(--surface-2);
+}
+.tag.red { border-color: rgba(165,0,52,.4); color: var(--lg-red-lt); background: var(--lg-red-dim); }
+.tag.green { border-color: rgba(0,214,143,.3); color: var(--green); background: var(--green-dim); }
+
+/* ── Pipeline visual ────────────────────────────────────── */
+.pipeline-strip {
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  padding: 20px 64px;
+  display: flex; align-items: center; gap: 0; overflow-x: auto;
+}
+.pipeline-strip::-webkit-scrollbar { height: 3px; }
+.pipeline-strip::-webkit-scrollbar-thumb { background: var(--border-lt); }
+
+.pipe-step {
+  display: flex; align-items: center; gap: 0; flex-shrink: 0;
+}
+.pipe-node {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 4px; cursor: pointer;
+}
+.pipe-circle {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 2px solid var(--border-lt);
+  background: var(--surface-1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; font-family: var(--mono);
+  color: var(--text-lo); transition: all .2s;
+}
+.pipe-node:hover .pipe-circle { border-color: var(--lg-red); color: var(--lg-red-lt); }
+.pipe-node.done .pipe-circle { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+.pipe-node.current .pipe-circle { border-color: var(--lg-red); color: var(--text-hi); background: var(--lg-red); box-shadow: 0 0 12px var(--lg-red-glow); }
+.pipe-label { font-size: 10px; color: var(--text-dim); max-width: 64px; text-align: center; line-height: 1.3; }
+.pipe-node.done .pipe-label { color: var(--green); }
+.pipe-node.current .pipe-label { color: var(--text-md); }
+.pipe-arrow { width: 28px; height: 2px; background: var(--border); margin: 0 2px; margin-bottom: 14px; position: relative; flex-shrink: 0; }
+.pipe-arrow::after { content: '▶'; position: absolute; right: -7px; top: -7px; font-size: 10px; color: var(--border); }
+.pipe-arrow.done { background: var(--green); }
+.pipe-arrow.done::after { color: var(--green); }
+
+/* ── Seções ──────────────────────────────────────────────── */
+.section { padding: 56px 64px; border-bottom: 1px solid var(--border); }
+.section:last-child { border-bottom: none; }
+
+.section-eyebrow {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--text-dim);
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-num {
+  font-family: var(--mono); color: var(--lg-red-lt); font-size: 11px;
+}
+.section-title {
+  font-size: 28px; font-weight: 700; letter-spacing: -.6px;
+  color: var(--text-hi); margin-bottom: 8px;
+}
+.section-sub {
+  font-size: 15px; color: var(--text-lo); margin-bottom: 40px;
+  max-width: 680px;
+}
+
+/* ── Blocos de fase ──────────────────────────────────────── */
+.phase-block {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden; margin-bottom: 32px;
+}
+.phase-header {
+  padding: 16px 24px;
+  display: flex; align-items: center; gap: 14px;
+  cursor: pointer; user-select: none;
+  border-bottom: 1px solid var(--border);
+  transition: background .15s;
+}
+.phase-header:hover { background: var(--surface-2); }
+.phase-header.open { background: var(--surface-2); }
+
+.phase-badge {
+  width: 32px; height: 32px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 13px; font-weight: 600;
+  flex-shrink: 0;
+}
+.phase-badge.red { background: var(--lg-red-dim); color: var(--lg-red-lt); border: 1px solid rgba(165,0,52,.3); }
+.phase-badge.green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(0,214,143,.25); }
+.phase-badge.blue { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(77,142,240,.25); }
+.phase-badge.amber { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(255,179,0,.25); }
+.phase-badge.purple { background: var(--purple-dim); color: var(--purple); border: 1px solid rgba(155,109,255,.25); }
+
+.phase-title { font-weight: 600; font-size: 15px; color: var(--text-hi); }
+.phase-meta { font-size: 12px; color: var(--text-lo); margin-top: 2px; font-family: var(--mono); }
+.phase-toggle { margin-left: auto; color: var(--text-dim); font-size: 18px; transition: transform .2s; }
+.phase-header.open .phase-toggle { transform: rotate(90deg); }
+.phase-body { padding: 0 24px 24px; display: none; }
+.phase-body.open { display: block; }
+
+/* ── Prose ───────────────────────────────────────────────── */
+p { color: var(--text-md); margin-bottom: 14px; font-size: 14.5px; line-height: 1.75; }
+strong { color: var(--text-hi); font-weight: 600; }
+
+/* ── Code block ──────────────────────────────────────────── */
+.code-wrap { margin: 20px 0; border-radius: var(--radius); overflow: hidden; }
+.code-header {
+  background: var(--surface-3); padding: 10px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.code-filename { font-family: var(--mono); font-size: 12px; color: var(--text-lo); }
+.code-lang { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .8px; font-family: var(--mono); }
+.copy-btn {
+  background: none; border: 1px solid var(--border);
+  color: var(--text-lo); padding: 3px 10px;
+  border-radius: 4px; cursor: pointer; font-size: 11px;
+  transition: all .15s;
+}
+.copy-btn:hover { border-color: var(--text-lo); color: var(--text-md); }
+.copy-btn.copied { border-color: var(--green); color: var(--green); }
+pre {
+  background: #080c12;
+  padding: 20px 20px; overflow-x: auto;
+  font-family: var(--mono); font-size: 13px; line-height: 1.65;
+  color: #c9d4e4;
+  margin: 0;
+}
+pre::-webkit-scrollbar { height: 4px; }
+pre::-webkit-scrollbar-thumb { background: var(--border-lt); border-radius: 2px; }
+
+/* Syntax highlighting */
+.kw { color: #d2a8ff; }  /* keyword */
+.st { color: #a5d6ff; }  /* string */
+.cm { color: #4a5f7a; font-style: italic; } /* comment */
+.fn { color: #79c0ff; }  /* function */
+.nm { color: #ffa657; }  /* number / literal */
+.op { color: #e3b341; }  /* operator */
+.cl { color: #f9826c; }  /* class */
+.vr { color: #c9d4e4; }  /* variable */
+
+/* ── Info boxes ──────────────────────────────────────────── */
+.box {
+  border-radius: var(--radius-sm);
+  padding: 16px 18px;
+  margin: 20px 0;
+  font-size: 13.5px;
+  border-left: 3px solid;
+  line-height: 1.65;
+}
+.box-label { font-weight: 700; font-size: 11px; letter-spacing: .8px; text-transform: uppercase; margin-bottom: 6px; }
+.box.info { background: var(--blue-dim); border-color: var(--blue); }
+.box.info .box-label { color: var(--blue); }
+.box.warn { background: var(--amber-dim); border-color: var(--amber); }
+.box.warn .box-label { color: var(--amber); }
+.box.danger { background: var(--lg-red-dim); border-color: var(--lg-red); }
+.box.danger .box-label { color: var(--lg-red-lt); }
+.box.success { background: var(--green-dim); border-color: var(--green); }
+.box.success .box-label { color: var(--green); }
+.box.rule { background: var(--purple-dim); border-color: var(--purple); }
+.box.rule .box-label { color: var(--purple); }
+
+/* ── Tabelas ──────────────────────────────────────────────── */
+.table-wrap { overflow-x: auto; margin: 20px 0; border-radius: var(--radius); border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+thead tr { background: var(--surface-2); }
+th { padding: 11px 14px; text-align: left; font-weight: 600; color: var(--text-md); font-size: 12px; letter-spacing: .3px; border-bottom: 1px solid var(--border); }
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-md); vertical-align: top; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:nth-child(even) { background: rgba(26,34,51,.4); }
+td code, th code { font-family: var(--mono); font-size: 12px; background: var(--surface-3); padding: 1px 5px; border-radius: 3px; color: var(--text-md); }
+
+/* ── Checklist ───────────────────────────────────────────── */
+.checklist { list-style: none; margin: 16px 0; }
+.checklist li {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+  font-size: 14px; color: var(--text-md);
+}
+.checklist li:last-child { border-bottom: none; }
+.check-box {
+  width: 18px; height: 18px; border: 1.5px solid var(--border-lt);
+  border-radius: 4px; flex-shrink: 0; margin-top: 2px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .15s; background: var(--surface-2);
+}
+.check-box.checked { background: var(--green); border-color: var(--green); }
+.check-box.checked::after { content: '✓'; font-size: 11px; color: #000; font-weight: 800; }
+.check-text.checked { text-decoration: line-through; color: var(--text-dim); }
+
+/* ── Gabarito collapse ───────────────────────────────────── */
+.gabarito {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin: 24px 0;
+  overflow: hidden;
+}
+.gabarito-header {
+  padding: 12px 16px;
+  display: flex; align-items: center; gap: 10px;
+  cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--lg-red-lt);
+  user-select: none;
+}
+.gabarito-header::before { content: '🔑'; font-size: 14px; }
+.gabarito-header .gab-toggle { margin-left: auto; font-size: 16px; color: var(--text-dim); transition: transform .2s; }
+.gabarito-header.open .gab-toggle { transform: rotate(90deg); }
+.gabarito-body { padding: 0 16px 16px; display: none; }
+.gabarito-body.open { display: block; }
+.gabarito-body p { font-size: 13.5px; }
+
+/* ── Step list ───────────────────────────────────────────── */
+.step-list { counter-reset: step; list-style: none; margin: 16px 0; }
+.step-list li {
+  counter-increment: step;
+  display: flex; gap: 14px; margin-bottom: 18px;
+  align-items: flex-start;
+}
+.step-list li::before {
+  content: counter(step, decimal-leading-zero);
+  font-family: var(--mono); font-size: 12px; font-weight: 600;
+  color: var(--lg-red-lt);
+  background: var(--lg-red-dim); border: 1px solid rgba(165,0,52,.3);
+  min-width: 32px; height: 32px;
+  border-radius: 6px; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-top: 1px;
+}
+.step-list li span { font-size: 14px; color: var(--text-md); line-height: 1.65; padding-top: 5px; }
+
+/* ── Terminal ─────────────────────────────────────────────── */
+.terminal {
+  background: #000608; border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden; margin: 20px 0;
+}
+.terminal-bar {
+  background: var(--surface-3); padding: 8px 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.terminal-bar .dot { width: 11px; height: 11px; border-radius: 50%; }
+.terminal-bar .dot.r { background: #ff5f57; }
+.terminal-bar .dot.y { background: #ffbd2e; }
+.terminal-bar .dot.g { background: #28c840; }
+.terminal-body { padding: 18px 20px; font-family: var(--mono); font-size: 13px; line-height: 1.7; }
+.t-prompt { color: var(--green); }
+.t-cmd { color: var(--text-hi); }
+.t-out { color: var(--text-lo); }
+.t-ok { color: var(--green); }
+.t-err { color: var(--lg-red-lt); }
+.t-warn { color: var(--amber); }
+.t-comment { color: var(--text-dim); }
+
+/* ── Cards de resultado ──────────────────────────────────── */
+.result-card {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+  margin-bottom: 16px; display: flex; gap: 14px; align-items: flex-start;
+}
+.result-icon { font-size: 22px; flex-shrink: 0; }
+.result-title { font-weight: 600; font-size: 14px; color: var(--text-hi); margin-bottom: 4px; }
+.result-desc { font-size: 13px; color: var(--text-lo); line-height: 1.55; }
+.result-code { font-family: var(--mono); font-size: 11px; color: var(--green); margin-top: 6px; }
+
+/* ── Sticky submenu ──────────────────────────────────────── */
+.sticky-nav {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(10,14,20,.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 64px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.sticky-title { font-size: 13px; font-weight: 600; color: var(--text-hi); }
+.sticky-meta { font-size: 12px; color: var(--text-lo); font-family: var(--mono); }
+
+/* ── Footer ──────────────────────────────────────────────── */
+.footer {
+  padding: 32px 64px; background: var(--surface-1);
+  border-top: 1px solid var(--border);
+  font-size: 12px; color: var(--text-dim);
+  display: flex; gap: 24px; align-items: center; flex-wrap: wrap;
+}
+.footer span { color: var(--text-lo); }
+.footer .footer-red { color: var(--lg-red-lt); font-weight: 600; }
+
+/* ── Responsivo ──────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .sidebar { width: 0; overflow: hidden; }
+  .main { margin-left: 0; }
+  .hero, .section, .sticky-nav, .pipeline-strip, .footer { padding-left: 24px; padding-right: 24px; }
+}
+
+/* ── Utilidades ──────────────────────────────────────────── */
+.mt-4 { margin-top: 16px; }
+.mt-6 { margin-top: 24px; }
+.mb-0 { margin-bottom: 0; }
+.mono { font-family: var(--mono); font-size: 12.5px; }
+.highlight { color: var(--lg-red-lt); font-weight: 600; }
+.hl-green { color: var(--green); font-weight: 600; }
+.hl-amber { color: var(--amber); font-weight: 600; }
+.hl-blue { color: var(--blue); }
+.hl-purple { color: var(--purple); }
+
+ul.bullets { padding-left: 18px; margin: 12px 0; }
+ul.bullets li { font-size: 14px; color: var(--text-md); margin-bottom: 6px; line-height: 1.6; }
+ul.bullets li::marker { color: var(--lg-red); }
+
+.divider { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ═══════════════════════════════════════════════════════
+     SIDEBAR
+════════════════════════════════════════════════════════ -->
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <div class="lg-logo"><span class="dot"></span>LG Electronics</div>
+    <div class="sub">AX Academy · Hyperautomation</div>
+    <div class="conv">Convênio N.º 005/2025</div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Contexto</div>
+    <a class="nav-item" href="#hero"><span class="num">00</span>Onde estamos</a>
+    <a class="nav-item" href="#pipeline"><span class="num">→</span>Pipeline do projeto</a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Fase 1 — Git Industrial</div>
+    <a class="nav-item" href="#s1"><span class="num">01</span>GitFlow corporativo</a>
+    <a class="nav-item" href="#s2"><span class="num">02</span>Commits semânticos</a>
+    <a class="nav-item" href="#s3"><span class="num">03</span>Pull Request + revisão</a>
+    <a class="nav-item" href="#s4"><span class="num">04</span>Conflitos e recuperação</a>
+    <a class="nav-item" href="#s5"><span class="num">05</span>Release + CHANGELOG</a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Fase 2 — Primeiro Bot</div>
+    <a class="nav-item" href="#s6"><span class="num">06</span>Estrutura do projeto</a>
+    <a class="nav-item" href="#s7"><span class="num">07</span>bot.py executável</a>
+    <a class="nav-item" href="#s8"><span class="num">08</span>Credenciais e segredos</a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Fase 3 — BotCity Maestro</div>
+    <a class="nav-item" href="#s9"><span class="num">09</span>Execução corporativa</a>
+    <a class="nav-item" href="#s10"><span class="num">10</span>DataPool</a>
+    <a class="nav-item" href="#s11"><span class="num">11</span>Credentials Vault</a>
+    <a class="nav-item" href="#s12"><span class="num">12</span>Logs, alertas e evidências</a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Entrega</div>
+    <a class="nav-item" href="#s13"><span class="num">13</span>Checklist de entrega</a>
+  </div>
+
+  <div class="sidebar-progress">
+    <div class="progress-label">Progresso do tutorial</div>
+    <div class="progress-bar"><div class="progress-fill" id="progress" style="width:0%"></div></div>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════
+     MAIN
+════════════════════════════════════════════════════════ -->
+<main class="main">
+
+<!-- HERO -->
+<section class="hero" id="hero">
+  <div class="hero-eyebrow">Continuidade do Estudo de Caso 1</div>
+  <h1 class="hero-title">Do <em>PDD</em> ao bot<br>em produção corporativa</h1>
+  <p class="hero-sub">Você já fez o diagnóstico, o BPMN AS-IS, o TO-BE e o PDD do processo de conferência de lotes. Agora vem a parte que transforma documento em sistema: versionamento industrial, primeiro bot executável e orquestração no BotCity Maestro.</p>
+  <div class="hero-tags">
+    <span class="tag red">Git · GitFlow · GitHub</span>
+    <span class="tag red">BotCity Maestro</span>
+    <span class="tag red">DataPool · Credentials Vault</span>
+    <span class="tag green">Alunos já sabem o básico de Git</span>
+    <span class="tag">LG Electronics PIM · Qualidade</span>
+    <span class="tag">TZ=America/Manaus</span>
+  </div>
+</section>
+
+<!-- PIPELINE -->
+<div class="pipeline-strip" id="pipeline">
+  <div class="pipe-step">
+    <div class="pipe-node done" title="Concluído">
+      <div class="pipe-circle">✓</div>
+      <div class="pipe-label">Entrevista simulada</div>
+    </div>
+    <div class="pipe-arrow done"></div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-node done">
+      <div class="pipe-circle">✓</div>
+      <div class="pipe-label">BPMN AS-IS</div>
+    </div>
+    <div class="pipe-arrow done"></div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-node done">
+      <div class="pipe-circle">✓</div>
+      <div class="pipe-label">Priorização</div>
+    </div>
+    <div class="pipe-arrow done"></div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-node done">
+      <div class="pipe-circle">✓</div>
+      <div class="pipe-label">BPMN TO-BE</div>
+    </div>
+    <div class="pipe-arrow done"></div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-node done">
+      <div class="pipe-circle">✓</div>
+      <div class="pipe-label">PDD completo</div>
+    </div>
+    <div class="pipe-arrow"></div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-node current">
+      <div class="pipe-circle">6</div>
+      <div class="pipe-label">Git industrial</div>
+    </div>
+    <div class="pipe-arrow"></div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-node">
+      <div class="pipe-circle">7</div>
+      <div class="pipe-label">Primeiro bot</div>
+    </div>
+    <div class="pipe-arrow"></div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-node">
+      <div class="pipe-circle">8</div>
+      <div class="pipe-label">Maestro</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     FASE 1 — GIT INDUSTRIAL
+════════════════════════════════════════════════════════ -->
+<div class="sticky-nav">
+  <div class="sticky-title">⚙️ Fase 1 — Git e GitHub com rastreabilidade industrial</div>
+  <div class="sticky-meta">Aulas 6–10 · Semana 2</div>
+</div>
+
+<!-- S1: GitFlow -->
+<section class="section" id="s1">
+  <div class="section-eyebrow"><span class="section-num">01</span>GitFlow corporativo</div>
+  <h2 class="section-title">Estrutura de branches para automações industriais</h2>
+  <p class="section-sub">No projeto da LG Electronics, o código produzido é propriedade intelectual da empresa. Repositórios são privados e cada mudança precisa de rastreabilidade. O GitFlow define quem pode alterar o quê e quando.</p>
+
+  <div class="box info">
+    <div class="box-label">📌 Contexto do projeto</div>
+    Processo: <strong>Conferência diária de lotes de inspeção — Área de Qualidade · LG/PIM</strong>.<br>
+    Repositório: <code>conferencia-lotes-qualidade</code> (privado, sua conta + instrutor como colaborador).
+  </div>
+
+  <div class="phase-block">
+    <div class="phase-header" onclick="toggle(this)">
+      <div class="phase-badge red">01</div>
+      <div>
+        <div class="phase-title">Criar a estrutura de branches do projeto</div>
+        <div class="phase-meta">Aula 6 · ~20 min</div>
+      </div>
+      <span class="phase-toggle">▶</span>
+    </div>
+    <div class="phase-body">
+      <p>O GitFlow para projetos de automação corporativa usa exatamente estas branches — não mais, não menos no início:</p>
+
+      <div class="code-wrap">
+        <div class="code-header">
+          <span class="code-filename">terminal — criar estrutura inicial</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span class="code-lang">bash</span>
+            <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+          </div>
+        </div>
+<pre><span class="cm"># 1. Clonar o repositório (já criado no GitHub como privado)</span>
+git clone git@github.com:SEU_USUARIO/conferencia-lotes-qualidade.git
+cd conferencia-lotes-qualidade
+
+<span class="cm"># 2. Criar branch develop a partir de main</span>
+git checkout -b develop
+git push -u origin develop
+
+<span class="cm"># 3. Criar a primeira feature branch (PDD já feito, agora é código)</span>
+git checkout develop
+git checkout -b feature/S2-estrutura-projeto
+
+<span class="cm"># 4. Verificar situação</span>
+git branch -a
+<span class="t-out"># * feature/S2-estrutura-projeto
+#   develop
+#   main
+#   remotes/origin/develop
+#   remotes/origin/main</span></pre>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Branch</th><th>Quem usa</th><th>Regra</th><th>Protegida?</th></tr></thead>
+          <tbody>
+            <tr><td><code>main</code></td><td>Ninguém diretamente</td><td>Só recebe via PR de <code>release/*</code> ou <code>hotfix/*</code></td><td>✅ Sim</td></tr>
+            <tr><td><code>develop</code></td><td>Toda a equipe</td><td>Recebe merges de <code>feature/*</code> via PR</td><td>✅ Sim</td></tr>
+            <tr><td><code>feature/S2-*</code></td><td>Desenvolvedor da feature</td><td>Criada a partir de <code>develop</code>, volta via PR</td><td>❌ Não</td></tr>
+            <tr><td><code>release/v0.x.0</code></td><td>Responsável técnico</td><td>Criada de <code>develop</code>, merge em <code>main</code> + <code>develop</code></td><td>❌ Não</td></tr>
+            <tr><td><code>hotfix/descricao</code></td><td>Responsável técnico</td><td>Criada de <code>main</code>, merge em <code>main</code> + <code>develop</code></td><td>❌ Não</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="box warn">
+        <div class="box-label">⚠️ Proteger branches no GitHub</div>
+        Em <strong>Settings → Branches → Branch protection rules</strong>, proteja <code>main</code> e <code>develop</code>:
+        <ul class="bullets" style="margin-top:8px">
+          <li>Require a pull request before merging (1 reviewer mínimo)</li>
+          <li>Require status checks to pass (CI deve estar verde)</li>
+          <li>Do not allow bypassing the above settings</li>
+        </ul>
+        Sem isso, qualquer membro do time pode fazer push direto em <code>main</code> — invalidando toda a rastreabilidade.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S2: Commits semânticos -->
+<section class="section" id="s2">
+  <div class="section-eyebrow"><span class="section-num">02</span>Commits semânticos</div>
+  <h2 class="section-title">Histórico como documentação técnica auditável</h2>
+  <p class="section-sub">Em ambiente industrial, o histórico do Git é evidência. Um commit chamado "atualização" não informa nada a um auditor. Conventional Commits resolvem isso com estrutura rastreável automática.</p>
+
+  <div class="phase-block">
+    <div class="phase-header" onclick="toggle(this)">
+      <div class="phase-badge blue">02</div>
+      <div>
+        <div class="phase-title">Padrão Conventional Commits para automações</div>
+        <div class="phase-meta">Aula 7 · referência permanente</div>
+      </div>
+      <span class="phase-toggle">▶</span>
+    </div>
+    <div class="phase-body">
+      <div class="code-wrap">
+        <div class="code-header">
+          <span class="code-filename">formato do commit</span>
+          <span class="code-lang">texto</span>
+        </div>
+<pre><span class="nm">tipo</span><span class="op">(</span><span class="st">escopo</span><span class="op">)</span><span class="op">:</span> descrição curta no imperativo
+
+[corpo opcional — explica o POR QUÊ, não o O QUÊ]
+
+[rodapé — refs de issues, breaking changes]</pre>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tipo</th><th>Quando usar</th><th>Exemplo do projeto</th></tr></thead>
+          <tbody>
+            <tr><td><code>feat</code></td><td>Nova funcionalidade</td><td><code>feat(validacao): adicionar RN07 — obs. obrigatória em reprovado</code></td></tr>
+            <tr><td><code>fix</code></td><td>Corrigir bug</td><td><code>fix(status): normalizar NOK→REPROVADO antes de validar</code></td></tr>
+            <tr><td><code>docs</code></td><td>Documentação</td><td><code>docs(pdd): atualizar seção 12 com exceção EX03</code></td></tr>
+            <tr><td><code>test</code></td><td>Testes</td><td><code>test(base_referencia): adicionar caso lote inexistente</code></td></tr>
+            <tr><td><code>refactor</code></td><td>Sem bug, sem feature</td><td><code>refactor(main): extrair validação para src/validacao.py</code></td></tr>
+            <tr><td><code>chore</code></td><td>Infraestrutura, deps</td><td><code>chore(deps): atualizar botcity-maestro-sdk para 2.0.0</code></td></tr>
+            <tr><td><code>perf</code></td><td>Performance</td><td><code>perf(base): usar frozenset para lookup O(1) na base de referência</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="code-wrap">
+        <div class="code-header">
+          <span class="code-filename">exemplos reais do projeto de lotes</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        </div>
+<pre><span class="cm"># ✅ Commit correto — rastreável ao PDD</span>
+git commit -m <span class="st">"feat(validacao): implementar RN03 — verificar lote na base de referência
+
+Adiciona consulta à base_referencia_lotes.csv usando frozenset para
+performance O(1). Lotes inexistentes geram divergência com código
+EX02 conforme PDD seção 13.
+
+Ref: PDD v0.2 seção 12, regra RN03"</span>
+
+<span class="cm"># ✅ Commit de correção com referência ao incidente</span>
+git commit -m <span class="st">"fix(status): aceitar 'OK' como sinônimo de APROVADO (RN05)
+
+Rafael (operador) confirmou que o sistema legado às vezes exporta
+'OK' em vez de 'APROVADO'. A regra informal foi documentada no PDD
+como RN05 e agora está implementada.
+
+Closes #3"</span>
+
+<span class="cm"># ❌ Commit ruim — não use assim</span>
+git commit -m <span class="st">"atualização"</span>
+git commit -m <span class="st">"ajustes finais"</span>
+git commit -m <span class="st">"correção de bug"</span></pre>
+      </div>
+
+      <div class="box success">
+        <div class="box-label">✅ Gabarito de commit semântico</div>
+        Um commit bem feito responde <strong>O QUÊ mudou</strong> (tipo + escopo) e <strong>POR QUÊ</strong> (corpo). O <em>como</em> está no diff — não precisa no commit. Se o corpo menciona uma regra do PDD (RN03, EX02) ou fecha uma issue (#3), o histórico do Git vira documentação técnica auditável.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S3: Pull Request -->
+<section class="section" id="s3">
+  <div class="section-eyebrow"><span class="section-num">03</span>Pull Request e revisão de código</div>
+  <h2 class="section-title">Nenhum código vai para develop sem revisão</h2>
+  <p class="section-sub">O PR é o portão de qualidade. No contexto do convênio LG/INOVA/IFAM, é também a evidência de que o código foi revisado antes de avançar — exigida em auditorias.</p>
+
+  <div class="phase-block">
+    <div class="phase-header" onclick="toggle(this)">
+      <div class="phase-badge green">03</div>
+      <div>
+        <div class="phase-title">Abrir, revisar e mergear um Pull Request completo</div>
+        <div class="phase-meta">Aula 8 · exercício em duplas</div>
+      </div>
+      <span class="phase-toggle">▶</span>
+    </div>
+    <div class="phase-body">
+      <p><strong>Quem abre o PR:</strong> desenvolvedor da feature.<br>
+      <strong>Quem revisa:</strong> outro aluno do grupo (code review par a par).</p>
+
+      <div class="code-wrap">
+        <div class="code-header">
+          <span class="code-filename">abrindo o PR pela CLI</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        </div>
+<pre><span class="cm"># Antes de abrir o PR: sincronizar com develop</span>
+git checkout feature/S2-estrutura-projeto
+git fetch origin develop
+git rebase origin/develop
+<span class="cm"># Resolver conflitos se houver, então:</span>
+git push origin feature/S2-estrutura-projeto
+
+<span class="cm"># Opção 1: GitHub CLI (gh)</span>
+gh pr create \
+  --base develop \
+  --title <span class="st">"feat(estrutura): criar estrutura inicial do projeto"</span> \
+  --body <span class="st">"## O que muda
+- Cria src/, tests/, docs/, data/ com .gitkeep
+- Adiciona .gitignore completo (venv, .env, logs, data/output)
+- Adiciona .env.example com variáveis necessárias
+
+## Checklist
+- [x] Sem credenciais hardcodadas
+- [x] .env no .gitignore
+- [x] README atualizado
+
+## Ref
+PDD v0.1 seção 14 — estrutura de entrega"</span> \
+  --reviewer USUARIO_COLEGA</pre>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Item que o revisor deve verificar</th><th>Como verificar</th><th>Bloqueia merge?</th></tr></thead>
+          <tbody>
+            <tr><td>Nenhuma credencial no diff</td><td><code>git diff develop..feature/X | grep -i "password\|token\|secret\|senha"</code></td><td>✅ Sim</td></tr>
+            <tr><td>.env está no .gitignore</td><td>Verificar arquivo .gitignore na raiz</td><td>✅ Sim</td></tr>
+            <tr><td>Sem dados reais de colaboradores ou lotes</td><td>Revisar arquivos em data/samples/</td><td>✅ Sim</td></tr>
+            <tr><td>Commit messages seguem padrão semântico</td><td><code>git log --oneline origin/develop..HEAD</code></td><td>⚠️ Solicitar correção</td></tr>
+            <tr><td>CI está passando (lint + testes)</td><td>Badge verde no PR</td><td>✅ Sim</td></tr>
+            <tr><td>README atualizado com as mudanças</td><td>Abrir README no diff</td><td>⚠️ Solicitar se relevante</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="gabarito">
+        <div class="gabarito-header" onclick="toggleGab(this)">
+          Gabarito — O que o revisor escreve no code review
+          <span class="gab-toggle">▶</span>
+        </div>
+        <div class="gabarito-body">
+          <p>Um review útil é específico — aponta o arquivo e a linha, não apenas "está errado":</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">exemplo de comentário de revisão</span></div>
+<pre><span class="cm"># ✅ Comentário específico e útil</span>
+<span class="st">"src/validacao.py linha 34: o status 'REPROV.' não está na lista
+de normalizações (RN05). Conforme PDD, 'OK'→APROVADO e 'NOK'→REPROVADO
+são as únicas normalizações documentadas. Se 'REPROV.' é válido,
+precisa ser documentado no PDD antes de entrar no código."</span>
+
+<span class="cm"># ❌ Comentário vago — não ajuda</span>
+<span class="st">"Tem um problema aqui no status"</span>
+<span class="st">"Parece errado"</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S4: Conflitos e recuperação -->
+<section class="section" id="s4">
+  <div class="section-eyebrow"><span class="section-num">04</span>Conflitos, hotfix, stash e recuperação de erros</div>
+  <h2 class="section-title">O que fazer quando dá errado — e vai dar</h2>
+  <p class="section-sub">A diferença entre um desenvolvedor júnior e um sênior não é que o sênior nunca erra — é que o sênior sabe recuperar. Estes são os cenários reais do projeto de lotes.</p>
+
+  <div class="phase-block">
+    <div class="phase-header" onclick="toggle(this)">
+      <div class="phase-badge amber">04</div>
+      <div>
+        <div class="phase-title">Cenário A — Resolução de conflito de merge</div>
+        <div class="phase-meta">Aula 9 · conflito intencionalmente causado no exercício</div>
+      </div>
+      <span class="phase-toggle">▶</span>
+    </div>
+    <div class="phase-body">
+      <p>Dois alunos editaram <code>src/validacao.py</code> ao mesmo tempo em branches diferentes. O merge de um causou conflito no outro.</p>
+      <div class="code-wrap">
+        <div class="code-header">
+          <span class="code-filename">diagnosticar e resolver conflito</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        </div>
+<pre><span class="cm"># Situação: merge falhou</span>
+git merge feature/colega-validacao-rn05
+<span class="t-err">CONFLICT (content): Merge conflict in src/validacao.py</span>
+<span class="t-err">Automatic merge failed; fix conflicts and then commit the result.</span>
+
+<span class="cm"># Ver o que conflitou</span>
+git status
+<span class="t-out">both modified:   src/validacao.py</span>
+
+<span class="cm"># Abrir o arquivo — encontrará marcadores:</span>
+<span class="cm">########################################</span>
+<span class="cm"># <<<<<<< HEAD   (sua versão)</span>
+STATUS_VALIDOS = {<span class="st">'APROVADO'</span>, <span class="st">'REPROVADO'</span>, <span class="st">'PENDENTE'</span>}
+<span class="cm"># =======        (versão do colega)</span>
+STATUS_VALIDOS = {<span class="st">'APROVADO'</span>, <span class="st">'REPROVADO'</span>, <span class="st">'PENDENTE'</span>, <span class="st">'EM_ANALISE'</span>}
+<span class="cm"># >>>>>>> feature/colega-validacao-rn05</span>
+<span class="cm">########################################</span>
+
+<span class="cm"># DECISÃO TÉCNICA: consultar o PDD (RN04) antes de resolver.
+# Se 'EM_ANALISE' não está no PDD, não deve entrar.
+# Solução: combinar + documentar no commit</span>
+STATUS_VALIDOS = {<span class="st">'APROVADO'</span>, <span class="st">'REPROVADO'</span>, <span class="st">'PENDENTE'</span>}
+<span class="cm"># EM_ANALISE: aguardando aprovação no PDD (issue #7)</span>
+
+git add src/validacao.py
+git commit -m <span class="st">"merge(validacao): resolver conflito RN04 — manter conjunto PDD aprovado
+
+EM_ANALISE não está no PDD v0.2. Abrimos issue #7 para aprovação
+pelo dono do processo (Rafael) antes de incluir.
+
+Co-authored-by: NomeColega &lt;email@colega.com&gt;"</span></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase-block">
+    <div class="phase-header" onclick="toggle(this)">
+      <div class="phase-badge red">04B</div>
+      <div>
+        <div class="phase-title">Cenário B — Hotfix urgente em produção</div>
+        <div class="phase-meta">Aula 9 · bug descoberto às 8h05</div>
+      </div>
+      <span class="phase-toggle">▶</span>
+    </div>
+    <div class="phase-body">
+      <p>O bot foi para produção ontem (v0.1.0). Hoje de manhã, o supervisor reportou que lotes com status <code>NOK</code> estão sendo classificados como ambíguos em vez de REPROVADO. O Convenio exige correção rastreável.</p>
+
+      <div class="code-wrap">
+        <div class="code-header">
+          <span class="code-filename">fluxo de hotfix completo</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        </div>
+<pre><span class="cm"># 1. Criar hotfix a partir de main (não de develop!)</span>
+git checkout main
+git checkout -b hotfix/fix-nok-normalizacao
+
+<span class="cm"># 2. Corrigir o bug</span>
+<span class="cm"># Antes: STATUS_MAP sem NOK</span>
+<span class="cm"># Depois:</span>
+STATUS_MAP = {
+    <span class="st">'OK'</span>: <span class="st">'APROVADO'</span>,
+    <span class="st">'NOK'</span>: <span class="st">'REPROVADO'</span>,    <span class="cm"># ← CORREÇÃO</span>
+    <span class="st">'REPROV.'</span>: <span class="st">'REPROVADO'</span>,
+}
+
+<span class="cm"># 3. Commit com referência ao incidente</span>
+git add src/validacao.py
+git commit -m <span class="st">"fix(status): adicionar NOK→REPROVADO na normalização (RN05)
+
+Bug: status NOK estava sendo classificado como ambíguo em vez de
+REPROVADO. Causa: STATUS_MAP incompleto — RN05 do PDD não foi
+totalmente implementado.
+
+Impacto: lotes NOK do turno A de hoje precisam ser reprocessados
+manualmente (confirmar com Rafael).
+
+Fixes #8"</span>
+
+<span class="cm"># 4. Merge em main COM TAG IMEDIATA</span>
+git checkout main
+git merge hotfix/fix-nok-normalizacao --no-ff
+git tag -a v0.1.1 -m <span class="st">"hotfix: normalização NOK→REPROVADO (RN05)"</span>
+git push origin main --tags
+
+<span class="cm"># 5. OBRIGATÓRIO: merge também em develop</span>
+git checkout develop
+git merge hotfix/fix-nok-normalizacao --no-ff
+git push origin develop
+
+<span class="cm"># 6. Deletar a branch de hotfix</span>
+git branch -d hotfix/fix-nok-normalizacao
+git push origin --delete hotfix/fix-nok-normalizacao</pre>
+      </div>
+
+      <div class="box danger">
+        <div class="box-label">⚠️ Erro crítico — esquecer de mergear hotfix em develop</div>
+        Se o hotfix vai apenas para <code>main</code> e não para <code>develop</code>, na próxima release o bug vai reaparecer — porque <code>develop</code> ainda tem o código antigo. Isso é o erro mais comum com GitFlow. <strong>Sempre: main + develop, nessa ordem.</strong>
+      </div>
+
+      <div class="phase-block" style="margin-top:24px">
+        <div class="phase-header" onclick="toggle(this)">
+          <div class="phase-badge amber">git stash</div>
+          <div>
+            <div class="phase-title">Cenário C — Stash e bisect para diagnóstico</div>
+            <div class="phase-meta">Comandos de emergência</div>
+          </div>
+          <span class="phase-toggle">▶</span>
+        </div>
+        <div class="phase-body">
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">stash + bisect</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+<pre><span class="cm"># git stash — guardar trabalho em andamento sem commitar</span>
+<span class="cm"># Situação: você está editando validacao.py, precisa trocar de branch urgente</span>
+git stash push -m <span class="st">"wip: implementando RN06 — status ambíguo"</span>
+git checkout main  <span class="cm"># agora pode trocar sem perder o trabalho</span>
+<span class="cm"># ... faz o que precisava ...</span>
+git checkout feature/S2-validacao
+git stash pop      <span class="cm"># restaura o trabalho</span>
+git stash list     <span class="cm"># ver todos os stashes</span>
+
+<span class="cm"># git bisect — encontrar qual commit introduziu um bug</span>
+<span class="cm"># Situação: o bot funcionava ontem, hoje falha. Qual commit causou?</span>
+git bisect start
+git bisect bad HEAD           <span class="cm"># commit atual tem o bug</span>
+git bisect good v0.1.0        <span class="cm"># esta tag estava boa</span>
+<span class="t-out"># Git vai checkout em commits intermediários automaticamente</span>
+<span class="t-out"># Para cada um, você testa e informa:</span>
+git bisect good    <span class="cm"># se este commit NÃO tem o bug</span>
+git bisect bad     <span class="cm"># se este commit TEM o bug</span>
+<span class="t-out"># Ao final: "abc1234 is the first bad commit"</span>
+git bisect reset   <span class="cm"># volta ao HEAD após identificar o culpado</span>
+
+<span class="cm"># git revert — desfazer commit sem reescrever histórico</span>
+<span class="cm"># USE SEMPRE REVERT, nunca reset --hard em branches compartilhadas</span>
+git revert abc1234 --no-edit
+<span class="cm"># Cria um novo commit que desfaz o abc1234, histórico intacto</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S5: Release + CHANGELOG -->
+<section class="section" id="s5">
+  <div class="section-eyebrow"><span class="section-num">05</span>Release, tag e CHANGELOG</div>
+  <h2 class="section-title">Entrega versionada com evidências verificáveis</h2>
+
+  <div class="phase-block">
+    <div class="phase-header" onclick="toggle(this)">
+      <div class="phase-badge green">05</div>
+      <div>
+        <div class="phase-title">Criar a primeira release do projeto — v0.1.0</div>
+        <div class="phase-meta">Aula 10 · entrega semanal</div>
+      </div>
+      <span class="phase-toggle">▶</span>
+    </div>
+    <div class="phase-body">
+      <div class="code-wrap">
+        <div class="code-header">
+          <span class="code-filename">CHANGELOG.md — formato padrão</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        </div>
+<pre><span class="cm"># Changelog — Bot Conferência de Lotes de Inspeção</span>
+<span class="cm"># Mantido por: [nome do grupo] · LG Electronics / AX Academy</span>
+<span class="cm"># Formato: https://keepachangelog.com/pt-BR/1.0.0/</span>
+
+<span class="cm">## [0.1.0] — 2026-06-26</span>
+
+<span class="cm">### Adicionado</span>
+- Estrutura inicial do projeto: src/, tests/, docs/, data/
+- .gitignore completo: venv, .env, logs/, data/output/, __pycache__
+- .env.example com variáveis necessárias sem valores reais
+- Ficha de Diagnóstico preenchida (docs/diagnostico/ficha_v1.md)
+- PDD versão 0.2 com 18 seções (docs/pdd/pdd_v0.2.md)
+- BPMN AS-IS e TO-BE em Bizagi (docs/bpmn/)
+- src/validacao.py: regras RN01–RN07 conforme PDD seção 12
+- src/base_referencia.py: consulta com frozenset O(1)
+- tests/test_validacao.py: 14 casos de teste, cobertura 87%
+- data/samples/inspecao_lotes_dia.xlsx: planilha fictícia com 25 registros
+
+<span class="cm">### Regras implementadas</span>
+- RN01: validação de estrutura (colunas obrigatórias)
+- RN02: campos obrigatórios preenchidos
+- RN03: lote existe na base de referência
+- RN04: status pertence ao conjunto permitido
+- RN05: normalização OK→APROVADO, NOK→REPROVADO
+- RN06: status desconhecido → caso ambíguo
+- RN07: lote REPROVADO exige observação
+
+<span class="cm">### Pendente</span>
+- DataPool BotCity (v0.2.0)
+- Credentials Vault (v0.2.0)
+- Integração Maestro (v0.2.0)</pre>
+      </div>
+
+      <div class="code-wrap">
+        <div class="code-header">
+          <span class="code-filename">criar e publicar a tag v0.1.0</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        </div>
+<pre><span class="cm"># 1. Garantir que develop está limpo e CI passou</span>
+git checkout develop
+git status  <span class="cm"># deve mostrar "nothing to commit"</span>
+
+<span class="cm"># 2. Criar branch de release</span>
+git checkout -b release/v0.1.0
+
+<span class="cm"># 3. Atualizar versão e CHANGELOG (único commit aceito aqui)</span>
+<span class="cm"># Editar CHANGELOG.md com a data correta e itens finais</span>
+git add CHANGELOG.md
+git commit -m <span class="st">"chore(release): preparar v0.1.0"</span>
+
+<span class="cm"># 4. Merge em main</span>
+git checkout main
+git merge release/v0.1.0 --no-ff -m <span class="st">"chore(release): merge v0.1.0 em main"</span>
+
+<span class="cm"># 5. Criar tag anotada (use -a, nunca tag simples em releases)</span>
+git tag -a v0.1.0 -m <span class="st">"Release v0.1.0 — Validação RN01–RN07 implementada"</span>
+
+<span class="cm"># 6. Push com tags</span>
+git push origin main --tags
+
+<span class="cm"># 7. Merge de volta em develop</span>
+git checkout develop
+git merge release/v0.1.0 --no-ff
+git push origin develop
+
+<span class="cm"># 8. Deletar branch de release</span>
+git branch -d release/v0.1.0
+
+<span class="cm"># 9. Criar GitHub Release via CLI</span>
+gh release create v0.1.0 \
+  --title <span class="st">"v0.1.0 — Validação RN01–RN07"</span> \
+  --notes-file CHANGELOG.md</pre>
+      </div>
+
+      <div class="gabarito">
+        <div class="gabarito-header" onclick="toggleGab(this)">
+          Gabarito — o que verificar na entrega da Semana 2
+          <span class="gab-toggle">▶</span>
+        </div>
+        <div class="gabarito-body">
+          <ul class="checklist" id="cl-semana2">
+            <li><div class="check-box" onclick="check(this)"></div><span class="check-text">Tag v0.1.0 visível em <code>github.com/SEU_REPO/releases</code></span></li>
+            <li><div class="check-box" onclick="check(this)"></div><span class="check-text">CHANGELOG.md com todas as regras implementadas listadas</span></li>
+            <li><div class="check-box" onclick="check(this)"></div><span class="check-text">CI passando (badge verde no README)</span></li>
+            <li><div class="check-box" onclick="check(this)"></div><span class="check-text"><code>git log --oneline main</code> mostra commits semânticos</span></li>
+            <li><div class="check-box" onclick="check(this)"></div><span class="check-text">Nenhum arquivo .env no repositório (<code>git log --all -- .env</code> retorna vazio)</span></li>
+            <li><div class="check-box" onclick="check(this)"></div><span class="check-text">PR de pelo menos 1 feature foi aberto e revisado antes do merge</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     FASE 2 — PRIMEIRO BOT
+════════════════════════════════════════════════════════ -->
+<div class="sticky-nav">
+  <div class="sticky-title">🤖 Fase 2 — Do repositório ao primeiro bot executável</div>
+  <div class="sticky-meta">Aulas 11–13 · Semana 3</div>
+</div>
+
+<!-- S6: Estrutura -->
+<section class="section" id="s6">
+  <div class="section-eyebrow"><span class="section-num">06</span>Estrutura do projeto</div>
+  <h2 class="section-title">A arquitetura de arquivos que o Maestro espera</h2>
+
+  <div class="phase-block">
+    <div class="phase-header open" onclick="toggle(this)">
+      <div class="phase-badge blue">06</div>
+      <div>
+        <div class="phase-title">Estrutura obrigatória para bots BotCity</div>
+        <div class="phase-meta">Aula 11 · configurar uma vez</div>
+      </div>
+      <span class="phase-toggle">▶</span>
+    </div>
+    <div class="phase-body open">
+      <div class="code-wrap">
+        <div class="code-header">
+          <span class="code-filename">árvore do projeto — gabarito completo</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        </div>
+<pre>conferencia-lotes-qualidade/
+<span class="op">├──</span> bot.py                    <span class="cm"># entry point — nome FIXO, nunca renomear</span>
+<span class="op">├──</span> requirements.txt          <span class="cm"># dependências — nome FIXO para o Maestro</span>
+<span class="op">├──</span> .env                      <span class="cm"># NUNCA no Git — apenas local</span>
+<span class="op">├──</span> .env.example              <span class="cm"># template sem valores reais — vai no Git</span>
+<span class="op">├──</span> .gitignore                <span class="cm"># venv, .env, logs, data/output, __pycache__</span>
+<span class="op">├──</span> README.md                 <span class="cm"># instruções de execução e configuração</span>
+<span class="op">├──</span> CHANGELOG.md             <span class="cm"># histórico de versões</span>
+<span class="op">├──</span> src/
+<span class="op">│   ├──</span> __init__.py
+<span class="op">│   ├──</span> config.py            <span class="cm"># carrega variáveis de ambiente</span>
+<span class="op">│   ├──</span> main.py              <span class="cm"># orquestra o fluxo completo</span>
+<span class="op">│   ├──</span> validacao.py         <span class="cm"># regras RN01–RN07</span>
+<span class="op">│   ├──</span> base_referencia.py   <span class="cm"># consulta à base de lotes</span>
+<span class="op">│   ├──</span> relatorio.py         <span class="cm"># geração do relatório de divergências</span>
+<span class="op">│   └──</span> logger.py            <span class="cm"># logging estruturado JSON</span>
+<span class="op">├──</span> tests/
+<span class="op">│   ├──</span> __init__.py
+<span class="op">│   ├──</span> conftest.py          <span class="cm"># fixtures compartilhadas</span>
+<span class="op">│   ├──</span> test_validacao.py
+<span class="op">│   └──</span> test_base_referencia.py
+<span class="op">├──</span> docs/
+<span class="op">│   ├──</span> bpmn/                <span class="cm"># AS-IS e TO-BE</span>
+<span class="op">│   ├──</span> pdd/                 <span class="cm"># PDD versionado</span>
+<span class="op">│   ├──</span> diagnostico/         <span class="cm"># Ficha de diagnóstico</span>
+<span class="op">│   └──</span> revisoes/            <span class="cm"># formulários de revisão por pares</span>
+<span class="op">├──</span> data/
+<span class="op">│   ├──</span> samples/             <span class="cm"># dados FICTÍCIOS para testes — vai no Git</span>
+<span class="op">│   ├──</span> raw/                 <span class="cm"># dados reais de entrada — NÃO vai no Git</span>
+<span class="op">│   └──</span> output/             <span class="cm"># relatórios gerados — NÃO vai no Git</span>
+<span class="op">├──</span> logs/                    <span class="cm"># logs de execução — NÃO vai no Git</span>
+<span class="op">└──</span> evidences/               <span class="cm"># screenshots do Maestro — NÃO vai no Git</span></pre>
+      </div>
+
+      <div class="code-wrap">
+        <div class="code-header">
+          <span class="code-filename">.gitignore — completo para bots Python</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        </div>
+<pre><span class="cm"># Ambientes Python</span>
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+
+<span class="cm"># Credenciais e segredos — NUNCA no repositório</span>
+.env
+*.key
+*.pem
+credentials.json
+service_account.json
+
+<span class="cm"># Dados de execução — dados reais e logs</span>
+data/raw/
+data/output/
+logs/
+evidences/
+
+<span class="cm"># IDEs</span>
+.idea/
+.vscode/
+*.swp
+
+<span class="cm"># Sistemas operacionais</span>
+.DS_Store
+Thumbs.db</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S7: bot.py executável -->
+<section class="section" id="s7">
+  <div class="section-eyebrow"><span class="section-num">07</span>bot.py — o primeiro bot executável</div>
+  <h2 class="section-title">Da lógica de validação ao bot com saída rastreável</h2>
+
+  <div class="phase-block">
+    <div class="phase-header" onclick="toggle(this)">
+      <div class="phase-badge green">07</div>
+      <div>
+        <div class="phase-title">bot.py completo — executa localmente e no Maestro</div>
+        <div class="phase-meta">Aula 12 · código de produção</div>
+      </div>
+      <span class="phase-toggle">▶</span>
+    </div>
+    <div class="phase-body">
+      <div class="code-wrap">
+        <div class="code-header">
+          <span class="code-filename">bot.py — entry point obrigatório</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        </div>
+<pre><span class="cm">#!/usr/bin/env python3</span>
+<span class="cm">"""
+Bot de Conferência de Lotes de Inspeção — LG Electronics · Qualidade
+Convênio N.º 005/2025 — INOVA / IFAM / LG Electronics do Brasil Ltda.
+
+Entry point para execução local e via BotCity Maestro.
+"""</span>
+<span class="kw">import</span> sys, time, logging
+<span class="kw">from</span> src.config    <span class="kw">import</span> carregar_configuracao
+<span class="kw">from</span> src.main      <span class="kw">import</span> executar_pipeline
+<span class="kw">from</span> src.logger    <span class="kw">import</span> configurar_logging
+
+<span class="fn">logging.basicConfig</span>(level=logging.INFO,
+    <span class="nm">format</span>=<span class="st">'[%(asctime)s] %(levelname)-8s %(name)s: %(message)s'</span>)
+logger = <span class="fn">logging.getLogger</span>(<span class="st">'bot-conferencia-lotes'</span>)
+
+
+<span class="kw">def</span> <span class="fn">main</span>() -> <span class="nm">int</span>:
+    <span class="st">"""Ponto de entrada do bot. Retorna 0 (sucesso) ou 1 (falha)."""</span>
+    t0 = <span class="fn">time.time</span>()
+    logger.info(<span class="st">'Bot iniciado — Conferência de Lotes de Inspeção'</span>)
+
+    <span class="kw">try</span>:
+        config = <span class="fn">carregar_configuracao</span>()
+
+        <span class="cm"># Verificar pré-condições antes de processar</span>
+        <span class="kw">import</span> os
+        <span class="kw">if not</span> os.path.<span class="fn">exists</span>(config.planilha_path):
+            logger.<span class="fn">critical</span>(<span class="st">f'Planilha não encontrada: {config.planilha_path}'</span>)
+            <span class="kw">return</span> <span class="nm">1</span>
+
+        <span class="kw">if not</span> os.path.<span class="fn">exists</span>(config.base_referencia_path):
+            logger.<span class="fn">critical</span>(<span class="st">f'Base de referência não encontrada: {config.base_referencia_path}'</span>)
+            <span class="kw">return</span> <span class="nm">1</span>
+
+        <span class="cm"># Executar o pipeline de validação</span>
+        resultado = <span class="fn">executar_pipeline</span>(config)
+        duracao   = <span class="fn">round</span>(<span class="fn">time.time</span>() - t0, <span class="nm">2</span>)
+
+        logger.info(
+            <span class="st">f'Concluído em {duracao}s — '</span>
+            <span class="st">f'Total: {resultado.total} | '</span>
+            <span class="st">f'Válidos: {resultado.validos} | '</span>
+            <span class="st">f'Divergências: {resultado.divergencias} | '</span>
+            <span class="st">f'Ambíguos: {resultado.ambiguos}'</span>
+        )
+        <span class="kw">return</span> <span class="nm">0</span>
+
+    <span class="kw">except except</span> <span class="cl">Exception</span> <span class="kw">as</span> e:
+        logger.<span class="fn">critical</span>(<span class="st">f'Falha crítica: {e}'</span>, exc_info=<span class="nm">True</span>)
+        <span class="kw">return</span> <span class="nm">1</span>
+
+
+<span class="kw">if</span> __name__ == <span class="st">'__main__'</span>:
+    sys.<span class="fn">exit</span>(<span class="fn">main</span>())</pre>
+      </div>
+
+      <div class="code-wrap">
+        <div class="code-header">
+          <span class="code-filename">src/config.py — carrega variáveis de ambiente</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        </div>
+<pre><span class="kw">import</span> os
+<span class="kw">from</span> dataclasses <span class="kw">import</span> dataclass
+<span class="kw">from</span> dotenv      <span class="kw">import</span> load_dotenv
+
+<span class="fn">load_dotenv</span>()  <span class="cm"># carrega .env se existir (desenvolvimento local)</span>
+
+
+@dataclass
+<span class="kw">class</span> <span class="cl">Configuracao</span>:
+    planilha_path:      str
+    base_referencia_path: str
+    output_dir:         str
+    maestro_enabled:    bool
+    log_dir:            str
+
+
+<span class="kw">def</span> <span class="fn">carregar_configuracao</span>() -> <span class="cl">Configuracao</span>:
+    <span class="st">"""Lê variáveis de ambiente. Falha explicitamente se obrigatórias ausentes."""</span>
+    <span class="kw">return</span> <span class="cl">Configuracao</span>(
+        planilha_path=os.<span class="fn">getenv</span>(
+            <span class="st">'PLANILHA_PATH'</span>, <span class="st">'data/samples/inspecao_lotes_dia.xlsx'</span>),
+        base_referencia_path=os.<span class="fn">getenv</span>(
+            <span class="st">'BASE_REFERENCIA_PATH'</span>, <span class="st">'data/samples/base_referencia_lotes.csv'</span>),
+        output_dir=os.<span class="fn">getenv</span>(<span class="st">'OUTPUT_DIR'</span>, <span class="st">'data/output'</span>),
+        maestro_enabled=os.<span class="fn">getenv</span>(<span class="st">'MAESTRO_ENABLED'</span>, <span class="st">'false'</span>).<span class="fn">lower</span>() == <span class="st">'true'</span>,
+        log_dir=os.<span class="fn">getenv</span>(<span class="st">'LOG_DIR'</span>, <span class="st">'logs'</span>),
+    )</pre>
+      </div>
+
+      <div class="code-wrap">
+        <div class="code-header">
+          <span class="code-filename">.env.example — vai no Git (sem valores reais)</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        </div>
+<pre><span class="cm"># Copie este arquivo para .env e preencha localmente.</span>
+<span class="cm"># NUNCA commite o .env real.</span>
+
+<span class="cm"># Caminhos de entrada e saída</span>
+PLANILHA_PATH=data/samples/inspecao_lotes_dia.xlsx
+BASE_REFERENCIA_PATH=data/samples/base_referencia_lotes.csv
+OUTPUT_DIR=data/output
+LOG_DIR=logs
+
+<span class="cm"># BotCity Maestro (deixe vazio para execução local)</span>
+MAESTRO_ENABLED=false
+MAESTRO_SERVER=
+MAESTRO_LOGIN=
+MAESTRO_KEY=
+
+<span class="cm"># Alertas (opcional em desenvolvimento)</span>
+TELEGRAM_TOKEN=
+TELEGRAM_CHAT_ID=
+
+<span class="cm"># Fuso horário — obrigatório para logs corretos</span>
+TZ=America/Manaus</pre>
+      </div>
+
+      <div class="terminal">
+        <div class="terminal-bar">
+          <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        </div>
+        <div class="terminal-body">
+<pre><span class="t-prompt">$</span> <span class="t-cmd">python bot.py</span>
+<span class="t-out">[2026-06-22 08:02:14] INFO     bot-conferencia-lotes: Bot iniciado — Conferência de Lotes de Inspeção</span>
+<span class="t-out">[2026-06-22 08:02:14] INFO     src.main: Carregando planilha: data/samples/inspecao_lotes_dia.xlsx</span>
+<span class="t-out">[2026-06-22 08:02:14] INFO     src.main: 25 registros carregados</span>
+<span class="t-out">[2026-06-22 08:02:14] INFO     src.main: Processando lote LG-2026-00101... [VÁLIDO]</span>
+<span class="t-out">[2026-06-22 08:02:14] WARNING  src.validacao: Lote LG-2026-00103 — DIVERGÊNCIA: inexistente na base (RN03)</span>
+<span class="t-out">[2026-06-22 08:02:14] INFO     src.main: ...</span>
+<span class="t-ok">[2026-06-22 08:02:15] INFO     bot-conferencia-lotes: Concluído em 1.24s — Total: 25 | Válidos: 16 | Divergências: 8 | Ambíguos: 1</span>
+
+<span class="t-prompt">$</span> <span class="t-cmd">echo $?</span>
+<span class="t-ok">0</span>    <span class="t-comment"># ← código de saída 0 = sucesso</span></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S8: Credenciais -->
+<section class="section" id="s8">
+  <div class="section-eyebrow"><span class="section-num">08</span>Credenciais e segredos</div>
+  <h2 class="section-title">Separação entre código e segredos — regra inviolável</h2>
+
+  <div class="box danger">
+    <div class="box-label">🔴 Linha vermelha — propriedade intelectual da LG</div>
+    Qualquer credencial commitada — mesmo que depois removida — fica permanentemente no histórico do Git.
+    Se o repositório for acessado por terceiros, a credencial está exposta. Isso é uma violação do Convênio N.º 005/2025
+    e pode resultar em desligamento do projeto.
+  </div>
+
+  <div class="table-wrap" style="margin-top:24px">
+    <table>
+      <thead><tr><th>O que é</th><th>Vai no repositório?</th><th>Onde vai</th></tr></thead>
+      <tbody>
+        <tr><td>URL do servidor Maestro</td><td>✅ Sim (em .env.example sem valor)</td><td>.env local · var. ambiente da máquina</td></tr>
+        <tr><td>Token de API do Maestro</td><td>❌ Nunca</td><td>.env local · Credentials Vault (produção)</td></tr>
+        <tr><td>Credencial do sistema legado</td><td>❌ Nunca</td><td>Credentials Vault apenas</td></tr>
+        <tr><td>Caminho de pastas de entrada</td><td>✅ Sim (em .env.example com valor padrão)</td><td>.env local · variável de ambiente</td></tr>
+        <tr><td>Dados fictícios de testes</td><td>✅ Sim (em data/samples/)</td><td>Repositório</td></tr>
+        <tr><td>Dados reais de lotes ou colaboradores</td><td>❌ Nunca — LGPD</td><td>Somente na máquina de produção</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     FASE 3 — BOTCITY MAESTRO
+════════════════════════════════════════════════════════ -->
+<div class="sticky-nav">
+  <div class="sticky-title">🏭 Fase 3 — BotCity Maestro: execução corporativa</div>
+  <div class="sticky-meta">Aulas 11–15 · Semana 3</div>
+</div>
+
+<!-- S9: Maestro -->
+<section class="section" id="s9">
+  <div class="section-eyebrow"><span class="section-num">09</span>BotCity Maestro — execução corporativa</div>
+  <h2 class="section-title">Do terminal ao orquestrador: tarefas, agendamento e rastreabilidade</h2>
+
+  <div class="phase-block">
+    <div class="phase-header" onclick="toggle(this)">
+      <div class="phase-badge red">09</div>
+      <div>
+        <div class="phase-title">Integrar o bot ao Maestro — SDK e execução via tarefa</div>
+        <div class="phase-meta">Aula 11 · primeira integração</div>
+      </div>
+      <span class="phase-toggle">▶</span>
+    </div>
+    <div class="phase-body">
+
+      <div class="box info">
+        <div class="box-label">📌 Nota de equivalência — Smart Office = BotCity Maestro</div>
+        O orquestrador oficial do curso é o <strong>Smart Office (LG Electronics)</strong>, equivalente ao BotCity Maestro.
+        A lógica é idêntica: orquestrador, runners, tarefas, DataPool, Vault. Os nomes na interface podem ser diferentes,
+        mas o código Python é o mesmo.
+      </div>
+
+      <div class="code-wrap">
+        <div class="code-header">
+          <span class="code-filename">bot.py — versão com integração Maestro</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        </div>
+<pre><span class="kw">from</span> botcity.maestro <span class="kw">import</span> BotMaestroSDK, AutomationTaskFinishStatus
+<span class="kw">import</span> sys, time, logging, os
+<span class="kw">from</span> src.config  <span class="kw">import</span> carregar_configuracao
+<span class="kw">from</span> src.main    <span class="kw">import</span> executar_pipeline
+
+logger = <span class="fn">logging.getLogger</span>(<span class="st">'bot-conferencia-lotes'</span>)
+
+
+<span class="kw">def</span> <span class="fn">main</span>():
+    config = <span class="fn">carregar_configuracao</span>()
+    t0 = <span class="fn">time.time</span>()
+
+    <span class="cm"># Modo Maestro ou local, conforme MAESTRO_ENABLED</span>
+    maestro = <span class="nm">None</span>
+    task    = <span class="nm">None</span>
+
+    <span class="kw">if</span> config.maestro_enabled:
+        <span class="cm"># from_sys_args() lê --server e --token injetados pelo runner</span>
+        maestro = BotMaestroSDK.<span class="fn">from_sys_args</span>()
+        task    = maestro.<span class="fn">get_task</span>()
+        logger.<span class="fn">info</span>(<span class="st">f'Executando via Maestro | task_id={task.id}'</span>)
+    <span class="kw">else</span>:
+        logger.<span class="fn">info</span>(<span class="st">'Executando localmente (MAESTRO_ENABLED=false)'</span>)
+
+    <span class="kw">try</span>:
+        resultado = <span class="fn">executar_pipeline</span>(config)
+        duracao   = <span class="fn">round</span>(<span class="fn">time.time</span>() - t0, <span class="nm">2</span>)
+
+        <span class="kw">if</span> task:
+            task.<span class="fn">finish</span>(
+                status=AutomationTaskFinishStatus.SUCCESS,
+                message=(
+                    <span class="st">f'Total: {resultado.total} | '</span>
+                    <span class="st">f'Válidos: {resultado.validos} | '</span>
+                    <span class="st">f'Divergências: {resultado.divergencias} | '</span>
+                    <span class="st">f'Ambíguos: {resultado.ambiguos} | '</span>
+                    <span class="st">f'Duração: {duracao}s'</span>
+                )
+            )
+            <span class="cm"># Enviar relatório como artefato para o painel do Maestro</span>
+            <span class="kw">import</span> glob
+            <span class="kw">for</span> report <span class="kw">in</span> glob.<span class="fn">glob</span>(<span class="st">f'{config.output_dir}/*.xlsx'</span>):
+                maestro.<span class="fn">post_artifact</span>(
+                    task_id=task.id,
+                    artifact_name=os.path.<span class="fn">basename</span>(report),
+                    filepath=report
+                )
+        sys.<span class="fn">exit</span>(<span class="nm">0</span>)
+
+    <span class="kw">except except</span> <span class="cl">Exception</span> <span class="kw">as</span> e:
+        logger.<span class="fn">critical</span>(<span class="st">f'Falha crítica: {e}'</span>, exc_info=<span class="nm">True</span>)
+        <span class="kw">if</span> task:
+            task.<span class="fn">finish</span>(
+                status=AutomationTaskFinishStatus.FAILED,
+                message=<span class="fn">str</span>(e)
+            )
+        sys.<span class="fn">exit</span>(<span class="nm">1</span>)
+
+
+<span class="kw">if</span> __name__ == <span class="st">'__main__'</span>:
+    <span class="fn">main</span>()</pre>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>O que configurar no painel do Maestro</th><th>Valor</th></tr></thead>
+          <tbody>
+            <tr><td>Nome do bot</td><td><code>nome_aluno-bot_conferencia_lotes-v1</code></td></tr>
+            <tr><td>Entry point</td><td><code>bot.py</code> (fixo)</td></tr>
+            <tr><td>Agendamento (cron)</td><td><code>0 8 * * 1-5</code> — dias úteis às 8h (Manaus)</td></tr>
+            <tr><td>Variáveis de ambiente</td><td>MAESTRO_ENABLED=true, TZ=America/Manaus, etc.</td></tr>
+            <tr><td>Re-execução automática</td><td>Sim · até 3 tentativas · intervalo 5 min</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S10: DataPool -->
+<section class="section" id="s10">
+  <div class="section-eyebrow"><span class="section-num">10</span>DataPool</div>
+  <h2 class="section-title">A fila que garante que nenhum registro é perdido</h2>
+  <p class="section-sub">Sem DataPool: se o bot falhar na linha 187 de 300, os outros 113 são perdidos. Com DataPool: cada item tem status próprio. Falhas em itens isolados não param o processamento dos demais.</p>
+
+  <div class="phase-block">
+    <div class="phase-header" onclick="toggle(this)">
+      <div class="phase-badge amber">10</div>
+      <div>
+        <div class="phase-title">Popular e consumir o DataPool com tratamento de erros</div>
+        <div class="phase-meta">Aula 12 · arquitetura de robustez</div>
+      </div>
+      <span class="phase-toggle">▶</span>
+    </div>
+    <div class="phase-body">
+
+      <div class="box rule">
+        <div class="box-label">📐 Regra arquitetural — quem popula não processa</div>
+        O DataPool deve ser populado por um processo separado do bot que consome.
+        Se o mesmo bot popula e consome, você perde a capacidade de reprocessar apenas os erros sem recarregar todos os dados.
+        No projeto: <code>scripts/populate_datapool.py</code> popula · <code>bot.py</code> consome.
+      </div>
+
+      <div class="code-wrap">
+        <div class="code-header">
+          <span class="code-filename">scripts/populate_datapool.py</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        </div>
+<pre><span class="kw">from</span> botcity.maestro <span class="kw">import</span> BotMaestroSDK
+<span class="kw">from</span> botcity.maestro.model <span class="kw">import</span> DataPoolEntry
+<span class="kw">import</span> pandas <span class="kw">as</span> pd, os
+
+
+<span class="kw">def</span> <span class="fn">popular_datapool</span>(maestro, datapool_label, caminho_planilha):
+    df = pd.<span class="fn">read_excel</span>(caminho_planilha, dtype=<span class="fn">str</span>).<span class="fn">fillna</span>(<span class="st">''</span>)
+
+    <span class="cm"># Validação mínima antes de popular</span>
+    obrigatorias = {<span class="st">'lote_id'</span>, <span class="st">'produto'</span>, <span class="st">'linha'</span>, <span class="st">'turno'</span>,
+                    <span class="st">'status'</span>, <span class="st">'responsavel'</span>, <span class="st">'data'</span>}
+    presentes = <span class="fn">set</span>(df.columns.<span class="fn">str.lower</span>())
+    <span class="kw">if not</span> obrigatorias.<span class="fn">issubset</span>(presentes):
+        faltando = obrigatorias - presentes
+        <span class="kw">raise</span> <span class="cl">ValueError</span>(<span class="st">f'Colunas obrigatórias ausentes: {faltando}'</span>)
+
+    df.columns = df.columns.<span class="fn">str.lower</span>()
+    dp = maestro.<span class="fn">datapool</span>(datapool_label)
+    total = <span class="nm">0</span>
+
+    <span class="kw">for</span> idx, row <span class="kw">in</span> df.<span class="fn">iterrows</span>():
+        entry = <span class="cl">DataPoolEntry</span>(values={
+            <span class="st">'lote_id'</span>:     row[<span class="st">'lote_id'</span>],
+            <span class="st">'produto'</span>:     row[<span class="st">'produto'</span>],
+            <span class="st">'linha'</span>:       row[<span class="st">'linha'</span>],
+            <span class="st">'turno'</span>:       row[<span class="st">'turno'</span>],
+            <span class="st">'status'</span>:      row[<span class="st">'status'</span>],
+            <span class="st">'responsavel'</span>: row[<span class="st">'responsavel'</span>],
+            <span class="st">'data'</span>:        row[<span class="st">'data'</span>],
+            <span class="st">'observacao'</span>:  row.<span class="fn">get</span>(<span class="st">'observacao'</span>, <span class="st">''</span>),
+            <span class="st">'linha_idx'</span>:   <span class="fn">str</span>(idx + <span class="nm">2</span>),
+        })
+        dp.<span class="fn">create_entry</span>(entry)
+        total += <span class="nm">1</span>
+
+    <span class="fn">print</span>(<span class="st">f'DataPool populado: {total} itens → [{datapool_label}]'</span>)
+    <span class="kw">return</span> total</pre>
+      </div>
+
+      <div class="code-wrap">
+        <div class="code-header">
+          <span class="code-filename">src/item_processor.py — consumo robusto com distinção de erros</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        </div>
+<pre><span class="kw">from</span> botcity.maestro.model <span class="kw">import</span> AutomationItemFinishStatus
+<span class="kw">import</span> logging
+
+logger = <span class="fn">logging.getLogger</span>(__name__)
+
+
+<span class="kw">class</span> <span class="cl">ValidationError</span>(<span class="cl">Exception</span>):
+    <span class="st">"""Dado inválido — o item vai para ERROR, o bot CONTINUA."""</span>
+
+<span class="kw">class</span> <span class="cl">SystemError</span>(<span class="cl">Exception</span>):
+    <span class="st">"""Falha de infraestrutura — o bot PARA e alerta."""</span>
+
+
+<span class="kw">def</span> <span class="fn">loop_datapool</span>(maestro, datapool_label, config) -> dict:
+    dp    = maestro.<span class="fn">datapool</span>(datapool_label)
+    stats = {<span class="st">'total'</span>:<span class="nm">0</span>, <span class="st">'validos'</span>:<span class="nm">0</span>, <span class="st">'erros_item'</span>:<span class="nm">0</span>,
+             <span class="st">'ambiguos'</span>:<span class="nm">0</span>, <span class="st">'erros_sistema'</span>:<span class="nm">0</span>}
+
+    <span class="kw">while</span> <span class="nm">True</span>:
+        item = dp.<span class="fn">next_item</span>()
+        <span class="kw">if</span> item <span class="kw">is</span> <span class="nm">None</span>:
+            <span class="kw">break</span>                   <span class="cm"># DataPool vazio — fim</span>
+
+        stats[<span class="st">'total'</span>] += <span class="nm">1</span>
+        lote_id = item.values.<span class="fn">get</span>(<span class="st">'lote_id'</span>, <span class="st">'?'</span>)
+
+        <span class="kw">try</span>:
+            resultado = <span class="fn">processar_item</span>(item.values, config)
+
+            <span class="kw">if</span> resultado[<span class="st">'tipo'</span>] == <span class="st">'AMBIGUO'</span>:
+                stats[<span class="st">'ambiguos'</span>] += <span class="nm">1</span>
+                item.<span class="fn">report</span>(status=AutomationItemFinishStatus.ERROR,
+                            message=resultado[<span class="st">'motivo'</span>])
+            <span class="kw">else</span>:
+                stats[<span class="st">'validos'</span>] += <span class="nm">1</span>
+                item.<span class="fn">report</span>(status=AutomationItemFinishStatus.DONE,
+                            message=<span class="st">'Validação OK'</span>)
+
+        <span class="kw">except</span> <span class="cl">ValidationError</span> <span class="kw">as</span> e:
+            stats[<span class="st">'erros_item'</span>] += <span class="nm">1</span>
+            logger.<span class="fn">warning</span>(<span class="st">f'[{lote_id}] ValidationError: {e}'</span>)
+            item.<span class="fn">report</span>(status=AutomationItemFinishStatus.ERROR,
+                        message=<span class="fn">str</span>(e))
+            <span class="cm"># NÃO relança — bot continua no próximo item</span>
+
+        <span class="kw">except</span> <span class="cl">SystemError</span> <span class="kw">as</span> e:
+            stats[<span class="st">'erros_sistema'</span>] += <span class="nm">1</span>
+            logger.<span class="fn">critical</span>(<span class="st">f'[{lote_id}] SystemError: {e}'</span>, exc_info=<span class="nm">True</span>)
+            item.<span class="fn">report</span>(status=AutomationItemFinishStatus.ERROR,
+                        message=<span class="st">f'ERRO DE SISTEMA: {e}'</span>)
+            <span class="kw">raise</span>       <span class="cm"># Relança — bot PARA</span>
+
+    <span class="kw">return</span> stats</pre>
+      </div>
+
+      <div class="gabarito">
+        <div class="gabarito-header" onclick="toggleGab(this)">
+          Gabarito — A diferença crítica entre ValidationError e SystemError
+          <span class="gab-toggle">▶</span>
+        </div>
+        <div class="gabarito-body">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Situação</th><th>Tipo de erro</th><th>O bot faz</th><th>Exemplo do projeto</th></tr></thead>
+              <tbody>
+                <tr><td>Status "APROVADO PARCIAL" (desconhecido)</td><td>ValidationError</td><td>Marca item como ERROR, avança para o próximo</td><td>Lote vai para lista de ambíguos — RN06</td></tr>
+                <tr><td>Lote inexistente na base</td><td>ValidationError</td><td>Marca item como ERROR, avança para o próximo</td><td>Divergência registrada — RN03</td></tr>
+                <tr><td>Base de referência sumiu do disco</td><td>SystemError</td><td>Para a execução e alerta CRÍTICO</td><td>Arquivo corrompido ou movido</td></tr>
+                <tr><td>Timeout de rede ao acessar Maestro</td><td>SystemError</td><td>Para a execução e alerta CRÍTICO</td><td>Rede instável em produção</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S11: Credentials Vault -->
+<section class="section" id="s11">
+  <div class="section-eyebrow"><span class="section-num">11</span>Credentials Vault</div>
+  <h2 class="section-title">Segurança sem sacrificar praticidade</h2>
+
+  <div class="phase-block">
+    <div class="phase-header" onclick="toggle(this)">
+      <div class="phase-badge purple">11</div>
+      <div>
+        <div class="phase-title">Migrar do .env local para o Vault em produção</div>
+        <div class="phase-meta">Aula 14 · padrão de produção</div>
+      </div>
+      <span class="phase-toggle">▶</span>
+    </div>
+    <div class="phase-body">
+      <div class="code-wrap">
+        <div class="code-header">
+          <span class="code-filename">src/secrets_provider.py — abstrai Vault e .env</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        </div>
+<pre><span class="kw">from</span> dataclasses <span class="kw">import</span> dataclass
+<span class="kw">import</span> os, logging
+
+logger = <span class="fn">logging.getLogger</span>(__name__)
+
+
+@dataclass
+<span class="kw">class</span> <span class="cl">CredenciaisMaestro</span>:
+    server: str
+    login:  str
+    key:    str
+
+
+<span class="kw">class</span> <span class="cl">SecretsProvider</span>:
+    <span class="st">"""
+    Em produção: usa Credentials Vault do BotCity/Smart Office.
+    Em desenvolvimento: usa variáveis de ambiente (.env local).
+    """</span>
+
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, maestro=<span class="nm">None</span>):
+        self._maestro      = maestro
+        self._usando_vault = maestro <span class="kw">is not</span> <span class="nm">None</span>
+        <span class="kw">if not</span> self._usando_vault:
+            logger.<span class="fn">warning</span>(
+                <span class="st">'SecretsProvider: usando .env local (desenvolvimento). '</span>
+                <span class="st">'NUNCA usar em produção.'</span>
+            )
+
+    <span class="kw">def</span> <span class="fn">maestro_credentials</span>(self) -> <span class="cl">CredenciaisMaestro</span>:
+        <span class="kw">if</span> self._usando_vault:
+            cred = self._maestro.<span class="fn">get_credential</span>(
+                <span class="st">'maestro-conferencia-lotes'</span>,
+                <span class="st">'maestro-conferencia-lotes'</span>
+            )
+            <span class="kw">return</span> <span class="cl">CredenciaisMaestro</span>(
+                server=os.<span class="fn">getenv</span>(<span class="st">'MAESTRO_SERVER'</span>, <span class="st">''</span>),
+                login=cred.login,
+                key=cred.password
+            )
+        <span class="cm"># Fallback desenvolvimento (.env)</span>
+        <span class="kw">return</span> <span class="cl">CredenciaisMaestro</span>(
+            server=os.<span class="fn">getenv</span>(<span class="st">'MAESTRO_SERVER'</span>, <span class="st">''</span>),
+            login=os.<span class="fn">getenv</span>(<span class="st">'MAESTRO_LOGIN'</span>, <span class="st">''</span>),
+            key=os.<span class="fn">getenv</span>(<span class="st">'MAESTRO_KEY'</span>, <span class="st">''</span>),
+        )</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S12: Logs e alertas -->
+<section class="section" id="s12">
+  <div class="section-eyebrow"><span class="section-num">12</span>Logs, alertas e evidências</div>
+  <h2 class="section-title">O bot que fala — notificações por severidade</h2>
+
+  <div class="phase-block">
+    <div class="phase-header" onclick="toggle(this)">
+      <div class="phase-badge blue">12</div>
+      <div>
+        <div class="phase-title">Logging JSON + alertas Telegram com roteamento por severidade</div>
+        <div class="phase-meta">Aula 15-C · padrão de produção</div>
+      </div>
+      <span class="phase-toggle">▶</span>
+    </div>
+    <div class="phase-body">
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Severidade</th><th>Canais</th><th>Quando usar</th><th>Exemplo</th></tr></thead>
+          <tbody>
+            <tr><td><span class="hl-blue">INFO</span></td><td>Telegram</td><td>Execução normal</td><td>Bot iniciou · 25 registros · relatório gerado</td></tr>
+            <tr><td><span class="hl-amber">AVISO</span></td><td>Telegram</td><td>Anormal mas não crítico</td><td>Taxa de ambíguos acima de 10%</td></tr>
+            <tr><td><span class="highlight">ERRO</span></td><td>Telegram + email</td><td>Falha em item/subsistema</td><td>Timeout na base de referência</td></tr>
+            <tr><td style="color:var(--lg-red-lt);font-weight:700">CRÍTICO</td><td>Telegram + email</td><td>Pipeline parado</td><td>Vault inacessível · bot encerrou sem processar</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="code-wrap">
+        <div class="code-header">
+          <span class="code-filename">src/alertas.py — sistema unificado</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+        </div>
+<pre><span class="kw">import</span> asyncio, os, smtplib, logging
+<span class="kw">from</span> enum <span class="kw">import</span> Enum
+<span class="kw">from</span> email.mime.multipart <span class="kw">import</span> MIMEMultipart
+<span class="kw">from</span> email.mime.text      <span class="kw">import</span> MIMEText
+<span class="kw">from</span> datetime <span class="kw">import</span> datetime
+
+
+<span class="kw">class</span> <span class="cl">Severidade</span>(<span class="cl">Enum</span>):
+    INFO    = <span class="st">'info'</span>
+    AVISO   = <span class="st">'aviso'</span>
+    ERRO    = <span class="st">'erro'</span>
+    CRITICO = <span class="st">'critico'</span>
+
+
+ICONES = {
+    <span class="cl">Severidade</span>.INFO:    <span class="st">'ℹ️'</span>,
+    <span class="cl">Severidade</span>.AVISO:   <span class="st">'⚠️'</span>,
+    <span class="cl">Severidade</span>.ERRO:    <span class="st">'❌'</span>,
+    <span class="cl">Severidade</span>.CRITICO: <span class="st">'🚨'</span>,
+}
+
+
+<span class="kw">def</span> <span class="fn">alerta_conclusao</span>(total, validos, divergencias, ambiguos, duracao):
+    <span class="st">"""Envia alerta padrão de conclusão do processamento."""</span>
+    sev = <span class="cl">Severidade</span>.ERRO <span class="kw">if</span> divergencias > <span class="nm">15</span> <span class="kw">else</span> <span class="cl">Severidade</span>.INFO
+    titulo = <span class="st">'Conferência de Lotes Concluída'</span>
+    msg = (
+        <span class="st">f'Registros: <code>{total}</code>\n'</span>
+        <span class="st">f'Válidos: <code>{validos}</code>\n'</span>
+        <span class="st">f'Divergências: <code>{divergencias}</code>\n'</span>
+        <span class="st">f'Ambíguos: <code>{ambiguos}</code>\n'</span>
+        <span class="st">f'Duração: {duracao}s'</span>
+    )
+    <span class="fn">enviar_alerta</span>(titulo, msg, sev)
+
+
+<span class="kw">def</span> <span class="fn">enviar_alerta</span>(titulo, mensagem, sev):
+    token   = os.<span class="fn">getenv</span>(<span class="st">'TELEGRAM_TOKEN'</span>, <span class="st">''</span>)
+    chat_id = os.<span class="fn">getenv</span>(<span class="st">'TELEGRAM_CHAT_ID'</span>, <span class="st">''</span>)
+    <span class="kw">if not</span> token: <span class="kw">return</span>
+    icone = ICONES[sev]
+    texto = (
+        <span class="st">f'{icone} <b>{titulo}</b>\n'</span>
+        <span class="st">f'Bot: <code>bot-conferencia-lotes</code>\n'</span>
+        <span class="st">f'{mensagem}\n'</span>
+        <span class="st">f'<i>{datetime.now().strftime("%d/%m %H:%M")} (Manaus)</i>'</span>
+    )
+    <span class="kw">try</span>:
+        <span class="kw">from</span> telegram <span class="kw">import</span> Bot
+        asyncio.<span class="fn">run</span>(Bot(token=token).<span class="fn">send_message</span>(
+            chat_id=chat_id, text=texto[:<span class="nm">4096</span>], parse_mode=<span class="st">'HTML'</span>
+        ))
+    <span class="kw">except</span> <span class="cl">Exception</span> <span class="kw">as</span> e:
+        logging.<span class="fn">getLogger</span>(__name__).<span class="fn">error</span>(<span class="st">f'Telegram falhou: {e}'</span>)</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S13: Checklist final -->
+<section class="section" id="s13">
+  <div class="section-eyebrow"><span class="section-num">13</span>Checklist de entrega</div>
+  <h2 class="section-title">Tudo o que deve estar pronto na release v0.2.0</h2>
+  <p class="section-sub">Marque cada item conforme for completando. O instrutor vai verificar cada ponto desta lista na avaliação da Semana 3.</p>
+
+  <div class="phase-block">
+    <div class="phase-header open" onclick="toggle(this)">
+      <div class="phase-badge green">✓</div>
+      <div>
+        <div class="phase-title">Checklist completo — v0.2.0</div>
+        <div class="phase-meta">Marque conforme avança</div>
+      </div>
+      <span class="phase-toggle">▶</span>
+    </div>
+    <div class="phase-body open">
+
+      <p><strong>Git e versionamento</strong></p>
+      <ul class="checklist">
+        <li><div class="check-box" onclick="check(this)"></div><span class="check-text">Tag <code>v0.2.0</code> criada e publicada no GitHub com GitHub Release</span></li>
+        <li><div class="check-box" onclick="check(this)"></div><span class="check-text">CHANGELOG.md atualizado com todos os itens da Semana 3</span></li>
+        <li><div class="check-box" onclick="check(this)"></div><span class="check-text">Pelo menos 1 PR aberto, revisado e mergeado para <code>develop</code></span></li>
+        <li><div class="check-box" onclick="check(this)"></div><span class="check-text">Todos os commits seguem Conventional Commits (<code>feat</code>, <code>fix</code>, <code>chore</code>, etc.)</span></li>
+        <li><div class="check-box" onclick="check(this)"></div><span class="check-text"><code>git log --all -- .env</code> retorna vazio (nunca commitado)</span></li>
+      </ul>
+
+      <p style="margin-top:24px"><strong>Estrutura e código</strong></p>
+      <ul class="checklist">
+        <li><div class="check-box" onclick="check(this)"></div><span class="check-text"><code>bot.py</code> executa localmente com <code>python bot.py</code> sem erro</span></li>
+        <li><div class="check-box" onclick="check(this)"></div><span class="check-text"><code>bot.py</code> integrado ao Maestro SDK (com <code>MAESTRO_ENABLED=true</code>)</span></li>
+        <li><div class="check-box" onclick="check(this)"></div><span class="check-text"><code>src/config.py</code> carrega variáveis de ambiente via <code>os.getenv()</code></span></li>
+        <li><div class="check-box" onclick="check(this)"></div><span class="check-text"><code>src/secrets_provider.py</code> implementado com fallback para .env local</span></li>
+        <li><div class="check-box" onclick="check(this)"></div><span class="check-text">Cobertura de testes ≥ 80% (<code>pytest --cov=src --cov-fail-under=80</code>)</span></li>
+      </ul>
+
+      <p style="margin-top:24px"><strong>BotCity Maestro</strong></p>
+      <ul class="checklist">
+        <li><div class="check-box" onclick="check(this)"></div><span class="check-text">Bot registrado no Maestro com nomenclatura <code>nome_aluno-bot_conferencia_lotes-v2</code></span></li>
+        <li><div class="check-box" onclick="check(this)"></div><span class="check-text">Tarefa executada com sucesso no Maestro (screenshot no <code>docs/evidencias/</code>)</span></li>
+        <li><div class="check-box" onclick="check(this)"></div><span class="check-text">Relatório de divergências disponível como artefato no painel do Maestro</span></li>
+        <li><div class="check-box" onclick="check(this)"></div><span class="check-text">DataPool populado com os 25 registros da planilha fictícia</span></li>
+        <li><div class="check-box" onclick="check(this)"></div><span class="check-text">Credencial configurada no Credentials Vault (não hardcodada)</span></li>
+      </ul>
+
+      <p style="margin-top:24px"><strong>Logs e alertas</strong></p>
+      <ul class="checklist">
+        <li><div class="check-box" onclick="check(this)"></div><span class="check-text">Log JSON gerado em <code>logs/bot-conferencia-lotes.jsonl</code> após execução</span></li>
+        <li><div class="check-box" onclick="check(this)"></div><span class="check-text">Alerta Telegram recebido ao final da execução (screenshot no <code>docs/evidencias/</code>)</span></li>
+        <li><div class="check-box" onclick="check(this)"></div><span class="check-text"><code>TELEGRAM_TOKEN</code> e <code>TELEGRAM_CHAT_ID</code> no <code>.env.example</code> (sem valores reais)</span></li>
+      </ul>
+
+      <p style="margin-top:24px"><strong>Segurança e LGPD</strong></p>
+      <ul class="checklist">
+        <li><div class="check-box" onclick="check(this)"></div><span class="check-text">Nenhum dado real de colaboradores ou lotes no repositório</span></li>
+        <li><div class="check-box" onclick="check(this)"></div><span class="check-text"><code>data/samples/</code> contém apenas dados fictícios</span></li>
+        <li><div class="check-box" onclick="check(this)"></div><span class="check-text">README tem nota de propriedade intelectual (Convênio 005/2025)</span></li>
+      </ul>
+
+      <div class="result-card" style="margin-top:32px;border-color:var(--green)">
+        <div class="result-icon">🏁</div>
+        <div>
+          <div class="result-title">Ao completar todos os itens</div>
+          <div class="result-desc">Você tem um bot profissional: versionado com rastreabilidade industrial, executável via orquestrador corporativo, com DataPool, Credentials Vault, logging estruturado e alertas automáticos. Isso é o que separa uma automação de laboratório de uma automação de produção.</div>
+          <div class="result-code">v0.2.0 → develop → main → tag → GitHub Release → Maestro</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <span class="footer-red">AX Academy</span>
+  <span>Técnicas de Hyperautomation · 240h</span>
+  <span>Convênio N.º 005/2025 — INOVA | IFAM | LG Electronics do Brasil Ltda.</span>
+  <span>Polo Industrial de Manaus · TZ=America/Manaus</span>
+</footer>
+
+</main>
+</div>
+
+<script>
+// ── Accordion ──────────────────────────────────────────────
+function toggle(header) {
+  header.classList.toggle('open');
+  const body = header.nextElementSibling;
+  body.classList.toggle('open');
+  updateProgress();
+}
+
+function toggleGab(header) {
+  header.classList.toggle('open');
+  const body = header.nextElementSibling;
+  body.classList.toggle('open');
+}
+
+// ── Copiar código ──────────────────────────────────────────
+function copyCode(btn) {
+  const pre = btn.closest('.code-wrap').querySelector('pre');
+  const text = pre.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copiado!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copiar';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+
+// ── Checklist interativo ───────────────────────────────────
+function check(box) {
+  box.classList.toggle('checked');
+  const text = box.nextElementSibling;
+  text.classList.toggle('checked');
+  updateProgress();
+}
+
+// ── Progresso ──────────────────────────────────────────────
+function updateProgress() {
+  const total   = document.querySelectorAll('.check-box').length;
+  const checked = document.querySelectorAll('.check-box.checked').length;
+  const pct     = total > 0 ? Math.round((checked / total) * 100) : 0;
+  document.getElementById('progress').style.width = pct + '%';
+}
+
+// ── Navegação ativa ────────────────────────────────────────
+const sections = document.querySelectorAll('section[id], div[id="pipeline"]');
+const navItems = document.querySelectorAll('.nav-item');
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      navItems.forEach(item => {
+        item.classList.toggle('active', item.getAttribute('href') === '#' + id);
+      });
+    }
+  });
+}, { threshold: 0.3 });
+
+sections.forEach(s => observer.observe(s));
+
+// Abrir primeiro bloco por padrão
+document.querySelectorAll('.phase-header.open + .phase-body').forEach(b => b.classList.add('open'));
+
+// Fix: garantir que botões de gabarito abertos funcionem
+document.querySelectorAll('.gabarito-header').forEach(h => {
+  if (h.classList.contains('open')) {
+    h.nextElementSibling.classList.add('open');
+  }
+});
+</script>
+</body>
+</html>
