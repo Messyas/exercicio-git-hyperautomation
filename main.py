@@ -62,7 +62,11 @@ def _persist_report(
 def main(argumentos: list[str] | None = None) -> int:
     """Executa o bot e garante o fechamento dos recursos em qualquer saída."""
     settings = get_settings()
-    logger = configure_local_logging(settings.log_dir)
+    logger = configure_local_logging(
+        settings.log_dir,
+        execution_id=settings.execution_id,
+        bot_id=settings.bot_id,
+    )
     started_at = datetime.now().astimezone()
     maestro = MaestroClient(settings, logger)
 

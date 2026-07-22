@@ -467,4 +467,9 @@ def main(argumentos: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    # BotCity e Docker invocam "python bot.py". Delegamos para main.main()
+    # que configura logging estruturado (execution_id, bot_id) e Maestro
+    # antes de chamar executar_bot_cli() de volta.
+    from main import main as _main_entrypoint
+
+    raise SystemExit(_main_entrypoint())
