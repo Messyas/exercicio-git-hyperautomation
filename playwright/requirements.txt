@@ -1,0 +1,2 @@
+# Deve acompanhar a revisão de Chromium embutida em Dockerfile.playwright.
+playwright==1.52.0

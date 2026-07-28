@@ -1,39 +1,28 @@
-# Ambiente virtual Python
-venv/
-.venv/
-env/
+# v0 sandbox internal files
+__v0_runtime_loader.js
+__v0_devtools.tsx
+__v0_jsx-dev-runtime.ts
+.snowflake/
+.v0-trash/
+.vercel/
 
-# Bytecode e cache do Python
-__pycache__/
-*.py[cod]
-*.pyd
-*.pyo
+# Environment variables
+.env*.local
 
-# Distribuição e empacotamento
-dist/
-build/
-*.egg-info/
-*.egg
+# Common ignores
+node_modules
+.next/
+.DS_Store
 
-# Testes e cobertura
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Variáveis de ambiente
-.env
-
-# IDEs e editores
-.vscode/
-.idea/
-*.iml
-
-# Saídas geradas pelo bot
-data/output/
-logs/
-!logs/
-logs/*
-!logs/.gitkeep
-
-# Evidências geradas pela automação web
+# Evidências e artefatos de automação (gerados em tempo de execução)
+evidencias/
 artefatos/
+selenium/artefatos/
+playwright/artefatos/
+
+# Python
+selenium/.venv/
+selenium/__pycache__/
+playwright/__pycache__/
+__pycache__/
+*.pyc

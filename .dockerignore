@@ -1,28 +1,14 @@
-# Ignorar controles de versão
+node_modules
+.next
 .git
 .gitignore
-.github
-
-# Ignorar ambientes virtuais Python
-venv/
-.venv/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.pytest_cache/
-.idea/
-
-# Ignorar arquivos de configuração local e segredos
-.env
-*.env
-
-# Ignorar documentação e artefatos de saída
-docs/
-data/output/
-logs/
-artefatos/
-
-# Ignorar arquivos do projeto não necessários na imagem
-README.md
-CHANGELOG.md
+selenium/.venv
+selenium/__pycache__
+evidencias
+artefatos
+*.md
+!README.md
+.vercel
+.snowflake
+.v0-trash
+.DS_Store

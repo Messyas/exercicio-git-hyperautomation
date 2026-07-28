@@ -1,203 +1,99 @@
-"""Ponto de entrada do bot corporativo com resiliência e rastreabilidade."""
+"""Orquestrador do fluxo Playwright baseado em Page Object Model."""
 
 from __future__ import annotations
 
-import json
 import logging
-import importlib.util
-from datetime import datetime
+import os
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
-from bot import executar_bot_cli
-from config import get_settings
-from src.maestro_client import (
-    ExecutionResult,
-    MaestroClient,
-    configure_local_logging,
-    write_execution_report,
-)
-from src.resilience import (
-    RETRYABLE_NETWORK_ERRORS,
-    close_logger,
-)
+from src.pages.form_page import FormPage
+from src.pages.login_page import LoginPage
+from src.services.evidence_service import EvidenceService
 
 
-def _print_execution_result(result: ExecutionResult) -> None:
-    """Exibe o mesmo resultado padronizado usado no artefato JSON."""
-    print(json.dumps(result.to_dict(), ensure_ascii=False))
+CAMPOS_OBRIGATORIOS = ("lote", "produto", "status", "screenshot")
 
 
-def _failure_result(
+def _validar_item(item: dict[str, str]) -> None:
+    """Mantém a regra de entrada fora dos Page Objects."""
+    ausentes = [campo for campo in CAMPOS_OBRIGATORIOS if not item.get(campo)]
+    if ausentes:
+        raise ValueError(
+            f"Item do DataPool sem campo(s) obrigatório(s): {', '.join(ausentes)}"
+        )
+
+
+def executar_automacao_web(
+    itens: list[dict[str, str]],
     *,
-    started_at: datetime,
-    message: str,
-    error: str,
-) -> ExecutionResult:
-    return ExecutionResult.failure(
-        started_at=started_at,
-        finished_at=datetime.now().astimezone(),
-        message=message,
-        error=error,
-    )
-
-
-def _persist_report(
-    result: ExecutionResult,
-    report_path: Path,
+    url: str | None = None,
+    headless: bool = True,
+    evidencias_dir: Path = Path("evidencias"),
     logger: logging.Logger,
-) -> Path | None:
-    """Salva a evidência e transforma falhas de escrita em resultado controlado."""
-    try:
-        return write_execution_report(result, report_path)
-    except (OSError, TypeError, ValueError) as exc:
-        result.status = "FAILED"
-        result.message = "Não foi possível salvar o relatório de execução."
-        result.error = "REPORT_WRITE_ERROR"
-        logger.error(
-            "Falha ao salvar relatório | lote_id=N/A | erro=%s",
-            exc,
-        )
-        return None
-
-
-def _executar_automacao_web(settings, logger: logging.Logger) -> dict | None:
-    """Executa a etapa web somente quando habilitada no ambiente."""
-    if not settings.playwright_enabled:
-        return None
-
-    modulo_path = settings.project_root / "playwright" / "web_automation.py"
-    spec = importlib.util.spec_from_file_location(
-        "project_web_automation",
-        modulo_path,
+    sessao_navegador: Callable[..., Any],
+) -> list[dict[str, Any]]:
+    """Executa login, cadastro e geração de evidências por meio dos Page Objects."""
+    logger.info(
+        "AUTOMACAO_WEB_INICIADA url=%s quantidade_lotes=%d",
+        url or "http://frontend:3000",
+        len(itens),
     )
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Não foi possível carregar a automação web: {modulo_path}")
+    resultados: list[dict[str, Any]] = []
 
-    modulo = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(modulo)
+    with sessao_navegador(url, headless=headless) as page:
+        login_page = LoginPage(page)
+        form_page = FormPage(page)
+        evidence_service = EvidenceService(page, evidencias_dir)
 
-    return modulo.executar_automacao_web(settings=settings, logger=logger)
-
-
-def main(argumentos: list[str] | None = None) -> int:
-    """Executa o bot e garante o fechamento dos recursos em qualquer saída."""
-    settings = get_settings()
-    logger = configure_local_logging(
-        settings.log_dir,
-        execution_id=settings.execution_id,
-        bot_id=settings.bot_id,
-    )
-    started_at = datetime.now().astimezone()
-    maestro = MaestroClient(settings, logger)
-
-    try:
-        logger.info("Iniciando auditoria de acessos | lote_id=N/A")
-        try:
-            maestro.connect()
-            maestro.register_start()
-        except RETRYABLE_NETWORK_ERRORS as exc:
-            logger.error(
-                "Falha de rede ao inicializar Maestro após 3 tentativas "
-                "| lote_id=N/A | erro=%s",
-                exc,
-            )
-        except (OSError, RuntimeError, ValueError, TypeError) as exc:
-            logger.error(
-                "Falha ao inicializar Maestro | lote_id=N/A | erro=%s",
-                exc,
-            )
-        except Exception as exc:
-            logger.exception(
-                "Erro inesperado ao inicializar Maestro "
-                "| lote_id=N/A | erro=%s",
-                exc,
-            )
-
-        if not settings.input_dir.is_dir():
-            message = f"Pasta de entrada não encontrada: {settings.input_dir}"
-            logger.error("%s | lote_id=N/A", message)
-            maestro.alert_missing_input(settings.input_dir)
-            result = _failure_result(
-                started_at=started_at,
-                message=message,
-                error="INPUT_DIRECTORY_NOT_FOUND",
-            )
-            report_path = _persist_report(
-                result, settings.execution_report_file, logger
-            )
-            if report_path is not None:
-                maestro.post_report(report_path)
-            maestro.finish(result)
-            _print_execution_result(result)
-            return 1
-
-        try:
-            bot_summary = executar_bot_cli(argumentos, logger=logger)
-            finished_at = datetime.now().astimezone()
-            summary = {
-                str(key): str(value) for key, value in bot_summary.items()
+        login_page.fazer_login(
+            {
+                "usuario": os.getenv("BOT_USUARIO", "automacao"),
+                "senha": os.getenv("BOT_SENHA", "automacao"),
             }
-            if bot_summary.get("status_execucao") == "SUCESSO":
-                web_summary = _executar_automacao_web(settings, logger)
-                if web_summary is not None:
-                    summary.update({
-                        f"playwright_{key}": str(value)
-                        for key, value in web_summary.items()
-                    })
-                result = ExecutionResult.success(
-                    started_at=started_at,
-                    finished_at=finished_at,
-                    summary=summary,
-                )
-                logger.info("Auditoria de acessos concluída com sucesso.")
-            else:
-                result = ExecutionResult.failure(
-                    started_at=started_at,
-                    finished_at=finished_at,
-                    message="Auditoria de acessos encerrada com erro.",
-                    summary=summary,
-                    error=str(bot_summary.get("status_execucao", "UNKNOWN_ERROR")),
-                )
-                logger.error(
-                    "Auditoria encerrada com status %s | lote_id=N/A.",
-                    result.error,
-                )
-        except (OSError, ValueError, ImportError, KeyError, TypeError, RuntimeError) as exc:
-            logger.error(
-                "Falha no processamento da auditoria "
-                "| lote_id=N/A | erro=%s",
-                exc,
-            )
-            result = _failure_result(
-                started_at=started_at,
-                message="Auditoria de acessos encerrada por falha tratada.",
-                error=type(exc).__name__,
-            )
-        except Exception as exc:
-            logger.exception(
-                "Erro inesperado durante a auditoria "
-                "| lote_id=N/A | erro=%s",
-                exc,
-            )
-            result = _failure_result(
-                started_at=started_at,
-                message="Auditoria de acessos encerrada por exceção inesperada.",
-                error=type(exc).__name__,
-            )
-
-        report_path = _persist_report(
-            result, settings.execution_report_file, logger
         )
-        if report_path is not None:
-            logger.info("Resumo de execução salvo em %s.", report_path)
-            maestro.post_report(report_path)
-        maestro.finish(result)
-        _print_execution_result(result)
-        return 0 if report_path is not None and result.succeeded else 1
-    finally:
-        maestro.close()
-        close_logger(logger)
+        logger.info("LOGIN_REALIZADO_COM_SUCESSO")
 
+        for item in itens:
+            lote = item.get("lote", "desconhecido")
+            try:
+                _validar_item(item)
+                form_page.preencher_lote(item)
+                if not form_page.is_sucesso(lote):
+                    raise TimeoutError(f"Comprovante não exibido para {lote}.")
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+                evidencia = evidence_service.capturar_sucesso(
+                    form_page.comprovante_sucesso(lote),
+                    item["screenshot"],
+                )
+                logger.info(
+                    "LOTE_PROCESSADO_COM_SUCESSO lote=%s evidencia=%s",
+                    lote,
+                    evidencia,
+                )
+                resultados.append(
+                    {
+                        **item,
+                        "resultado": "sucesso",
+                        "evidencia": str(evidencia),
+                    }
+                )
+            except Exception as erro:
+                erro_path = evidence_service.capturar_erro(lote)
+                logger.exception("ITEM_FALHOU lote=%s erro=%s", lote, erro)
+                resultados.append(
+                    {
+                        **item,
+                        "resultado": "falha",
+                        "erro": str(erro),
+                        "evidencia": str(erro_path),
+                    }
+                )
+
+    logger.info(
+        "AUTOMACAO_WEB_FINALIZADA sucessos=%d falhas=%d",
+        sum(item["resultado"] == "sucesso" for item in resultados),
+        sum(item["resultado"] == "falha" for item in resultados),
+    )
+    return resultados

@@ -1,23 +1,26 @@
 services:
-  bot:
+  frontend:
     build:
       context: .
-      dockerfile: Dockerfile
-    image: bot-inspecao-lotes:latest
-    container_name: bot-inspecao-lotes
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 10s
+      retries: 15
+      start_period: 20s
 
-    # Carrega as variáveis de ambiente do arquivo .env local
-    env_file:
-      - .env
-
+  playwright-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.playwright
+    depends_on:
+      frontend:
+        condition: service_healthy
+    environment:
+      - BOT_URL=http://frontend:3000
+      - BOT_HEADLESS=true
     volumes:
-      # Pasta de entrada: coloque os arquivos .xlsx aqui no host
-      - ./dados_entrada:/app/dados_entrada
-
-      # Pasta de saída: relatórios e logs ficam persistidos no host
-      - ./data/output:/app/data/output
-      - ./logs:/app/logs
-      - ./artefatos:/app/artefatos
-
-    # Reinicia automaticamente em caso de falha (útil para agendamento externo)
-    restart: on-failure
+      - ./evidencias:/app/evidencias
