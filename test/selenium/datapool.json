@@ -1,0 +1,62 @@
+[
+  {
+    "lote": "LT-2026-0001",
+    "produto": "Chapa de Aço 1020",
+    "status": "Pendente",
+    "screenshot": "evidencia_LT-2026-0001.png"
+  },
+  {
+    "lote": "LT-2026-0002",
+    "produto": "Perfil de Alumínio",
+    "status": "Em processamento",
+    "screenshot": "evidencia_LT-2026-0002.png"
+  },
+  {
+    "lote": "LT-2026-0003",
+    "produto": "Tubo Galvanizado",
+    "status": "Concluído",
+    "screenshot": "evidencia_LT-2026-0003.png"
+  },
+  {
+    "lote": "LT-2026-0004",
+    "produto": "Bobina Laminada",
+    "status": "Pendente",
+    "screenshot": "evidencia_LT-2026-0004.png"
+  },
+  {
+    "lote": "LT-2026-0005",
+    "produto": "Barra Trefilada",
+    "status": "Em processamento",
+    "screenshot": "evidencia_LT-2026-0005.png"
+  },
+  {
+    "lote": "LT-2026-0006",
+    "produto": "Fio de Cobre",
+    "status": "Concluído",
+    "screenshot": "evidencia_LT-2026-0006.png"
+  },
+  {
+    "lote": "LT-2026-0007",
+    "produto": "Chapa de Aço 1020",
+    "status": "Concluído",
+    "screenshot": "evidencia_LT-2026-0007.png"
+  },
+  {
+    "lote": "LT-2026-0008",
+    "produto": "Perfil de Alumínio",
+    "status": "Pendente",
+    "screenshot": "evidencia_LT-2026-0008.png"
+  },
+  {
+    "lote": "LT-2026-0009",
+    "produto": "Tubo Galvanizado",
+    "status": "Em processamento",
+    "screenshot": "evidencia_LT-2026-0009.png"
+  },
+  {
+    "lote": "LT-2026-0010",
+    "produto": "Bobina Laminada",
+    "status": "Concluído",
+    "screenshot": "evidencia_LT-2026-0010.png"
+  }
+]

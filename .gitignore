@@ -1,28 +1,48 @@
-# v0 sandbox internal files
+# Front-end
+**/node_modules/
+**/.next/
+.vercel/
+.snowflake/
+.v0-trash/
 __v0_runtime_loader.js
 __v0_devtools.tsx
 __v0_jsx-dev-runtime.ts
-.snowflake/
-.v0-trash/
-.vercel/
 
-# Environment variables
-.env*.local
+# Variáveis locais (os exemplos permanecem versionados)
+**/.env
+**/.env.*
+!**/.env.example
 
-# Common ignores
-node_modules
-.next/
+# Python: ambientes, caches e arquivos gerados durante a execução
+**/.venv/
+**/venv/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Evidências e logs, separados por ferramenta
+test/evidencias/*
+!test/evidencias/playwright/
+!test/evidencias/selenium/
+test/evidencias/playwright/*
+test/evidencias/selenium/*
+!test/evidencias/playwright/.gitkeep
+!test/evidencias/selenium/.gitkeep
+
+test/logs/*
+!test/logs/playwright/
+!test/logs/selenium/
+test/logs/playwright/*
+test/logs/selenium/*
+!test/logs/playwright/.gitkeep
+!test/logs/selenium/.gitkeep
+
+# Artefatos legados
+**/artefatos/
+*.log
+
+# Sistema operacional e editores
 .DS_Store
-
-# Evidências e artefatos de automação (gerados em tempo de execução)
-evidencias/
-artefatos/
-selenium/artefatos/
-playwright/artefatos/
-
-# Python
-selenium/.venv/
-selenium/__pycache__/
-playwright/__pycache__/
-__pycache__/
-*.pyc
+Thumbs.db
+.idea/
+.vscode/

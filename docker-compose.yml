@@ -1,26 +1,40 @@
 services:
   frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.frontend
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
+    environment:
+      SHUTDOWN_FILE: /run-status/tests-finished
+    volumes:
+      - run-status:/run-status
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"]
-      interval: 5s
-      timeout: 10s
-      retries: 15
-      start_period: 20s
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
 
-  playwright-bot:
+  tests:
     build:
-      context: .
-      dockerfile: Dockerfile.playwright
+      context: ./test
+      dockerfile: Dockerfile
     depends_on:
       frontend:
         condition: service_healthy
+    env_file:
+      - path: ./test/.env.example
+        required: true
+      - path: ./test/.env
+        required: false
     environment:
-      - BOT_URL=http://frontend:3000
-      - BOT_HEADLESS=true
+      SHUTDOWN_FILE: /run-status/tests-finished
     volumes:
-      - ./evidencias:/app/evidencias
+      - ./test/evidencias:/app/evidencias
+      - ./test/logs:/app/logs
+      - run-status:/run-status
+    shm_size: 2gb
+
+volumes:
+  run-status:
