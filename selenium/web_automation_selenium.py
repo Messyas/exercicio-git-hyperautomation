@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
+import os
 import random
 import time
 from pathlib import Path
@@ -12,17 +14,18 @@ from typing import Any
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.select import Select
 from selenium.webdriver.support.ui import WebDriverWait
 
 
-DEFAULT_URL = "https://lote-seven.vercel.app/"
+DEFAULT_URL = os.environ.get("BOT_URL", "http://frontend:3000")
 DEFAULT_QUANTIDADE = 10
 DEFAULT_SLOW_MO_MS = 300
 DEFAULT_ARTIFACTS_DIR = Path(__file__).resolve().parent / "artefatos"
-TIMEOUT_SECONDS = 10
+TIMEOUT_SECONDS = 15
 PRODUTOS = [
     "Chapa de Aço 1020",
     "Perfil de Alumínio",
@@ -81,17 +84,20 @@ def capturar_comprovante(
     lote: str,
     logger: logging.Logger,
     artefatos_dir: Path,
+    screenshot_nome: str | None = None,
 ) -> None:
     """Salva o alerta de sucesso como evidência da execução."""
     artefatos_dir.mkdir(parents=True, exist_ok=True)
     mensagem = f"Lote {lote} processado com sucesso."
+
+    nome_arquivo = screenshot_nome or f"comprovante_{lote}.png"
 
     try:
         comprovante = _esperar_elemento(
             driver,
             (By.XPATH, f"//*[@role='status' and contains(., {_xpath_literal(mensagem)})]"),
         )
-        caminho = artefatos_dir / f"comprovante_{lote}.png"
+        caminho = artefatos_dir / nome_arquivo
         comprovante.screenshot(str(caminho))
         print(f"Evidência salva: {caminho}")
         registrar_log(logger, "COMPROVANTE_SALVO", {
@@ -128,17 +134,14 @@ def selecionar_produto(driver: webdriver.Chrome, produto: str) -> None:
     opcao.click()
 
 
-def cadastrar(
+def cadastrar_item(
     driver: webdriver.Chrome,
-    numero: int,
+    lote: str,
+    produto: str,
+    status_texto: str,
     logger: logging.Logger,
-    artefatos_dir: Path,
 ) -> None:
-    """Preenche e envia um lote."""
-    lote = f"LT-2026-{numero:04d}"
-    produto = PRODUTOS[(numero - 1) % len(PRODUTOS)]
-    escolhido = random.choice(STATUS)
-
+    """Preenche e envia um lote usando dados fornecidos pelo DataPool."""
     campo_lote = _esperar_elemento(
         driver,
         (By.XPATH, "//label[normalize-space()='Número do lote']/following::input[1]"),
@@ -149,7 +152,7 @@ def cadastrar(
 
     status = _esperar_elemento(
         driver,
-        (By.XPATH, f"//label[normalize-space()={_xpath_literal(escolhido)}]"),
+        (By.XPATH, f"//*[@role='radio' and normalize-space()={_xpath_literal(status_texto)}]"),
     )
     status.click()
     botao = WebDriverWait(driver, TIMEOUT_SECONDS).until(
@@ -159,20 +162,45 @@ def cadastrar(
     )
     botao.click()
 
-    capturar_comprovante(driver, lote, logger, artefatos_dir)
     registrar_log(logger, "FORMULARIO_ENVIADO_COM_SUCESSO", {
         "lote": lote,
         "produto": produto,
-        "status": escolhido,
+        "status": status_texto,
     })
 
 
-def _criar_driver(*, headless: bool) -> webdriver.Chrome:
-    """Cria um Chrome controlado pelo Selenium Manager."""
+def cadastrar(
+    driver: webdriver.Chrome,
+    numero: int,
+    logger: logging.Logger,
+    artefatos_dir: Path,
+) -> None:
+    """Preenche e envia um lote (modo legado com dados gerados)."""
+    lote = f"LT-2026-{numero:04d}"
+    produto = PRODUTOS[(numero - 1) % len(PRODUTOS)]
+    escolhido = random.choice(STATUS)
+
+    cadastrar_item(driver, lote, produto, escolhido, logger)
+    capturar_comprovante(driver, lote, logger, artefatos_dir)
+
+
+def criar_driver(*, headless: bool = True) -> webdriver.Chrome:
+    """Cria um Chrome controlado pelo Selenium.
+
+    Detecta automaticamente se está rodando dentro de um container Docker
+    e ajusta os argumentos necessários.
+    """
     options = Options()
     if headless:
         options.add_argument("--headless=new")
     options.add_argument("--window-size=1440,1200")
+
+    # Flags necessárias para rodar Chrome em container Docker
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--disable-extensions")
+
     return webdriver.Chrome(options=options)
 
 
@@ -185,7 +213,7 @@ def executar_automacao_web(
     artefatos_dir: Path | str = DEFAULT_ARTIFACTS_DIR,
     logger: logging.Logger | None = None,
 ) -> dict[str, Any]:
-    """Executa o cadastro web e retorna um resumo serializável."""
+    """Executa o cadastro web e retorna um resumo serializável (modo legado)."""
     if quantidade < 1:
         raise ValueError("A quantidade de lotes deve ser maior que zero.")
     if slow_mo < 0:
@@ -198,7 +226,7 @@ def executar_automacao_web(
         "quantidade_lotes": quantidade,
     })
 
-    driver = _criar_driver(headless=headless)
+    driver = criar_driver(headless=headless)
     try:
         driver.get(url)
         WebDriverWait(driver, TIMEOUT_SECONDS).until(

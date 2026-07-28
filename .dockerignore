@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.gitignore
+selenium/.venv
+selenium/__pycache__
+evidencias
+artefatos
+*.md
+!README.md
+.vercel
+.snowflake
+.v0-trash
+.DS_Store
