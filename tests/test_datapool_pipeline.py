@@ -6,9 +6,11 @@ import json
 from types import SimpleNamespace
 
 import pandas as pd
+import pytest
 
 from consumer import run_consumer
 from src.datapool_gateway import (
+    BotCityDatapoolPublisher,
     BotCityDatapoolConsumer,
     LocalDatapoolConsumer,
     LocalDatapoolPublisher,
@@ -19,6 +21,28 @@ from src.resilience import close_logger
 
 
 SAMPLE = "data/samples/inspecao_lotes_dia.xlsx"
+
+
+def test_publisher_botcity_explica_datapool_ausente_no_preflight() -> None:
+    class NotFoundError(Exception):
+        response = SimpleNamespace(status_code=404)
+
+    class Maestro:
+        def get_datapool(self, label):
+            assert label == "pool-mk7"
+            raise NotFoundError("not found")
+
+    publisher = BotCityDatapoolPublisher(
+        Maestro(),
+        datapool_label="pool-mk7",
+        validator_activity_label="validador-mk7",
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="label técnico 'pool-mk7'.*HTTP 404",
+    ):
+        publisher.check_ready()
 
 
 def test_datapool_local_publica_consume_e_persiste_estados(tmp_path) -> None:

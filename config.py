@@ -170,7 +170,7 @@ def get_settings() -> Settings:
             "botcity" if _running_from_botcity() else "local",
         ).strip().lower(),
         datapool_label=os.getenv(
-            "DATAPOOL_LABEL", "Lotes para validação"
+            "DATAPOOL_LABEL", "lotes-inspecao-validacao-off-guilliman"
         ).strip(),
         datapool_local_dir=_env_path(
             "DATAPOOL_LOCAL_DIR", "data/datapool"
