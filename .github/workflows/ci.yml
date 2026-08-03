@@ -70,6 +70,11 @@ jobs:
     needs: [testes, frontend]
     steps:
       - uses: actions/checkout@v4
+      - name: Preparar diretórios persistidos
+        shell: bash
+        run: |
+          mkdir -p artefatos data/datapool data/output logs
+          chmod -R a+rwX artefatos data/datapool data/output logs
       - name: Validar Compose
         run: docker compose config --quiet
       - name: Executar produtor e consumidor
