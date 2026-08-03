@@ -19,7 +19,10 @@ def _read_json(path: Path) -> dict:
 
 
 def _execution_records(path: Path, started_at: str) -> list[dict]:
-    start = datetime.fromisoformat(started_at)
+    # O resumo preserva microssegundos, enquanto o formatter JSON dos logs
+    # registra somente segundos. Arredondar o início para baixo impede que
+    # execuções rápidas percam todas as suas linhas no filtro.
+    start = datetime.fromisoformat(started_at).replace(microsecond=0)
     records = [
         json.loads(line)
         for line in path.read_text(encoding="utf-8").splitlines()
