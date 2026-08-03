@@ -6,6 +6,8 @@ e RN02 (Validação de Campos Obrigatórios) sobre o DataFrame ingerido
 a partir do arquivo inspecao_lotes_dia.xlsx.
 """
 
+import re
+
 import pandas as pd
 
 
@@ -36,9 +38,7 @@ CAMPOS_OBRIGATORIOS: list[str] = [
 
 # Linha Excel onde o cabeçalho começa (base 0 para skiprows):
 # Linha 1 e 2 são formatação → skiprows=2 pula para o cabeçalho na linha 3.
-# nrows=25 captura exatamente os registros úteis (linhas 4–28 do Excel).
 _LINHAS_CABECALHO_PULAR: int = 2
-_TOTAL_REGISTROS_UTEIS: int = 25
 DATA_REFERENCIA_PADRAO: str = "14/06/2026"
 
 
@@ -61,8 +61,8 @@ def carregar_planilha(caminho_arquivo: str) -> pd.DataFrame:
     Carrega a planilha de inspeção de lotes aplicando o fatiamento correto.
 
     A planilha possui 2 linhas de cabeçalho de formatação antes dos nomes
-    reais das colunas. O fatiamento garante que apenas os registros úteis
-    (linhas 4 a 28 do Excel, ou seja, 25 registros) sejam lidos.
+    reais das colunas. Linhas totalmente vazias são descartadas, permitindo
+    processar lotes diários com quantidades diferentes de registros.
 
     Parâmetros
     ----------
@@ -72,17 +72,33 @@ def carregar_planilha(caminho_arquivo: str) -> pd.DataFrame:
     Retorna
     -------
     pd.DataFrame
-        DataFrame com os 25 registros da planilha, utilizando os nomes
-        de coluna definidos na linha 3 do Excel.
+        DataFrame com os registros úteis da planilha, utilizando os nomes de
+        coluna definidos na linha 3 do Excel.
     """
     arquivo_excel = pd.ExcelFile(caminho_arquivo)
     try:
-        return pd.read_excel(
+        apresentacao = pd.read_excel(
+            arquivo_excel,
+            sheet_name=0,
+            header=None,
+            nrows=2,
+        )
+        texto_apresentacao = " ".join(
+            apresentacao.fillna("").astype(str).to_numpy().ravel()
+        )
+        match_total = re.search(
+            r"Registros:\s*(\d+)",
+            texto_apresentacao,
+            flags=re.IGNORECASE,
+        )
+        total_declarado = int(match_total.group(1)) if match_total else None
+        registros = pd.read_excel(
             arquivo_excel,
             sheet_name=0,
             skiprows=_LINHAS_CABECALHO_PULAR,
-            nrows=_TOTAL_REGISTROS_UTEIS,
+            nrows=total_declarado,
         )
+        return registros.dropna(how="all").reset_index(drop=True)
     finally:
         arquivo_excel.close()
 

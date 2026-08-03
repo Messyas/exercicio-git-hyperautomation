@@ -62,3 +62,43 @@ def test_nao_sobrescreve_relatorios_do_mesmo_dia(tmp_path) -> None:
     assert primeiro != segundo
     assert primeiro.exists()
     assert segundo.exists()
+
+
+def test_relatorio_separa_rejeicoes_e_falhas_tecnicas(tmp_path) -> None:
+    registro = {
+        "item_id": "item-1",
+        "source_row": 4,
+        "lote_id": "L1",
+        "cadastro_status": "REJEITADO_NEGOCIO",
+        "cadastro_error": "Campo obrigatório vazio.",
+        "evidence_name": "rejeicao.png",
+    }
+    falha = {
+        **registro,
+        "item_id": "item-2",
+        "source_row": 5,
+        "lote_id": "L2",
+        "cadastro_status": "FALHA_TECNICA",
+        "cadastro_error": "Timeout do navegador.",
+        "evidence_name": "timeout.png",
+    }
+
+    caminho = gerar_relatorio_divergencias(
+        [],
+        tmp_path,
+        rejeicoes_cadastro=[registro],
+        falhas_tecnicas=[falha],
+        resumo={"total_registros": 2},
+    )
+
+    with pd.ExcelFile(caminho) as arquivo:
+        assert {
+            "resumo",
+            "divergencias",
+            "lotes_validados",
+            "rejeicoes_cadastro",
+            "falhas_tecnicas",
+            "revisao_humana",
+        } == set(arquivo.sheet_names)
+    assert len(pd.read_excel(caminho, sheet_name="rejeicoes_cadastro")) == 1
+    assert len(pd.read_excel(caminho, sheet_name="falhas_tecnicas")) == 1
