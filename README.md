@@ -25,6 +25,13 @@ data/samples/inspecao_lotes_dia.xlsx
   -> consumer.py + RN01-RN07 + XLSX
 ```
 
+## Modelagem do processo
+
+A imagem abaixo apresenta o **AS-IS** e o **TO-BE** do processo modelado de
+inspeção de lotes:
+
+![Modelagem BPMN do processo de inspeção de lotes: AS-IS e TO-BE](docs/print_inspecao_lotes_bpmn.png)
+
 O frontend de demonstração fica em `frontend/`. Seus registros são mantidos no
 `localStorage` do navegador; o contrato persistente entre os bots é o
 DataPool.
