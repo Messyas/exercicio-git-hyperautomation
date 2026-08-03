@@ -34,9 +34,6 @@ htmlcov/
 data/output/
 data/datapool/
 logs/
-!logs/
-logs/*
-!logs/.gitkeep
 
 # Evidências geradas pela automação web
 artefatos/
