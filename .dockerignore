@@ -1,28 +1,30 @@
-# Ignorar controles de versão
 .git
-.gitignore
 .github
+.idea
+.vscode
 
-# Ignorar ambientes virtuais Python
-venv/
-.venv/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.pytest_cache/
-.idea/
+**/.venv
+**/venv
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.coverage
+**/htmlcov
+**/node_modules
+**/.next
 
-# Ignorar arquivos de configuração local e segredos
 .env
-*.env
+.env.*
+!.env.example
 
-# Ignorar documentação e artefatos de saída
-docs/
-data/output/
-logs/
-artefatos/
+artefatos
+data/datapool
+data/output
+docs
+frontend
+logs
+test
+tests
 
-# Ignorar arquivos do projeto não necessários na imagem
 README.md
 CHANGELOG.md

@@ -1,23 +1,86 @@
 services:
-  bot:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      SHUTDOWN_FILE: /run-status/pipeline-finished
+      TZ: America/Manaus
+    volumes:
+      - run-status:/run-status
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  producer:
     build:
       context: .
       dockerfile: Dockerfile
-    image: bot-inspecao-lotes:latest
-    container_name: bot-inspecao-lotes
-
-    # Carrega as variáveis de ambiente do arquivo .env local
+      target: producer
+    depends_on:
+      frontend:
+        condition: service_healthy
     env_file:
-      - .env
-
+      - path: ./.env.example
+        required: true
+      - path: ./.env
+        required: false
+    environment:
+      BOT_ID: bot-lotes-cadastro-playwright-mk7
+      BOT_URL: http://frontend:3000
+      BOT_HEADLESS: "true"
+      BOT_LOG_DIR: /app/logs
+      DATAPOOL_BACKEND: local
+      DATAPOOL_LOCAL_DIR: /app/data/datapool
+      PLAYWRIGHT_ARTIFACTS_DIR: /app/artefatos
+      APP_TIMEZONE: America/Manaus
+      TZ: America/Manaus
     volumes:
-      # Pasta de entrada: coloque os arquivos .xlsx aqui no host
-      - ./dados_entrada:/app/dados_entrada
+      - ./dados_entrada:/app/dados_entrada:ro
+      - ./artefatos:/app/artefatos
+      - ./data/datapool:/app/data/datapool
+      - ./logs:/app/logs
+      - run-status:/run-status
+    shm_size: 1gb
+    restart: "no"
 
-      # Pasta de saída: relatórios e logs ficam persistidos no host
+  consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: consumer
+    depends_on:
+      producer:
+        condition: service_completed_successfully
+    env_file:
+      - path: ./.env.example
+        required: true
+      - path: ./.env
+        required: false
+    environment:
+      BOT_ID: bot-lotes-validacao-mk7
+      BOT_LOG_DIR: /app/logs
+      BOT_OUTPUT_DIR: /app/data/output
+      DATAPOOL_BACKEND: local
+      DATAPOOL_LOCAL_DIR: /app/data/datapool
+      SHUTDOWN_FILE: /run-status/pipeline-finished
+      APP_TIMEZONE: America/Manaus
+      TZ: America/Manaus
+    volumes:
+      - ./data/datapool:/app/data/datapool
       - ./data/output:/app/data/output
       - ./logs:/app/logs
-      - ./artefatos:/app/artefatos
+      - run-status:/run-status
+    restart: "no"
 
-    # Reinicia automaticamente em caso de falha (útil para agendamento externo)
-    restart: on-failure
+volumes:
+  run-status:

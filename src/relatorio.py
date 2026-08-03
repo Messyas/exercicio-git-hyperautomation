@@ -8,11 +8,12 @@ regra violada, sua descrição e a ação recomendada.
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
+
+from src.time_utils import now_local
 
 
 COLUNAS_RELATORIO: tuple[str, ...] = (
@@ -119,6 +120,9 @@ def gerar_relatorio_divergencias(
     diretorio_saida: str | Path = ".",
     lotes_validados: pd.DataFrame | Iterable[Mapping[str, Any]] | None = None,
     revisao_humana: pd.DataFrame | Iterable[Mapping[str, Any]] | None = None,
+    rejeicoes_cadastro: Iterable[Mapping[str, Any]] | None = None,
+    falhas_tecnicas: Iterable[Mapping[str, Any]] | None = None,
+    resumo: Mapping[str, Any] | None = None,
 ) -> Path:
     """Consolida as falhas RN02–RN07 e exporta o relatório em ``.xlsx``.
 
@@ -148,7 +152,7 @@ def gerar_relatorio_divergencias(
     linhas = [_linha_relatorio(erro) for erro in _iterar_erros(erros)]
     tabela = pd.DataFrame(linhas, columns=COLUNAS_RELATORIO)
 
-    data_execucao = datetime.now().strftime("%d%m%Y")
+    data_execucao = now_local().strftime("%d%m%Y")
     caminho_base = diretorio / f"relatorio_divergencias_{data_execucao}.xlsx"
     caminho_saida = _caminho_disponivel(caminho_base)
     if lotes_validados is None:
@@ -176,8 +180,51 @@ def gerar_relatorio_divergencias(
     else:
         tabela_revisao = pd.DataFrame(revisao_humana)
 
+    tabela_rejeicoes = pd.DataFrame(
+        list(rejeicoes_cadastro or []),
+        columns=[
+            "item_id",
+            "source_row",
+            "lote_id",
+            "cadastro_status",
+            "cadastro_error",
+            "evidence_name",
+        ],
+    )
+    tabela_falhas = pd.DataFrame(
+        list(falhas_tecnicas or []),
+        columns=[
+            "item_id",
+            "source_row",
+            "lote_id",
+            "cadastro_status",
+            "cadastro_error",
+            "evidence_name",
+        ],
+    )
+    resumo_final = dict(resumo or {})
+    resumo_final.setdefault("total_divergencias", len(tabela))
+    resumo_final.setdefault("total_lotes_validados", len(tabela_validos))
+    resumo_final.setdefault("total_revisao_humana", len(tabela_revisao))
+    resumo_final.setdefault("total_rejeicoes_cadastro", len(tabela_rejeicoes))
+    resumo_final.setdefault("total_falhas_tecnicas", len(tabela_falhas))
+    tabela_resumo = pd.DataFrame(
+        [
+            {"metrica": chave, "valor": valor}
+            for chave, valor in resumo_final.items()
+        ],
+        columns=["metrica", "valor"],
+    )
+
     with pd.ExcelWriter(caminho_saida, engine="openpyxl") as escritor:
+        tabela_resumo.to_excel(escritor, index=False, sheet_name="resumo")
         tabela.to_excel(escritor, index=False, sheet_name="divergencias")
         tabela_validos.to_excel(escritor, index=False, sheet_name="lotes_validados")
+        tabela_rejeicoes.to_excel(
+            escritor, index=False, sheet_name="rejeicoes_cadastro"
+        )
+        tabela_falhas.to_excel(
+            escritor, index=False, sheet_name="falhas_tecnicas"
+        )
         tabela_revisao.to_excel(escritor, index=False, sheet_name="revisao_humana")
     return caminho_saida

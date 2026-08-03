@@ -1,0 +1,106 @@
+name: CD — Bots BotCity
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Operação no Orchestrator
+        required: true
+        type: choice
+        options: [deploy, update, release]
+      version:
+        description: Versão semântica dos dois bots
+        required: true
+        default: 1.0.0
+
+permissions:
+  contents: read
+
+concurrency:
+  group: botcity-deployment
+  cancel-in-progress: false
+
+jobs:
+  package-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Gerar pacotes independentes
+        run: python scripts/build_botcity_packages.py
+      - name: Validar conteúdo dos ZIPs
+        run: |
+          unzip -l dist/botcity/bot-lotes-cadastro-playwright-mk7.zip
+          unzip -l dist/botcity/bot-lotes-validacao-mk7.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pacotes-botcity-${{ inputs.version }}
+          path: dist/botcity/*.zip
+
+      - name: Deploy do produtor
+        if: inputs.operation == 'deploy'
+        uses: botcity-dev/botcity-action-bots@v1.0.6
+        with:
+          deploy: true
+          botId: bot-lotes-cadastro-playwright-mk7
+          technology: python
+          botPath: dist/botcity/bot-lotes-cadastro-playwright-mk7.zip
+          version: ${{ inputs.version }}
+          repositoryLabel: DEFAULT
+        env: &botcity_credentials
+          LOGIN: ${{ secrets.BOTCITY_LOGIN }}
+          SERVER: ${{ secrets.BOTCITY_SERVER }}
+          KEY: ${{ secrets.BOTCITY_KEY }}
+      - name: Deploy do validador
+        if: inputs.operation == 'deploy'
+        uses: botcity-dev/botcity-action-bots@v1.0.6
+        with:
+          deploy: true
+          botId: bot-lotes-validacao-mk7
+          technology: python
+          botPath: dist/botcity/bot-lotes-validacao-mk7.zip
+          version: ${{ inputs.version }}
+          repositoryLabel: DEFAULT
+        env: *botcity_credentials
+
+      - name: Update do produtor
+        if: inputs.operation == 'update'
+        uses: botcity-dev/botcity-action-bots@v1.0.6
+        with:
+          update: true
+          botId: bot-lotes-cadastro-playwright-mk7
+          technology: python
+          botPath: dist/botcity/bot-lotes-cadastro-playwright-mk7.zip
+        env: *botcity_credentials
+      - name: Update do validador
+        if: inputs.operation == 'update'
+        uses: botcity-dev/botcity-action-bots@v1.0.6
+        with:
+          update: true
+          botId: bot-lotes-validacao-mk7
+          technology: python
+          botPath: dist/botcity/bot-lotes-validacao-mk7.zip
+        env: *botcity_credentials
+
+      - name: Release do produtor
+        if: inputs.operation == 'release'
+        uses: botcity-dev/botcity-action-bots@v1.0.6
+        with:
+          release: true
+          botId: bot-lotes-cadastro-playwright-mk7
+          technology: python
+          botPath: dist/botcity/bot-lotes-cadastro-playwright-mk7.zip
+          version: ${{ inputs.version }}
+        env: *botcity_credentials
+      - name: Release do validador
+        if: inputs.operation == 'release'
+        uses: botcity-dev/botcity-action-bots@v1.0.6
+        with:
+          release: true
+          botId: bot-lotes-validacao-mk7
+          technology: python
+          botPath: dist/botcity/bot-lotes-validacao-mk7.zip
+          version: ${{ inputs.version }}
+        env: *botcity_credentials

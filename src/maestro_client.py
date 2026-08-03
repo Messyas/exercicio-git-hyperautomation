@@ -17,6 +17,7 @@ from botcity.maestro.model import (
 
 from config import Settings
 from src.resilience import RETRYABLE_NETWORK_ERRORS, call_with_network_retry
+from src.time_utils import now_local
 
 
 @dataclass
@@ -36,6 +37,11 @@ class ExecutionResult:
         """Indica se a execução terminou sem erro fatal."""
         return self.status == "SUCCESS"
 
+    @property
+    def completed(self) -> bool:
+        """Indica término controlado, inclusive com falhas parciais."""
+        return self.status in {"SUCCESS", "PARTIALLY_COMPLETED"}
+
     def to_dict(self) -> dict[str, Any]:
         """Converte o resultado para o formato serializável do artefato."""
         return asdict(self)
@@ -50,7 +56,7 @@ class ExecutionResult:
     ) -> "ExecutionResult":
         return cls(
             status="SUCCESS",
-            message="Auditoria de acessos concluída.",
+            message="Execução concluída com sucesso.",
             started_at=started_at.isoformat(),
             finished_at=finished_at.isoformat(),
             summary=summary,
@@ -75,6 +81,23 @@ class ExecutionResult:
             error=error,
         )
 
+    @classmethod
+    def partial(
+        cls,
+        *,
+        started_at: datetime,
+        finished_at: datetime,
+        summary: dict[str, Any],
+        message: str = "Execução concluída parcialmente.",
+    ) -> "ExecutionResult":
+        return cls(
+            status="PARTIALLY_COMPLETED",
+            message=message,
+            started_at=started_at.isoformat(),
+            finished_at=finished_at.isoformat(),
+            summary=summary,
+        )
+
 
 class _ContextFilter(logging.Filter):
     """Injeta execution_id e bot_id em todas as mensagens de log."""
@@ -87,6 +110,9 @@ class _ContextFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         record.execution_id = self.execution_id  # type: ignore[attr-defined]
         record.bot_id = self.bot_id  # type: ignore[attr-defined]
+        for field_name in ("batch_id", "lote_id", "source_row"):
+            if not hasattr(record, field_name):
+                setattr(record, field_name, None)
         return True
 
 
@@ -95,6 +121,8 @@ def configure_local_logging(
     *,
     execution_id: str = "local",
     bot_id: str = "bot-conferencia-lotes",
+    logger_name: str = "botcity.auditoria",
+    log_filename: str = "execucao.log",
 ) -> logging.Logger:
     """Configura o log local estruturado em JSON em ``logs/execucao.log``.
 
@@ -102,10 +130,33 @@ def configure_local_logging(
     rastreabilidade em ambientes orquestrados (Maestro / BotCity).
     """
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_path = log_dir / "execucao.log"
-    logger = logging.getLogger("botcity.auditoria")
+    log_path = log_dir / log_filename
+    logger = logging.getLogger(logger_name)
     logger.setLevel(logging.INFO)
     logger.propagate = False
+
+    try:
+        from pythonjsonlogger.json import JsonFormatter
+
+        formatter: logging.Formatter = JsonFormatter(
+            fmt=(
+                "%(asctime)s %(levelname)s %(name)s %(execution_id)s "
+                "%(bot_id)s %(batch_id)s %(lote_id)s %(source_row)s "
+                "%(message)s"
+            ),
+            datefmt="%Y-%m-%dT%H:%M:%S%z",
+            rename_fields={"asctime": "timestamp", "levelname": "level"},
+        )
+    except ImportError:
+        formatter = logging.Formatter(
+            fmt=(
+                "%(asctime)s | %(levelname)s | "
+                "execution_id=%(execution_id)s | bot_id=%(bot_id)s | "
+                "batch_id=%(batch_id)s | lote_id=%(lote_id)s | "
+                "source_row=%(source_row)s | %(message)s"
+            ),
+            datefmt="%Y-%m-%d %H:%M:%S%z",
+        )
 
     handler_path = str(log_path.resolve())
     already_configured = any(
@@ -114,24 +165,19 @@ def configure_local_logging(
         for handler in logger.handlers
     )
     if not already_configured:
-        try:
-            from pythonjsonlogger.json import JsonFormatter
-
-            formatter = JsonFormatter(
-                fmt="%(asctime)s %(levelname)s %(name)s %(execution_id)s %(bot_id)s %(message)s",
-                datefmt="%Y-%m-%dT%H:%M:%S%z",
-                rename_fields={"asctime": "timestamp", "levelname": "level"},
-            )
-        except ImportError:
-            # Fallback se python-json-logger não estiver instalado
-            formatter = logging.Formatter(
-                fmt="%(asctime)s | %(levelname)s | execution_id=%(execution_id)s | bot_id=%(bot_id)s | %(message)s",
-                datefmt="%Y-%m-%d %H:%M:%S%z",
-            )
-
         handler = logging.FileHandler(log_path, encoding="utf-8")
         handler.setFormatter(formatter)
         logger.addHandler(handler)
+
+    has_console = any(
+        isinstance(handler, logging.StreamHandler)
+        and not isinstance(handler, logging.FileHandler)
+        for handler in logger.handlers
+    )
+    if not has_console:
+        console = logging.StreamHandler()
+        console.setFormatter(formatter)
+        logger.addHandler(console)
 
     # Adiciona o filtro de contexto (idempotente: remove filtros antigos)
     for existing in logger.filters[:]:
@@ -171,21 +217,6 @@ class MaestroClient:
         if not self.enabled:
             return
 
-        missing = [
-            name
-            for name, value in {
-                "MAESTRO_SERVER": self.settings.maestro_server,
-                "MAESTRO_LOGIN": self.settings.maestro_login,
-                "MAESTRO_KEY": self.settings.maestro_key,
-            }.items()
-            if not value
-        ]
-        if missing:
-            raise ValueError(
-                "Integração Maestro habilitada, mas faltam variáveis: "
-                + ", ".join(missing)
-            )
-
         self.sdk = call_with_network_retry(
             lambda: BotMaestroSDK.from_sys_args(
                 default_server=self.settings.maestro_server or "",
@@ -216,36 +247,86 @@ class MaestroClient:
 
     def post_report(self, report_path: Path) -> None:
         """Publica o relatório JSON como artefato no Maestro."""
+        self.post_artifact(report_path)
+
+    def post_artifact(
+        self,
+        artifact_path: Path,
+        artifact_name: str | None = None,
+    ) -> None:
+        """Publica um arquivo produzido pelo bot como artefato da tarefa."""
         if not self.enabled:
             return
         if not self.task_id:
             self.logger.warning(
-                "Relatório não publicado: MAESTRO_TASK_ID não foi informado."
+                "Artefato não publicado: MAESTRO_TASK_ID não foi informado."
             )
             return
+        name = artifact_name or artifact_path.name
         self._call(
-            "publicar relatório como artefato",
+            f"publicar artefato {name}",
             lambda: self.sdk.post_artifact(
-                int(self.task_id), "resumo_execucao.json", str(report_path)
+                int(self.task_id), name, str(artifact_path)
             ),
         )
+        if not self.sdk.access_token:
+            raise ValueError(
+                "Maestro habilitado sem autenticação: execute pelo BotRunner "
+                "ou configure MAESTRO_SERVER, MAESTRO_LOGIN e MAESTRO_KEY."
+            )
 
-    def finish(self, result: ExecutionResult) -> None:
-        """Atualiza o status da tarefa no Maestro, quando houver task id."""
+    def finish(
+        self,
+        result: ExecutionResult,
+        *,
+        total_items: int | None = None,
+        processed_items: int | None = None,
+        failed_items: int | None = None,
+    ) -> None:
+        """Finaliza a tarefa e reporta seus indicadores de eficiência."""
         if not self.enabled or not self.task_id:
             return
 
-        status = (
-            AutomationTaskFinishStatus.SUCCESS
-            if result.succeeded
-            else AutomationTaskFinishStatus.FAILED
+        statuses = {
+            "SUCCESS": AutomationTaskFinishStatus.SUCCESS,
+            "PARTIALLY_COMPLETED": (
+                AutomationTaskFinishStatus.PARTIALLY_COMPLETED
+            ),
+            "FAILED": AutomationTaskFinishStatus.FAILED,
+        }
+        status = statuses.get(
+            result.status, AutomationTaskFinishStatus.FAILED
         )
+        if total_items is None:
+            total_items = result.summary.get("total_items")
+        if total_items is None:
+            total_items = result.summary.get("total")
+        if total_items is None:
+            total_items = result.summary.get("total_registros", 0)
+
+        if failed_items is None:
+            failed_items = result.summary.get("failed_items")
+        if failed_items is None:
+            failed_items = result.summary.get("cadastros_falha")
+        if failed_items is None:
+            failed_items = result.summary.get("cadastros_falha_tecnica")
+        if failed_items is None:
+            failed_items = result.summary.get("total_falhas_tecnicas", 0)
+
+        if processed_items is None:
+            processed_items = result.summary.get("processed_items")
+        if processed_items is None:
+            processed_items = int(total_items) - int(failed_items)
+
         self._call(
             "finalizar tarefa",
             lambda: self.sdk.finish_task(
-                self.task_id,
-                status,
+                task_id=int(self.task_id),
+                status=status,
                 message=result.message,
+                total_items=int(total_items),
+                processed_items=int(processed_items),
+                failed_items=int(failed_items),
             ),
         )
 
@@ -266,8 +347,8 @@ class MaestroClient:
     def _register_start(self) -> None:
         if self.task_id:
             self._send_alert(
-                title="Auditoria de acessos",
-                message="Iniciando auditoria de acessos",
+                title="Execução do bot",
+                message="Iniciando processamento",
                 alert_type=AlertType.INFO,
             )
             return
@@ -284,8 +365,8 @@ class MaestroClient:
         self.sdk.new_log_entry(
             self.settings.maestro_activity_label,
             {
-                "timestamp": datetime.now().astimezone().isoformat(),
-                "mensagem": "Iniciando auditoria de acessos",
+                "timestamp": now_local().isoformat(),
+                "mensagem": "Iniciando processamento",
             },
         )
 

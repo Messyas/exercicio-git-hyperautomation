@@ -10,6 +10,8 @@ Regra de Negócio:
     exceções do analista de qualidade.
 """
 
+import re
+
 import pandas as pd
 
 
@@ -22,10 +24,6 @@ _ABA_BASE_REFERENCIA: str = "Base_Referencia"
 # A aba possui 1 linha de formatação (título) antes do cabeçalho real na
 # linha 2 do Excel. skiprows=1 posiciona o leitor exatamente no cabeçalho.
 _LINHAS_FORMATACAO_PULAR: int = 1
-
-# Os dados úteis vão da linha 3 até a linha 25 do Excel → 23 registros
-# (o lote LG-2026-00103 está intencionalmente ausente como erro controlado).
-_TOTAL_IDS_REFERENCIA: int = 23
 
 _COLUNA_LOTE_ID: str = "lote_id"
 
@@ -67,11 +65,26 @@ def carregar_base_referencia(caminho_arquivo: str) -> set[str]:
     """
     arquivo_excel = pd.ExcelFile(caminho_arquivo)
     try:
+        apresentacao = pd.read_excel(
+            arquivo_excel,
+            sheet_name=_ABA_BASE_REFERENCIA,
+            header=None,
+            nrows=1,
+        )
+        texto_apresentacao = " ".join(
+            apresentacao.fillna("").astype(str).to_numpy().ravel()
+        )
+        match_total = re.search(
+            r"Registros:\s*(\d+)",
+            texto_apresentacao,
+            flags=re.IGNORECASE,
+        )
+        total_declarado = int(match_total.group(1)) if match_total else None
         df_referencia: pd.DataFrame = pd.read_excel(
             arquivo_excel,
             sheet_name=_ABA_BASE_REFERENCIA,
             skiprows=_LINHAS_FORMATACAO_PULAR,
-            nrows=_TOTAL_IDS_REFERENCIA,
+            nrows=total_declarado,
         )
     finally:
         arquivo_excel.close()

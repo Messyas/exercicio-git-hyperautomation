@@ -23,13 +23,18 @@ def test_executar_bot_produz_evidencias_do_pdd(tmp_path) -> None:
 
     with pd.ExcelFile(resultado["relatorio"]) as arquivo:
         assert set(arquivo.sheet_names) == {
+            "resumo",
             "divergencias",
             "lotes_validados",
+            "rejeicoes_cadastro",
+            "falhas_tecnicas",
             "revisao_humana",
         }
         divergencias = pd.read_excel(arquivo, sheet_name="divergencias")
         validos = pd.read_excel(arquivo, sheet_name="lotes_validados")
         revisao = pd.read_excel(arquivo, sheet_name="revisao_humana")
+        rejeicoes = pd.read_excel(arquivo, sheet_name="rejeicoes_cadastro")
+        falhas = pd.read_excel(arquivo, sheet_name="falhas_tecnicas")
 
     assert len(divergencias) == 9
     assert {"lote_id", "regra_violada", "descricao_do_erro"}.issubset(
@@ -37,6 +42,8 @@ def test_executar_bot_produz_evidencias_do_pdd(tmp_path) -> None:
     )
     assert len(validos) == 16
     assert len(revisao) == 2
+    assert rejeicoes.empty
+    assert falhas.empty
     assert "LG-2026-00115" in divergencias["lote_id"].tolist()
     assert any(
         "RN05" in regra and "RN07" in regra

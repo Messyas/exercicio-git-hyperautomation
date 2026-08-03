@@ -8,6 +8,7 @@ variáveis esperadas sem conter segredos reais.
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -16,6 +17,15 @@ from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 load_dotenv(PROJECT_ROOT / ".env", override=False)
+
+
+def _running_from_botcity() -> bool:
+    """Reconhece os argumentos server/task/token injetados pelo BotRunner."""
+    return len(sys.argv) >= 4 and str(sys.argv[1]).startswith(("http://", "https://"))
+
+
+def _runner_task_id() -> str | None:
+    return str(sys.argv[2]) if _running_from_botcity() else None
 
 
 def _env_path(name: str, default: str) -> Path:
@@ -85,6 +95,14 @@ class Settings:
     playwright_slow_mo: int
     playwright_quantity: int
     playwright_artifacts_dir: Path
+    playwright_timeout_ms: int
+    web_username: str
+    web_password: str
+    datapool_backend: str
+    datapool_label: str
+    datapool_local_dir: Path
+    validator_activity_label: str
+    timezone: str
 
 
 def get_settings() -> Settings:
@@ -97,29 +115,70 @@ def get_settings() -> Settings:
         default_input_file=_env_path(
             "BOT_INPUT_FILE", "data/samples/inspecao_lotes_dia.xlsx"
         ),
-        maestro_enabled=_env_bool("MAESTRO_ENABLED"),
+        maestro_enabled=_env_bool(
+            "MAESTRO_ENABLED", default=_running_from_botcity()
+        ),
         maestro_server=os.getenv("MAESTRO_SERVER") or None,
         maestro_login=os.getenv("MAESTRO_LOGIN") or None,
         maestro_key=os.getenv("MAESTRO_KEY") or None,
-        maestro_task_id=os.getenv("MAESTRO_TASK_ID") or None,
+        maestro_task_id=(
+            os.getenv("MAESTRO_TASK_ID") or _runner_task_id()
+        ),
         maestro_activity_label=os.getenv(
             "MAESTRO_ACTIVITY_LABEL", "auditoria-acessos"
         ).strip(),
         execution_report_file=_env_path(
             "BOT_EXECUTION_REPORT_FILE", "logs/resumo_execucao.json"
         ),
-        execution_id=os.getenv("EXECUTION_ID", "local").strip(),
-        bot_id=os.getenv("BOT_ID", "bot-conferencia-lotes").strip(),
+        execution_id=(
+            os.getenv("EXECUTION_ID")
+            or os.getenv("MAESTRO_TASK_ID")
+            or _runner_task_id()
+            or "local"
+        ).strip(),
+        bot_id=(
+            os.getenv("BOT_ID") or "bot-conferencia-lotes"
+        ).strip(),
         playwright_enabled=_env_bool("PLAYWRIGHT_ENABLED"),
         playwright_url=os.getenv(
-            "PLAYWRIGHT_URL", "https://lote-seven.vercel.app/"
+            "BOT_URL",
+            os.getenv(
+                "PLAYWRIGHT_URL",
+                (
+                    "http://localhost:3000"
+                    if _running_from_botcity()
+                    else "http://frontend:3000"
+                ),
+            ),
         ).strip(),
-        playwright_headless=_env_bool("PLAYWRIGHT_HEADLESS", default=True),
+        playwright_headless=_env_bool(
+            "BOT_HEADLESS",
+            default=_env_bool("PLAYWRIGHT_HEADLESS", default=True),
+        ),
         playwright_slow_mo=_env_int("PLAYWRIGHT_SLOW_MO", 300),
         playwright_quantity=_env_int("PLAYWRIGHT_QUANTITY", 10, minimum=1),
         playwright_artifacts_dir=_env_path(
             "PLAYWRIGHT_ARTIFACTS_DIR", "artefatos"
         ),
+        playwright_timeout_ms=_env_int(
+            "PLAYWRIGHT_TIMEOUT_MS", 10_000, minimum=1
+        ),
+        web_username=os.getenv("BOT_USUARIO", "automacao").strip(),
+        web_password=os.getenv("BOT_SENHA", "automacao"),
+        datapool_backend=os.getenv(
+            "DATAPOOL_BACKEND",
+            "botcity" if _running_from_botcity() else "local",
+        ).strip().lower(),
+        datapool_label=os.getenv(
+            "DATAPOOL_LABEL", "Lotes para validação"
+        ).strip(),
+        datapool_local_dir=_env_path(
+            "DATAPOOL_LOCAL_DIR", "data/datapool"
+        ),
+        validator_activity_label=os.getenv(
+            "VALIDATOR_ACTIVITY_LABEL", "bot-lotes-validacao-mk7"
+        ).strip(),
+        timezone=os.getenv("APP_TIMEZONE", "America/Manaus").strip(),
     )
 
 

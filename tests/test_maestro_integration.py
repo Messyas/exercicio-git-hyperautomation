@@ -8,11 +8,14 @@ import pytest
 from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from main import main
+from config import get_settings
 from src.maestro_client import (
     ExecutionResult,
+    MaestroClient,
     write_execution_report,
 )
 from src.resilience import call_with_network_retry
+from src.time_utils import now_local
 
 
 def test_execution_result_gera_relatorio_json(tmp_path) -> None:
@@ -29,6 +32,84 @@ def test_execution_result_gera_relatorio_json(tmp_path) -> None:
     assert payload["status"] == "SUCCESS"
     assert payload["summary"] == {"total": 2}
     assert payload["report_path"] == str(arquivo)
+
+
+def test_resultado_parcial_e_conclusao_controlada() -> None:
+    inicio = now_local()
+    resultado = ExecutionResult.partial(
+        started_at=inicio,
+        finished_at=now_local(),
+        summary={"total": 2, "cadastros_falha_tecnica": 1},
+    )
+
+    assert resultado.status == "PARTIALLY_COMPLETED"
+    assert resultado.completed
+    assert not resultado.succeeded
+
+
+def test_finish_reporta_indicadores_de_itens_ao_maestro(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("MAESTRO_ENABLED", "true")
+    monkeypatch.setenv("MAESTRO_TASK_ID", "321")
+    settings = get_settings()
+    captured = {}
+
+    class FakeMaestro:
+        def finish_task(self, **kwargs):
+            captured.update(kwargs)
+
+    client = MaestroClient(settings, logging.getLogger("test.finish.items"))
+    client.sdk = FakeMaestro()
+    result = ExecutionResult.success(
+        started_at=now_local(),
+        finished_at=now_local(),
+        summary={},
+    )
+
+    client.finish(
+        result,
+        total_items=25,
+        processed_items=16,
+        failed_items=9,
+    )
+
+    assert captured["task_id"] == 321
+    assert captured["total_items"] == 25
+    assert captured["processed_items"] == 16
+    assert captured["failed_items"] == 9
+
+
+def test_runner_define_contexto_e_defaults_botcity(monkeypatch) -> None:
+    for variable in (
+        "MAESTRO_ENABLED",
+        "MAESTRO_TASK_ID",
+        "EXECUTION_ID",
+        "DATAPOOL_BACKEND",
+        "BOT_URL",
+        "PLAYWRIGHT_URL",
+    ):
+        monkeypatch.delenv(variable, raising=False)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["bot.py", "https://example.invalid", "task-123", "token", "org"],
+    )
+
+    settings = get_settings()
+
+    assert settings.maestro_enabled
+    assert settings.maestro_task_id == "task-123"
+    assert settings.execution_id == "task-123"
+    assert settings.datapool_backend == "botcity"
+    assert settings.playwright_url == "http://localhost:3000"
+
+
+def test_relogio_operacional_usa_fuso_manaus(monkeypatch) -> None:
+    monkeypatch.setenv("APP_TIMEZONE", "America/Manaus")
+    timestamp = now_local()
+
+    assert timestamp.tzinfo is not None
+    assert timestamp.utcoffset().total_seconds() == -4 * 60 * 60
 
 
 def test_main_falha_imediatamente_quando_pasta_de_entrada_nao_existe(
