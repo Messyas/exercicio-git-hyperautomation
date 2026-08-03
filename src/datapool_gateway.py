@@ -85,6 +85,8 @@ class ConsumedBatch:
 
 
 class DatapoolPublisher(Protocol):
+    def check_ready(self) -> None: ...
+
     def publish(
         self,
         *,
@@ -105,6 +107,10 @@ class LocalDatapoolPublisher:
 
     def __init__(self, directory: Path) -> None:
         self.directory = directory
+
+    def check_ready(self) -> None:
+        """Falha cedo quando o diretório de handoff não pode ser criado."""
+        self.directory.mkdir(parents=True, exist_ok=True)
 
     def publish(
         self,
@@ -196,6 +202,27 @@ class BotCityDatapoolPublisher:
         self.datapool_label = datapool_label
         self.validator_activity_label = validator_activity_label
 
+    def _get_datapool(self) -> Any:
+        try:
+            return self.maestro.get_datapool(self.datapool_label)
+        except Exception as error:
+            response = getattr(error, "response", None)
+            status_code = getattr(response, "status_code", None)
+            if status_code == 404:
+                detail = "não encontrado no workspace atual (HTTP 404)"
+            elif status_code:
+                detail = f"indisponível (HTTP {status_code})"
+            else:
+                detail = f"indisponível ({type(error).__name__})"
+            raise RuntimeError(
+                f"DataPool com label técnico {self.datapool_label!r} {detail}. "
+                "Confira o campo Label no Maestro e o workspace do Runner."
+            ) from error
+
+    def check_ready(self) -> None:
+        """Valida o DataPool antes que o produtor altere o sistema web."""
+        self._get_datapool()
+
     def publish(
         self,
         *,
@@ -203,7 +230,7 @@ class BotCityDatapoolPublisher:
         records: list[dict[str, Any]],
         reference_lote_ids: set[str],
     ) -> str:
-        datapool = self.maestro.get_datapool(self.datapool_label)
+        datapool = self._get_datapool()
         reference_json = json.dumps(
             sorted(reference_lote_ids), ensure_ascii=False
         )

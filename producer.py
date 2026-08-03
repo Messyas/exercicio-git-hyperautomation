@@ -90,6 +90,15 @@ def run_producer() -> int:
             extra={"batch_id": batch.batch_id},
         )
 
+        publisher = _publisher(settings, maestro)
+        publisher.check_ready()
+        logger.info(
+            "DESTINO_DATAPOOL_VALIDADO backend=%s label=%s",
+            settings.datapool_backend,
+            settings.datapool_label,
+            extra={"batch_id": batch.batch_id},
+        )
+
         processed: list[dict[str, Any]] = []
         credentials = {
             "usuario": settings.web_username,
@@ -212,7 +221,7 @@ def run_producer() -> int:
             item["batch_total"] = len(processed)
             item["producer_execution_id"] = settings.execution_id
 
-        destination = _publisher(settings, maestro).publish(
+        destination = publisher.publish(
             batch_id=batch.batch_id,
             records=processed,
             reference_lote_ids=batch.reference_lote_ids,
