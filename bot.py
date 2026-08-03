@@ -22,6 +22,7 @@ from src.base_referencia import carregar_base_referencia, verificar_existencia_l
 from src.regras_negocio import normalizar_status, validar_dominio_status
 from src.relatorio import gerar_relatorio_divergencias
 from src.validacao import (
+    DATA_REFERENCIA_PADRAO,
     ErroEstrutural,
     carregar_planilha,
     valida_campos_obrigatorios,
@@ -29,6 +30,7 @@ from src.validacao import (
     validar_data_referencia,
     validar_observacao_reprovado,
 )
+from src.time_utils import now_local
 
 
 ARQUIVO_PADRAO = settings.default_input_file
@@ -80,9 +82,11 @@ def _log_exception(
 
 def _coletar_erros(
     df: pd.DataFrame,
-    arquivo: str,
+    arquivo: str | None,
     *,
     logger: logging.Logger | None = None,
+    lotes_validos: set[str] | None = None,
+    data_referencia: str = DATA_REFERENCIA_PADRAO,
 ) -> tuple[list[dict[str, Any]], pd.DataFrame]:
     """Executa RN02–RN07 e retorna erros padronizados e casos para revisão."""
     erros: list[dict[str, Any]] = []
@@ -101,7 +105,10 @@ def _coletar_erros(
             )
         )
 
-    erros_rn01_data = validar_data_referencia(df)
+    erros_rn01_data = validar_data_referencia(
+        df,
+        data_referencia=data_referencia,
+    )
     for indice, linha in erros_rn01_data.iterrows():
         original = _indice_original(linha, indice)
         erros.append(
@@ -115,7 +122,12 @@ def _coletar_erros(
             )
         )
 
-    lotes_validos = carregar_base_referencia(arquivo)
+    if lotes_validos is None:
+        if arquivo is None:
+            raise ValueError(
+                "A base de referência ou o arquivo de origem é obrigatório."
+            )
+        lotes_validos = carregar_base_referencia(arquivo)
     erros_rn03 = verificar_existencia_lote(df, lotes_validos)
     for indice, linha in erros_rn03.iterrows():
         original = _indice_original(linha, indice)
@@ -285,6 +297,73 @@ def _calcular_md5(arquivo: Path) -> str:
     return hash_md5.hexdigest()
 
 
+def validar_dataframe(
+    df: pd.DataFrame,
+    *,
+    lotes_validos: set[str],
+    diretorio_saida: str | Path,
+    data_referencia: str = DATA_REFERENCIA_PADRAO,
+    logger: logging.Logger | None = None,
+    indices_excluidos: set[int] | None = None,
+    rejeicoes_cadastro: list[dict[str, Any]] | None = None,
+    falhas_tecnicas: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Aplica RN01–RN07 a dados vindos de Excel ou DataPool.
+
+    Esta função contém o núcleo compartilhado do bot validador. A adaptação de
+    entrada é responsável apenas por montar o DataFrame e fornecer o snapshot
+    da base de referência.
+    """
+    valida_estrutura(df)
+    erros, revisao_humana = _coletar_erros(
+        df,
+        None,
+        logger=logger,
+        lotes_validos=lotes_validos,
+        data_referencia=data_referencia or DATA_REFERENCIA_PADRAO,
+    )
+    df_normalizado = normalizar_status(df)
+    indices_divergentes = {int(erro["_indice"]) for erro in erros}
+    indices_nao_validados = indices_divergentes | set(indices_excluidos or set())
+    indices_validos = [
+        indice
+        for indice in df_normalizado.index
+        if indice not in indices_nao_validados
+    ]
+    lotes_validados = df_normalizado.loc[indices_validos].copy()
+    erros_consolidados = _consolidar_erros(erros)
+    relatorio = gerar_relatorio_divergencias(
+        erros_consolidados,
+        diretorio_saida,
+        lotes_validados=lotes_validados,
+        revisao_humana=revisao_humana,
+        rejeicoes_cadastro=rejeicoes_cadastro,
+        falhas_tecnicas=falhas_tecnicas,
+        resumo={
+            "total_registros": len(df),
+            "total_divergencias": len(erros_consolidados),
+            "total_regras_violadas": len(erros),
+            "total_lotes_validados": len(lotes_validados),
+            "total_revisao_humana": len(revisao_humana),
+            "total_rejeicoes_cadastro": len(rejeicoes_cadastro or []),
+            "total_falhas_tecnicas": len(falhas_tecnicas or []),
+        },
+    )
+    return {
+        "status_execucao": "SUCESSO",
+        "relatorio": relatorio,
+        "total_registros": len(df),
+        "total_divergencias": len(erros_consolidados),
+        "total_regras_violadas": len(erros),
+        "total_lotes_validados": len(lotes_validados),
+        "total_revisao_humana": len(revisao_humana),
+        "total_rejeicoes_cadastro": len(rejeicoes_cadastro or []),
+        "total_falhas_tecnicas": len(falhas_tecnicas or []),
+        "indices_divergentes": sorted(indices_divergentes),
+        "divergencias": erros_consolidados,
+    }
+
+
 def executar_bot(
     caminho_arquivo: str | Path = ARQUIVO_PADRAO,
     diretorio_saida: str | Path = DIRETORIO_SAIDA_PADRAO,
@@ -297,7 +376,7 @@ def executar_bot(
     erro de arquivo ou estrutura, o bot registra o motivo no log e encerra
     sem tentar processar os registros.
     """
-    inicio = datetime.now().astimezone()
+    inicio = now_local()
     arquivo = Path(caminho_arquivo)
     saida = Path(diretorio_saida)
     log = saida / "log_execucao.json"
@@ -309,7 +388,7 @@ def executar_bot(
             FileNotFoundError(str(arquivo)),
             context="Arquivo de entrada não encontrado",
         )
-        fim = datetime.now().astimezone()
+        fim = now_local()
         log_path = _escrever_log(
             caminho=log,
             inicio=inicio,
@@ -335,7 +414,7 @@ def executar_bot(
         valida_estrutura(df)
     except ErroEstrutural as exc:
         _log_exception(logger, exc, context="Estrutura da planilha inválida")
-        fim = datetime.now().astimezone()
+        fim = now_local()
         log_path = _escrever_log(
             caminho=log,
             inicio=inicio,
@@ -356,7 +435,7 @@ def executar_bot(
         }
     except (OSError, ValueError, ImportError) as exc:
         _log_exception(logger, exc, context="Falha na leitura da planilha")
-        fim = datetime.now().astimezone()
+        fim = now_local()
         log_path = _escrever_log(
             caminho=log,
             inicio=inicio,
@@ -382,7 +461,7 @@ def executar_bot(
         )
     except (OSError, ValueError, KeyError, TypeError) as exc:
         _log_exception(logger, exc, context="Falha nas regras de negócio")
-        fim = datetime.now().astimezone()
+        fim = now_local()
         log_path = _escrever_log(
             caminho=log,
             inicio=inicio,
@@ -415,7 +494,7 @@ def executar_bot(
         lotes_validados=lotes_validados,
         revisao_humana=revisao_humana,
     )
-    fim = datetime.now().astimezone()
+    fim = now_local()
     log_path = _escrever_log(
         caminho=log,
         inicio=inicio,

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import importlib.util
 from datetime import datetime
 from pathlib import Path
 
@@ -20,6 +19,7 @@ from src.resilience import (
     RETRYABLE_NETWORK_ERRORS,
     close_logger,
 )
+from src.time_utils import now_local
 
 
 def _print_execution_result(result: ExecutionResult) -> None:
@@ -35,7 +35,7 @@ def _failure_result(
 ) -> ExecutionResult:
     return ExecutionResult.failure(
         started_at=started_at,
-        finished_at=datetime.now().astimezone(),
+        finished_at=now_local(),
         message=message,
         error=error,
     )
@@ -60,25 +60,6 @@ def _persist_report(
         return None
 
 
-def _executar_automacao_web(settings, logger: logging.Logger) -> dict | None:
-    """Executa a etapa web somente quando habilitada no ambiente."""
-    if not settings.playwright_enabled:
-        return None
-
-    modulo_path = settings.project_root / "playwright" / "web_automation.py"
-    spec = importlib.util.spec_from_file_location(
-        "project_web_automation",
-        modulo_path,
-    )
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Não foi possível carregar a automação web: {modulo_path}")
-
-    modulo = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(modulo)
-
-    return modulo.executar_automacao_web(settings=settings, logger=logger)
-
-
 def main(argumentos: list[str] | None = None) -> int:
     """Executa o bot e garante o fechamento dos recursos em qualquer saída."""
     settings = get_settings()
@@ -87,7 +68,7 @@ def main(argumentos: list[str] | None = None) -> int:
         execution_id=settings.execution_id,
         bot_id=settings.bot_id,
     )
-    started_at = datetime.now().astimezone()
+    started_at = now_local()
     maestro = MaestroClient(settings, logger)
 
     try:
@@ -133,17 +114,11 @@ def main(argumentos: list[str] | None = None) -> int:
 
         try:
             bot_summary = executar_bot_cli(argumentos, logger=logger)
-            finished_at = datetime.now().astimezone()
+            finished_at = now_local()
             summary = {
                 str(key): str(value) for key, value in bot_summary.items()
             }
             if bot_summary.get("status_execucao") == "SUCESSO":
-                web_summary = _executar_automacao_web(settings, logger)
-                if web_summary is not None:
-                    summary.update({
-                        f"playwright_{key}": str(value)
-                        for key, value in web_summary.items()
-                    })
                 result = ExecutionResult.success(
                     started_at=started_at,
                     finished_at=finished_at,

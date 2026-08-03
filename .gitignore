@@ -22,6 +22,8 @@ htmlcov/
 
 # Variáveis de ambiente
 .env
+.env.*
+!.env.example
 
 # IDEs e editores
 .vscode/
@@ -30,6 +32,7 @@ htmlcov/
 
 # Saídas geradas pelo bot
 data/output/
+data/datapool/
 logs/
 !logs/
 logs/*
@@ -37,3 +40,7 @@ logs/*
 
 # Evidências geradas pela automação web
 artefatos/
+
+# Frontend
+frontend/node_modules/
+frontend/.next/

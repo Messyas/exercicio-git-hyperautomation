@@ -1,208 +1,212 @@
-# Bot de Inspeção de Lotes Diários
+# Pipeline de Cadastro e Validação de Lotes
 
-## Sobre o projeto
+O projeto contém dois bots independentes:
 
-Este projeto é uma automação desenvolvida em Python para realizar a triagem e
-validação da planilha diária de inspeção de lotes do controle de qualidade.
-O bot atua como um filtro de governança inicial: lê os dados de entrada,
-aplica as regras de negócio RN01 a RN07, identifica divergências e gera um
-relatório Excel para acompanhamento e revisão humana.
+1. **Produtor Playwright**: lê a planilha bruta, cadastra cada lote no sistema
+   web local, salva evidências e publica todos os registros no DataPool.
+2. **Consumidor BotCity**: consome o DataPool, executa RN01–RN07, atualiza o
+   estado individual dos itens e gera o relatório Excel.
 
-Além do processamento da planilha, o projeto oferece:
+O fuso operacional é sempre `America/Manaus`. Rejeições do formulário,
+divergências de negócio e falhas técnicas são classificadas separadamente;
+nenhuma divergência interrompe o processamento dos itens seguintes.
 
-- logs estruturados em JSON com `execution_id` e `bot_id`;
-- integração opcional com o BotCity Maestro;
-- empacotamento e execução com Docker Compose;
-- workflow de validação contínua com GitHub Actions;
-- automação web opcional com Playwright.
+Os dados inválidos também são enviados ao consumidor. Assim, uma rejeição do
+formulário web não elimina justamente o registro que precisa ser auditado.
 
-### Fluxo do processo
+## Fluxo
 
-O fluxo geral da automação está representado no diagrama BPMN abaixo:
+```text
+data/samples/inspecao_lotes_dia.xlsx
+              │
+              ▼
+     producer.py + Playwright
+       │ cadastro + PNG
+       ▼
+ DataPool local ou BotCity
+              │
+              ▼
+         consumer.py
+       RN01–RN07 + XLSX
+```
 
-![Diagrama BPMN do processo de inspeção de lotes](docs/print_inspecao_lotes_bpmn.png)
+O frontend de demonstração fica em `frontend/`. Seus registros são mantidos no
+`localStorage` do navegador; o contrato persistente entre os bots é o
+DataPool.
 
-## Pré-requisitos
-* Python 3.11+
-* Gerenciador de pacotes `pip`
+## Execução completa com Docker
 
-## Instalação e Configuração
-
-1. **Acesse a pasta do projeto:**
-   ```bash
-   cd caminho/para/o/projeto
-   ```
-
-2. **Crie e ative um ambiente virtual:**
-
-   No Windows:
-   ```bash
-   python -m venv .venv
-   venv\Scripts\activate
-   ```
-
-   No Linux/Ubuntu:
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
-
-3. **Instale as dependências do projeto:** O projeto requer bibliotecas para manipulação de dados e testes (como pandas, openpyxl e pytest). Instale todas rodando:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-## Como Executar
-
-Para iniciar o bot e processar a planilha de exemplo:
+Pré-requisito: Docker com Docker Compose.
 
 ```bash
-python main.py
+docker compose config --quiet
+docker compose build
+docker compose up --exit-code-from consumer
 ```
 
-O bot gera os artefatos em `data/output/`:
+O Compose:
 
-- `relatorio_divergencias_DDMMAAAA.xlsx`, com as abas `divergencias`,
-  `lotes_validados` e `revisao_humana`;
-- `log_execucao.json`, com o resultado e os totais da execução.
+- inicia e aguarda o healthcheck do frontend;
+- executa o produtor;
+- inicia o consumidor somente se o produtor concluir;
+- encerra o frontend ao final;
+- mantém todas as saídas na máquina host.
 
-Para informar outro arquivo ou diretório de saída:
+Para reconstruir e executar em um único comando:
 
 ```bash
-python bot.py caminho/para/arquivo.xlsx --saida caminho/para/saida
+docker compose up --build --exit-code-from consumer
 ```
 
-Para rodar a suíte de testes unitários e garantir que as validações (RN01-RN07) estão funcionando corretamente:
+Execução individual, quando o frontend já estiver disponível:
 
 ```bash
-pytest
+docker compose run --rm producer
+docker compose run --rm consumer
 ```
 
-## Executando com Docker
+O `.env` é opcional. Copie `.env.example` somente quando precisar substituir
+algum padrão:
 
-Como alternativa ao ambiente Python local, o bot pode ser executado em um container Docker via **Docker Compose**.
-
-### Pré-requisitos
-
-* [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado e em execução
-
-### Execução
-
-O comando abaixo constrói a imagem (instalando todas as dependências do `requirements.txt`) e inicia o container:
-
-```bash
-docker compose up --build
+```powershell
+Copy-Item .env.example .env
 ```
 
-> Use `--build` sempre que alterar dependências (`requirements.txt`) ou o `Dockerfile`.  
-> Nas execuções seguintes, sem alterações, basta:
-> ```bash
-> docker compose up
-> ```
-
-### Artefatos gerados no host
-
-Os volumes configurados no [`docker-compose.yml`](docker-compose.yml) persistem os arquivos diretamente na máquina host:
-
-| Pasta no host | Pasta no container | Conteúdo |
-|---|---|---|
-| `./dados_entrada/` | `/app/dados_entrada/` | Planilhas `.xlsx` de entrada |
-| `./data/output/` | `/app/data/output/` | Relatório de divergências |
-| `./logs/` | `/app/logs/` | Log estruturado JSON (`execucao.log`) |
-
-Após a execução, verifique os artefatos em `data/output/` e `logs/` — eles estarão disponíveis mesmo após o container encerrar.
-
-## CI/CD
-
-O projeto utiliza **GitHub Actions** para integração contínua. O pipeline está definido em [`.github/workflows/CI.yml`](.github/workflows/CI.yml).
-
-### CI — Integração Contínua
-
-Executado automaticamente em **todo push e pull request** para as branches `main`, `develop`, `feature/**`, `release/**` e `hotfix/**`:
-
-| Etapa | O que faz |
-|-------|-----------|
-| **Lint (flake8)** | Verifica erros de sintaxe e nomes indefinidos (bloqueia merge) + avisos de estilo (não bloqueia) |
-| **Testes (pytest)** | Executa a suíte de testes em `tests/` |
-| **Segurança** | Verifica ausência de credenciais hardcodadas no código-fonte |
-
-> **Importante:** As branches `main` e `develop` estão protegidas — o merge via PR só é permitido se o CI estiver verde.
-
-### Secrets necessários no GitHub
-
-Para que o **CD (deploy)** funcione, os seguintes secrets devem ser configurados em **Settings > Secrets and variables > Actions**:
-
-| Secret | Descrição |
-|--------|-----------|
-| `MAESTRO_SERVER` | URL do servidor BotCity Maestro (ex: `https://developers.botcity.dev`) |
-| `MAESTRO_LOGIN` | Login de acesso ao Maestro |
-| `MAESTRO_KEY` | Chave/token de API do Maestro |
-| `BOT_ID` | Identificador do bot no Maestro (ex: `bot-conferencia-lotes`) |
-
->  **Nunca** coloque credenciais diretamente no código ou no arquivo de workflow. Use apenas GitHub Secrets.
-
-## Logs Estruturados
-
-O bot gera logs em **JSON estruturado** (via `python-json-logger`) com os campos `execution_id` e `bot_id` injetados automaticamente em todas as mensagens:
-
-```json
-{
-  "timestamp": "2026-07-22T10:15:00-0400",
-  "level": "INFO",
-  "name": "botcity.auditoria",
-  "execution_id": "abc-123",
-  "bot_id": "bot-conferencia-lotes",
-  "message": "Iniciando auditoria de acessos | lote_id=N/A"
-}
-```
-
-### Variáveis de ambiente para os IDs
-
-| Variável | Descrição | Valor padrão |
-|----------|-----------|--------------|
-| `EXECUTION_ID` | ID único da execução (preenchido pelo Maestro em produção) | `local` |
-| `BOT_ID` | Identificador do bot | `bot-conferencia-lotes` |
-
-Configure no `.env` ou via variáveis de ambiente do orquestrador (BotCity Maestro).
-
-## Automação Web com Playwright
-
-O fluxo web é opcional e continua apontando para o ambiente Vercel atual até
-que a página local seja disponibilizada.
-
-### Deploy no BotCity
-
-No deploy para o BotCity Maestro/Runner, mantenha o Playwright desativado:
+Para processar uma planilha colocada em `dados_entrada/`, configure no `.env`:
 
 ```env
-PLAYWRIGHT_ENABLED=false
+BOT_INPUT_FILE=/app/dados_entrada/minha_planilha.xlsx
 ```
 
-Com essa configuração, o Runner executa somente o bot principal. O Playwright
-não é iniciado e não é necessário instalar o navegador Chromium no ambiente
-de deploy. O pacote Python pode permanecer no `requirements.txt`, pois ele
-será apenas instalado e não executado.
+## Saídas no host
 
-### Execução local com Playwright
+```text
+artefatos/produtor/                 screenshots de sucesso e erro
+data/datapool/*.processed.json      estado final do DataPool local
+data/output/*.xlsx                  relatório de divergências
+logs/produtor/execucao.log          log JSON do produtor
+logs/validador/execucao.log         log JSON do consumidor
+logs/*/resumo_execucao.json         resumo de cada bot
+```
 
-Para testar a automação web localmente, instale o navegador uma vez no
-ambiente virtual:
+Na planilha didática atual, o resultado esperado é:
+
+- 25 itens publicados;
+- 24 cadastros web bem-sucedidos e 1 falha de formulário por lote vazio;
+- 9 registros divergentes;
+- 10 violações de regras;
+- 16 lotes validados;
+- 2 itens para revisão humana.
+
+## DataPool BotCity
+
+> Não crie o DataPool antes de implantar os dois bots. O produtor só cria a
+> tarefa do validador depois de publicar o lote completo.
+
+Gere os dois pacotes independentes:
 
 ```bash
-python -m pip install -r requirements.txt
+python scripts/build_botcity_packages.py
+```
+
+Os arquivos ficam em `dist/botcity/` e contêm `bot.py` e `requirements.txt`
+na raiz, como esperado pelo Runner. O workflow manual `CD — Bots BotCity`
+permite `deploy`, `update` e `release`; configure no GitHub os secrets
+`BOTCITY_SERVER`, `BOTCITY_LOGIN` e `BOTCITY_KEY` antes de executá-lo.
+
+No Runner Windows, mantenha o frontend acessível em `http://localhost:3000`:
+
+```bash
+docker compose up -d frontend
+```
+
+Após a primeira instalação do ambiente virtual do bot produtor, instale o
+Chromium com o Python daquele ambiente:
+
+```powershell
 python -m playwright install chromium
 ```
 
-Para executar a automação integrada ao `main.py`, habilite-a no ambiente:
+O entrypoint reconhece automaticamente os argumentos `server/task/token`
+injetados pelo BotRunner; credenciais de desenvolvimento não precisam ficar
+em `.env` no pacote.
 
-```bash
-PLAYWRIGHT_ENABLED=true PLAYWRIGHT_HEADLESS=false python main.py
+O modo local é usado por padrão:
+
+```env
+DATAPOOL_BACKEND=local
 ```
 
-No PowerShell:
+No BotCity Orchestrator:
 
-```powershell
-$env:PLAYWRIGHT_ENABLED="true"
-$env:PLAYWRIGHT_HEADLESS="false"
-venv\Scripts\python.exe main.py
+1. configure as credenciais de desenvolvimento ou execute pelo Runner;
+2. defina `MAESTRO_ENABLED=true` e `DATAPOOL_BACKEND=botcity`;
+3. crie o schema uma única vez:
+
+   ```bash
+   python -m scripts.create_datapool
+   ```
+
+4. registre a automação consumidora com o label definido em
+   `VALIDATOR_ACTIVITY_LABEL`;
+5. execute o produtor.
+
+O produtor adiciona todas as entradas e só depois cria a tarefa do consumidor.
+O campo `item_id`, formado pelo hash do arquivo e pela linha de origem, fornece
+idempotência. `lote_id` não é único porque valores vazios e duplicados também
+precisam chegar à validação.
+
+Itens válidos terminam como `DONE`. Divergências RN01–RN07 terminam como erro
+`BUSINESS`, sem acionar retentativa de sistema. Falhas técnicas usam erro
+`SYSTEM`.
+
+Ao finalizar a tarefa, o validador reporta ao Maestro `total_items`,
+`processed_items` e `failed_items`. Itens `DONE` contam como processados com
+sucesso; divergências de negócio e falhas técnicas contam como falhas.
+
+## Logs estruturados
+
+Todas as linhas contêm:
+
+- `execution_id`;
+- `bot_id`;
+- `batch_id`;
+- `lote_id`;
+- `source_row`;
+- timestamp, nível, logger e mensagem.
+
+No Compose, os IDs dos bots são:
+
+- `bot-lotes-cadastro-playwright-mk7`;
+- `bot-lotes-validacao-mk7`.
+
+## Desenvolvimento e testes
+
+```bash
+python -m pip install -r requirements.txt
+pytest tests/ -v
+```
+
+Para executar o produtor fora do Docker, instale o Chromium do Playwright:
+
+```bash
+python -m playwright install chromium
+```
+
+O workflow `.github/workflows/ci.yml` executa lint, testes Python, build do
+frontend e o pipeline completo em Docker, verificando screenshots, logs,
+DataPool processado e relatório Excel.
+
+## Estrutura principal
+
+```text
+producer.py                         entrypoint do bot produtor
+consumer.py                         entrypoint do bot consumidor
+bot.py                              núcleo de validação RN01–RN07
+src/excel_source.py                 adaptador da planilha bruta
+src/datapool_gateway.py             DataPool local e BotCity
+src/playwright_automation.py        ciclo do navegador
+src/pages/playwright_pages.py       locators semânticos e waits
+src/maestro_client.py               Maestro, artefatos e logs JSON
+frontend/                           página local de cadastro
 ```
