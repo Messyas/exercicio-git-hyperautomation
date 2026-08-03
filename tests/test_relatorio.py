@@ -72,6 +72,7 @@ def test_relatorio_separa_rejeicoes_e_falhas_tecnicas(tmp_path) -> None:
         "cadastro_status": "REJEITADO_NEGOCIO",
         "cadastro_error": "Campo obrigatório vazio.",
         "evidence_name": "rejeicao.png",
+        "evidence_path": "/app/screenshots/rejeicao.png",
     }
     falha = {
         **registro,
@@ -81,6 +82,7 @@ def test_relatorio_separa_rejeicoes_e_falhas_tecnicas(tmp_path) -> None:
         "cadastro_status": "FALHA_TECNICA",
         "cadastro_error": "Timeout do navegador.",
         "evidence_name": "timeout.png",
+        "evidence_path": "/app/screenshots/timeout.png",
     }
 
     caminho = gerar_relatorio_divergencias(
@@ -100,5 +102,9 @@ def test_relatorio_separa_rejeicoes_e_falhas_tecnicas(tmp_path) -> None:
             "falhas_tecnicas",
             "revisao_humana",
         } == set(arquivo.sheet_names)
-    assert len(pd.read_excel(caminho, sheet_name="rejeicoes_cadastro")) == 1
-    assert len(pd.read_excel(caminho, sheet_name="falhas_tecnicas")) == 1
+    rejeicoes = pd.read_excel(caminho, sheet_name="rejeicoes_cadastro")
+    falhas = pd.read_excel(caminho, sheet_name="falhas_tecnicas")
+    assert len(rejeicoes) == 1
+    assert len(falhas) == 1
+    assert rejeicoes.loc[0, "evidence_path"].endswith("rejeicao.png")
+    assert falhas.loc[0, "evidence_path"].endswith("timeout.png")

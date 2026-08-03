@@ -1,7 +1,7 @@
 """Ponto de entrada do bot de conferência de lotes.
 
 O fluxo implementado segue o BPMN da versão inicial: carregar a planilha,
-validar a estrutura, executar RN02–RN07, gerar as evidências e registrar o
+validar a estrutura, executar RN02-RN07, gerar as evidências e registrar o
 resultado da execução.
 """
 
@@ -88,7 +88,7 @@ def _coletar_erros(
     lotes_validos: set[str] | None = None,
     data_referencia: str = DATA_REFERENCIA_PADRAO,
 ) -> tuple[list[dict[str, Any]], pd.DataFrame]:
-    """Executa RN02–RN07 e retorna erros padronizados e casos para revisão."""
+    """Executa RN02-RN07 e retorna erros e casos para revisão."""
     erros: list[dict[str, Any]] = []
 
     erros_rn02 = valida_campos_obrigatorios(df)
@@ -308,7 +308,7 @@ def validar_dataframe(
     rejeicoes_cadastro: list[dict[str, Any]] | None = None,
     falhas_tecnicas: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Aplica RN01–RN07 a dados vindos de Excel ou DataPool.
+    """Aplica RN01-RN07 a dados vindos de Excel ou DataPool.
 
     Esta função contém o núcleo compartilhado do bot validador. A adaptação de
     entrada é responsável apenas por montar o DataFrame e fornecer o snapshot

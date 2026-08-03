@@ -1,4 +1,4 @@
-"""Testes do handoff local e do consumidor RN01–RN07."""
+"""Testes do handoff local e do consumidor RN01-RN07."""
 
 from __future__ import annotations
 
@@ -91,6 +91,7 @@ def test_consumer_local_preserva_resultado_do_pdd(tmp_path, monkeypatch) -> None
             "cadastro_status": "SUCESSO",
             "cadastro_error": "",
             "evidence_name": "evidencia.png",
+            "evidence_path": "/app/screenshots/evidencia.png",
         }
         for record in batch.records()
     ]
@@ -141,6 +142,7 @@ def test_consumer_separa_rejeicao_e_falha_tecnica(tmp_path, monkeypatch) -> None
             "cadastro_error": "",
             "cadastro_error_type": "",
             "evidence_name": "evidencia.png",
+            "evidence_path": "/app/screenshots/evidencia.png",
         }
         for record in batch.records()
     ]
@@ -195,6 +197,7 @@ def test_consumer_separa_rejeicao_e_falha_tecnica(tmp_path, monkeypatch) -> None
     )
     assert processed["items"][0]["error_type"] == "BUSINESS"
     assert processed["items"][1]["error_type"] == "SYSTEM"
+    assert all(item["evidence_path"] for item in processed["items"])
     assert all(
         item["datapool_state"] != "PROCESSING"
         for item in processed["items"]

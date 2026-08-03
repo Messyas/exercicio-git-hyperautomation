@@ -158,7 +158,7 @@ def get_settings() -> Settings:
         playwright_slow_mo=_env_int("PLAYWRIGHT_SLOW_MO", 300),
         playwright_quantity=_env_int("PLAYWRIGHT_QUANTITY", 10, minimum=1),
         playwright_artifacts_dir=_env_path(
-            "PLAYWRIGHT_ARTIFACTS_DIR", "artefatos"
+            "PLAYWRIGHT_ARTIFACTS_DIR", "screenshots"
         ),
         playwright_timeout_ms=_env_int(
             "PLAYWRIGHT_TIMEOUT_MS", 10_000, minimum=1

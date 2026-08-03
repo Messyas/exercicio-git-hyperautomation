@@ -124,7 +124,7 @@ def gerar_relatorio_divergencias(
     falhas_tecnicas: Iterable[Mapping[str, Any]] | None = None,
     resumo: Mapping[str, Any] | None = None,
 ) -> Path:
-    """Consolida as falhas RN02–RN07 e exporta o relatório em ``.xlsx``.
+    """Consolida as falhas RN02-RN07 e exporta o relatório em ``.xlsx``.
 
     O modelo de saída do PDD v0.2 (seções 9 e 15) exige as colunas
     ``lote_id``, ``regra_violada``, ``descricao_do_erro`` e recomenda incluir
@@ -189,6 +189,7 @@ def gerar_relatorio_divergencias(
             "cadastro_status",
             "cadastro_error",
             "evidence_name",
+            "evidence_path",
         ],
     )
     tabela_falhas = pd.DataFrame(
@@ -200,6 +201,7 @@ def gerar_relatorio_divergencias(
             "cadastro_status",
             "cadastro_error",
             "evidence_name",
+            "evidence_path",
         ],
     )
     resumo_final = dict(resumo or {})

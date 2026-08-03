@@ -1,4 +1,4 @@
-"""Bot produtor: planilha bruta → Playwright → DataPool."""
+"""Lê a planilha, executa o cadastro web e publica no DataPool."""
 
 from __future__ import annotations
 
@@ -39,6 +39,14 @@ def _context(record: dict[str, Any]) -> dict[str, Any]:
             "lote_id": record.get("lote_id") or None,
             "source_row": record.get("source_row"),
         }
+    }
+
+
+def _evidence_fields(path: Path) -> dict[str, str]:
+    """Mantem o nome legado e registra o caminho completo da evidencia."""
+    return {
+        "evidence_name": path.name,
+        "evidence_path": path.resolve().as_posix(),
     }
 
 
@@ -137,7 +145,7 @@ def run_producer() -> int:
                             "cadastro_status": "SUCESSO",
                             "cadastro_error": "",
                             "cadastro_error_type": "",
-                            "evidence_name": evidence_name,
+                            **_evidence_fields(evidence_path),
                         }
                     )
                     created_evidence.append(evidence_path)
@@ -158,7 +166,7 @@ def run_producer() -> int:
                             "cadastro_status": "REJEITADO_NEGOCIO",
                             "cadastro_error": str(error),
                             "cadastro_error_type": "BUSINESS",
-                            "evidence_name": error_name,
+                            **_evidence_fields(error_path),
                         }
                     )
                     logger.warning(
@@ -179,7 +187,7 @@ def run_producer() -> int:
                             "cadastro_status": "FALHA_TECNICA",
                             "cadastro_error": f"TIMEOUT: {error}",
                             "cadastro_error_type": "SYSTEM",
-                            "evidence_name": error_name,
+                            **_evidence_fields(error_path),
                         }
                     )
                     logger.error(
@@ -206,7 +214,7 @@ def run_producer() -> int:
                             "cadastro_status": "FALHA_TECNICA",
                             "cadastro_error": str(error),
                             "cadastro_error_type": "SYSTEM",
-                            "evidence_name": error_name,
+                            **_evidence_fields(error_path),
                         }
                     )
                     logger.exception(
