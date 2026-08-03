@@ -73,7 +73,7 @@ def _sha256(path: Path) -> str:
 
 
 def load_excel_batch(path: str | Path) -> ExcelBatch:
-    """Carrega a entrada sem aplicar RN02–RN07, preservando os dados brutos."""
+    """Carrega a entrada sem aplicar RN02-RN07."""
     source_file = Path(path)
     if not source_file.is_file():
         raise FileNotFoundError(f"Planilha de entrada não encontrada: {source_file}")

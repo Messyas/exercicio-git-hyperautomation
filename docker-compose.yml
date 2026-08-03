@@ -41,14 +41,17 @@ services:
       BOT_LOG_DIR: /app/logs
       DATAPOOL_BACKEND: local
       DATAPOOL_LOCAL_DIR: /app/data/datapool
-      PLAYWRIGHT_ARTIFACTS_DIR: /app/artefatos
+      PLAYWRIGHT_ARTIFACTS_DIR: /app/screenshots
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      ENVIRONMENT: container
       APP_TIMEZONE: America/Manaus
       TZ: America/Manaus
     volumes:
       - ./dados_entrada:/app/dados_entrada:ro
-      - ./artefatos:/app/artefatos
+      - ./screenshots:/app/screenshots
       - ./data/datapool:/app/data/datapool
       - ./logs:/app/logs
+      - ./reports:/app/reports
       - run-status:/run-status
     shm_size: 1gb
     restart: "no"
@@ -73,14 +76,55 @@ services:
       DATAPOOL_BACKEND: local
       DATAPOOL_LOCAL_DIR: /app/data/datapool
       SHUTDOWN_FILE: /run-status/pipeline-finished
+      ENVIRONMENT: container
       APP_TIMEZONE: America/Manaus
       TZ: America/Manaus
     volumes:
       - ./data/datapool:/app/data/datapool
       - ./data/output:/app/data/output
       - ./logs:/app/logs
+      - ./reports:/app/reports
       - run-status:/run-status
     restart: "no"
+
+  bot-conferencia:
+    profiles: ["avaliacao"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: producer
+    depends_on:
+      frontend:
+        condition: service_healthy
+    env_file:
+      - path: ./.env.example
+        required: true
+      - path: ./.env
+        required: false
+    environment:
+      BOT_URL: http://frontend:3000
+      BOT_HEADLESS: "true"
+      BOT_LOG_DIR: /app/logs
+      BOT_OUTPUT_DIR: /app/data/output
+      DATAPOOL_BACKEND: local
+      DATAPOOL_LOCAL_DIR: /app/data/datapool
+      PLAYWRIGHT_ARTIFACTS_DIR: /app/screenshots
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      SHUTDOWN_FILE: /run-status/pipeline-finished
+      ENVIRONMENT: container
+      APP_TIMEZONE: America/Manaus
+      TZ: America/Manaus
+    volumes:
+      - ./dados_entrada:/app/dados_entrada:ro
+      - ./screenshots:/app/screenshots
+      - ./data/datapool:/app/data/datapool
+      - ./data/output:/app/data/output
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+      - run-status:/run-status
+    shm_size: 1gb
+    restart: "no"
+    command: ["python", "pipeline.py"]
 
 volumes:
   run-status:

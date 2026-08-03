@@ -1,4 +1,4 @@
-"""Bot consumidor: DataPool = RN01–RN07 = relatório e estados dos itens."""
+"""Consome o DataPool, aplica RN01-RN07 e gera o relatório."""
 
 from __future__ import annotations
 
@@ -78,6 +78,7 @@ def _registration_failure(item) -> dict[str, Any]:
             "cadastro_status",
             "cadastro_error",
             "evidence_name",
+            "evidence_path",
         )
     }
 

@@ -23,16 +23,14 @@ from src.validacao import (
 )
 
 
-# ===========================================================================
 # Fixtures reutilizáveis
-# ===========================================================================
 
 
 @pytest.fixture
 def df_valido() -> pd.DataFrame:
     """
     Retorna um DataFrame com estrutura completa e todos os campos obrigatórios
-    preenchidos — representa o caminho feliz (sem divergências).
+    preenchidos e sem divergências.
     """
     return pd.DataFrame(
         {
@@ -50,19 +48,19 @@ def df_valido() -> pd.DataFrame:
 
 @pytest.fixture
 def df_sem_coluna_status(df_valido: pd.DataFrame) -> pd.DataFrame:
-    """DataFrame com a coluna 'status' removida — viola RN01."""
+    """DataFrame sem a coluna 'status'."""
     return df_valido.drop(columns=["status"])
 
 
 @pytest.fixture
 def df_sem_multiplas_colunas(df_valido: pd.DataFrame) -> pd.DataFrame:
-    """DataFrame com 'status' e 'responsavel' removidos — viola RN01."""
+    """DataFrame sem as colunas 'status' e 'responsavel'."""
     return df_valido.drop(columns=["status", "responsavel"])
 
 
 @pytest.fixture
 def df_com_responsavel_vazio(df_valido: pd.DataFrame) -> pd.DataFrame:
-    """DataFrame com campo 'responsavel' nulo na segunda linha — viola RN02."""
+    """DataFrame com 'responsavel' nulo na segunda linha."""
     df = df_valido.copy()
     df.loc[1, "responsavel"] = None
     return df
@@ -70,7 +68,7 @@ def df_com_responsavel_vazio(df_valido: pd.DataFrame) -> pd.DataFrame:
 
 @pytest.fixture
 def df_com_lote_id_vazio(df_valido: pd.DataFrame) -> pd.DataFrame:
-    """DataFrame com campo 'lote_id' nulo na primeira linha — viola RN02."""
+    """DataFrame com 'lote_id' nulo na primeira linha."""
     df = df_valido.copy()
     df.loc[0, "lote_id"] = None
     return df
@@ -78,7 +76,7 @@ def df_com_lote_id_vazio(df_valido: pd.DataFrame) -> pd.DataFrame:
 
 @pytest.fixture
 def df_com_status_vazio(df_valido: pd.DataFrame) -> pd.DataFrame:
-    """DataFrame com campo 'status' nulo na terceira linha — viola RN02."""
+    """DataFrame com 'status' nulo na terceira linha."""
     df = df_valido.copy()
     df.loc[2, "status"] = None
     return df
@@ -104,9 +102,7 @@ def df_com_multiplos_vazios() -> pd.DataFrame:
     )
 
 
-# ===========================================================================
-# Testes — RN01: valida_estrutura
-# ===========================================================================
+# RN01: valida_estrutura
 
 
 class TestValidaEstrutura:
@@ -173,9 +169,7 @@ class TestValidaEstrutura:
             valida_estrutura(df_com_extra)
 
 
-# ===========================================================================
-# Testes — RN02: valida_campos_obrigatorios
-# ===========================================================================
+# RN02: valida_campos_obrigatorios
 
 
 class TestValidaCamposObrigatorios:
@@ -267,7 +261,7 @@ class TestValidaCamposObrigatorios:
         com 'observacao' vazia mas com todos os campos obrigatórios preenchidos
         não deve gerar divergências.
         """
-        # df_valido já tem observacao nula em 2 linhas — não deve gerar erro
+        # Observação não faz parte dos campos obrigatórios da RN02.
         assert "observacao" not in CAMPOS_OBRIGATORIOS
         resultado = valida_campos_obrigatorios(df_valido)
         assert resultado.empty

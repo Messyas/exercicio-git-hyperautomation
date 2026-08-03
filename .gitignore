@@ -17,8 +17,16 @@ build/
 
 # Testes e cobertura
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
 .coverage
+coverage.xml
 htmlcov/
+test-results/
+playwright-report/
+blob-report/
 
 # Variáveis de ambiente
 .env
@@ -30,13 +38,24 @@ htmlcov/
 .idea/
 *.iml
 
+# Arquivos do sistema operacional
+.DS_Store
+Thumbs.db
+Desktop.ini
+
 # Saídas geradas pelo bot
 data/output/
 data/datapool/
 logs/
 
 # Evidências geradas pela automação web
-artefatos/
+/screenshots/*
+!/screenshots/.gitkeep
+/artefatos/
+/reports/*
+!/reports/.gitkeep
+/tests/e2e/screenshots/*
+!/tests/e2e/screenshots/.gitkeep
 
 # Frontend
 frontend/node_modules/

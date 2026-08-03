@@ -32,6 +32,7 @@ DATAPOOL_FIELDS = (
     "cadastro_error",
     "cadastro_error_type",
     "evidence_name",
+    "evidence_path",
     "reference_lotes_json",
 )
 

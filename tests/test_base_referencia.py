@@ -6,7 +6,7 @@ Cobrem a regra de negócio:
           (carregar_base_referencia e verificar_existencia_lote)
 
 Utiliza DataFrames simulados (mock) e conjuntos de lotes válidos mockados
-para isolamento completo — sem dependência do arquivo real .xlsx.
+para isolamento completo, sem dependência do arquivo real .xlsx.
 """
 
 import pandas as pd
@@ -18,9 +18,7 @@ from src.base_referencia import (
 )
 
 
-# ===========================================================================
 # Fixtures reutilizáveis
-# ===========================================================================
 
 
 @pytest.fixture
@@ -42,7 +40,7 @@ def lotes_validos_mock() -> set[str]:
 def df_sem_divergencias(lotes_validos_mock: set[str]) -> pd.DataFrame:
     """
     DataFrame de inspeção cujos lote_id existem todos na base de referência
-    — representa o caminho feliz de RN03 (nenhuma divergência).
+    e representa o caminho sem divergências da RN03.
     """
     return pd.DataFrame(
         {
@@ -57,7 +55,7 @@ def df_sem_divergencias(lotes_validos_mock: set[str]) -> pd.DataFrame:
 def df_com_lote_inexistente() -> pd.DataFrame:
     """
     DataFrame com o lote 'LG-2026-00103' que NÃO existe na base de
-    referência — deve ser detectado como divergência RN03.
+    referência e deve ser detectado como divergência RN03.
     Este lote está intencionalmente ausente da base real (erro controlado).
     """
     return pd.DataFrame(
@@ -105,9 +103,7 @@ def df_com_todos_inexistentes() -> pd.DataFrame:
     )
 
 
-# ===========================================================================
-# Testes — RN03: carregar_base_referencia
-# ===========================================================================
+# RN03: carregar_base_referencia
 
 
 class TestCarregarBaseReferencia:
@@ -164,9 +160,7 @@ class TestCarregarBaseReferencia:
             carregar_base_referencia("caminho/invalido/arquivo.xlsx")
 
 
-# ===========================================================================
-# Testes — RN03: verificar_existencia_lote
-# ===========================================================================
+# RN03: verificar_existencia_lote
 
 
 class TestVerificarExistenciaLote:

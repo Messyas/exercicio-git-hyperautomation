@@ -6,14 +6,15 @@ LABEL maintainer="hyperautomation" \
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
-    TZ=America/Manaus \
     APP_TIMEZONE=America/Manaus
+
+ENV ENVIRONMENT=container
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV TZ=America/Manaus
 
 WORKDIR /app
 
-# Cada bot recebe apenas suas dependências de runtime. Testes permanecem no
-# requirements.txt da raiz e não aumentam as imagens de produção.
+# Dependências de runtime do consumidor.
 FROM runtime-base AS consumer-dependencies
 COPY bots/validacao/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
@@ -26,8 +27,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 FROM producer-dependencies AS browser-dependencies
 
-# Somente o produtor recebe Chromium e as bibliotecas do navegador.
-RUN python -m playwright install --with-deps chromium \
+# Chromium usado pelo produtor.
+RUN python -m playwright install-deps chromium
+RUN python -m playwright install chromium \
     && chmod -R a+rX /ms-playwright \
     && rm -rf /var/lib/apt/lists/*
 
@@ -36,7 +38,7 @@ FROM consumer-dependencies AS consumer
 
 RUN adduser --disabled-password --gecos "" appuser
 COPY --chown=appuser:appuser . .
-RUN mkdir -p /app/data/output /app/data/datapool /app/logs \
+RUN mkdir -p /app/data/output /app/data/datapool /app/logs /app/reports \
     && chown -R appuser:appuser /app
 USER appuser
 CMD ["python", "consumer.py"]
@@ -46,7 +48,8 @@ FROM browser-dependencies AS producer
 
 RUN adduser --disabled-password --gecos "" appuser
 COPY --chown=appuser:appuser . .
-RUN mkdir -p /app/artefatos /app/data/datapool /app/logs \
+RUN mkdir -p /app/screenshots /app/data/output /app/data/datapool \
+    /app/logs /app/reports \
     && chown -R appuser:appuser /app
 USER appuser
 CMD ["python", "producer.py"]

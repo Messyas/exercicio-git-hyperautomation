@@ -63,11 +63,13 @@ def main() -> int:
     assert sum(item["error_type"] == "BUSINESS" for item in datapool["items"]) == 9
     assert not (ROOT / f"data/datapool/{batch_id}.pending.json").exists()
 
-    evidence_dir = ROOT / "artefatos/local" / batch_id / "produtor"
+    evidence_dir = ROOT / "screenshots/local" / batch_id / "produtor"
     screenshots = list(evidence_dir.glob("*.png"))
     assert len(screenshots) == 25
     assert sum(path.name.startswith("comprovante_") for path in screenshots) == 24
     assert sum(path.name.startswith("rejeicao_") for path in screenshots) == 1
+    assert all(item["evidence_name"] for item in datapool["items"])
+    assert all(item["evidence_path"] for item in datapool["items"])
 
     report_name = Path(validator_summary["relatorio"]).name
     report = ROOT / "data/output" / report_name

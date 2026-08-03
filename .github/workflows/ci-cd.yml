@@ -1,0 +1,159 @@
+name: CI/CD - Pipeline de Lotes
+
+on:
+  push:
+    branches: [main, develop, Developer, "feature/**", "release/**", "hotfix/**"]
+  pull_request:
+    branches: [main, develop, Developer]
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  qualidade:
+    name: Lint e qualidade
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - run: pip install flake8
+      - name: Verificar erros Python
+        run: >-
+          flake8 bot.py main.py pipeline.py producer.py consumer.py config.py
+          src/ scripts/ tests/ --count --select=E9,F63,F7,F82
+          --show-source --statistics
+      - name: Verificar estilo sem bloquear
+        run: >-
+          flake8 bot.py main.py pipeline.py producer.py consumer.py config.py
+          src/ scripts/ tests/ --count --max-line-length=100
+          --ignore=E501,W503 --exit-zero --statistics
+
+  test:
+    name: Testes Python
+    runs-on: ubuntu-latest
+    needs: qualidade
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - name: Executar testes unitarios
+        env:
+          MAESTRO_ENABLED: "false"
+        run: pytest tests/ -m "not e2e" -v --tb=short
+
+  frontend:
+    name: Build do frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: frontend
+      - run: pnpm build
+        working-directory: frontend
+
+  test-e2e:
+    name: Testes E2E (pytest-playwright)
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Instalar dependencias e Chromium
+        run: |
+          pip install -r requirements-dev.txt
+          playwright install chromium --with-deps
+      - name: Iniciar frontend Next.js
+        run: docker compose up -d --build --wait frontend
+      - name: Executar os oito testes E2E
+        env:
+          E2E_BASE_URL: http://127.0.0.1:3000
+        run: >-
+          pytest tests/e2e/ -v --tb=short
+          --screenshot=only-on-failure
+          --output=tests/e2e/screenshots/playwright-output
+      - name: Salvar screenshots E2E
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots-e2e-${{ github.run_number }}
+          path: tests/e2e/screenshots/
+          if-no-files-found: warn
+      - name: Encerrar frontend
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+
+  build-docker:
+    name: Build e teste em container
+    runs-on: ubuntu-latest
+    needs: [test, test-e2e, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preparar diretorios persistidos
+        shell: bash
+        run: |
+          mkdir -p screenshots data/datapool data/output logs reports
+          chmod -R a+rwX screenshots data/datapool data/output logs reports
+      - name: Validar Compose
+        run: docker compose --profile avaliacao config --quiet
+      - name: Build da imagem
+        run: docker compose --profile avaliacao build bot-conferencia
+      - name: Executar bot em container
+        env:
+          MAESTRO_ENABLED: "false"
+          ENVIRONMENT: container
+        run: docker compose run --rm bot-conferencia
+      - name: Verificar evidencias geradas
+        shell: bash
+        run: |
+          test -n "$(find logs -type f -print -quit)" || (echo "logs/ vazio" && exit 1)
+          test -n "$(find data/output -type f -print -quit)" || (echo "data/output/ vazio" && exit 1)
+          test -n "$(find screenshots -type f -name '*.png' -print -quit)" || (echo "screenshots/ vazio" && exit 1)
+          docker compose run --rm --no-deps --entrypoint python \
+            bot-conferencia scripts/verify_pipeline.py
+      - name: Salvar evidencias como artefato
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evidencias-${{ github.run_number }}
+          path: |
+            logs/
+            data/output/
+            data/datapool/
+            screenshots/
+            reports/
+          if-no-files-found: warn
+      - name: Encerrar Compose
+        if: always()
+        run: docker compose --profile avaliacao down --volumes --remove-orphans
+
+  seguranca:
+    name: Verificacao de credenciais
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reprovar credenciais hardcoded
+        shell: bash
+        run: |
+          if grep -RIn --include='*.py' \
+            -E '(password|secret|api_key|token)[[:space:]]*=[[:space:]]*["'\''][^"'\'']+["'\'']' \
+            bot.py main.py pipeline.py producer.py consumer.py config.py src scripts; then
+            echo "Credencial possivelmente hardcoded."
+            exit 1
+          fi

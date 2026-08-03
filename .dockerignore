@@ -17,7 +17,9 @@
 .env.*
 !.env.example
 
+screenshots
 artefatos
+reports
 data/datapool
 data/output
 docs

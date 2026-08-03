@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import Mapping
 from pathlib import Path
 from types import TracebackType
@@ -11,6 +10,7 @@ from urllib.parse import urlsplit
 from playwright.sync_api import Browser, Page, Playwright, sync_playwright
 
 from src.pages import PlaywrightFormPage, PlaywrightLoginPage
+from src.web_automation import iniciar_browser
 
 
 ALLOWED_HOSTS = {"frontend", "localhost", "127.0.0.1"}
@@ -44,15 +44,11 @@ class PlaywrightAutomation:
 
     def __enter__(self) -> "PlaywrightAutomation":
         self._playwright = sync_playwright().start()
-        launch_options: dict[str, object] = {
-            "headless": self._headless,
-            "slow_mo": self._slow_mo,
-        }
-        executable = os.getenv("CHROMIUM_PATH")
-        if executable:
-            launch_options["executable_path"] = executable
-            launch_options["args"] = ["--no-sandbox", "--disable-dev-shm-usage"]
-        self._browser = self._playwright.chromium.launch(**launch_options)
+        self._browser = iniciar_browser(
+            self._playwright,
+            headless=self._headless,
+            slow_mo=self._slow_mo,
+        )
         self._page = self._browser.new_page(
             viewport={"width": 1440, "height": 1200}
         )

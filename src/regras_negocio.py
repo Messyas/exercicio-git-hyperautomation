@@ -62,7 +62,7 @@ def normalizar_status(
 ) -> pd.DataFrame | MutableMapping[str, Any]:
     """Normaliza os status conhecidos e registra a divergência de padronização.
 
-    Regra aplicada: **RN05 — Normalização**. ``OK`` é convertido para
+    Regra aplicada: RN05 - Normalização. ``OK`` é convertido para
     ``APROVADO`` e ``NOK`` para ``REPROVADO``. Toda linha convertida recebe a
     mensagem em ``divergencia_rn05`` e conserva o valor de entrada em
     ``status_original`` para rastreabilidade. Valores desconhecidos não são
@@ -128,7 +128,7 @@ def validar_dominio_status(
 ) -> pd.DataFrame | MutableMapping[str, Any]:
     """Valida se o status final pertence ao domínio permitido.
 
-    Regra aplicada: **RN04 — Validação de Domínio**. Após a RN05, somente
+    Regra aplicada: RN04 - Validação de Domínio. Após a RN05, somente
     ``APROVADO``, ``REPROVADO`` e ``PENDENTE`` são válidos. As linhas fora do
     domínio são retornadas como divergências, marcadas em
     ``status_ambiguo`` e direcionadas para ``revisao_humana`` (RN06), sem

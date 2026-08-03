@@ -51,11 +51,46 @@ class PlaywrightFormPage:
         )
         self._rejeicoes = page.get_by_role("alert")
 
-    def preencher_e_enviar(self, item: Mapping[str, str]) -> None:
-        self._numero.fill(item["lote_id"])
-        self._produto.select_option(item["produto"])
-        self._status.select_option(item["status"])
+    @property
+    def page(self) -> Page:
+        return self._page
+
+    @property
+    def campo_lote(self) -> Locator:
+        return self._numero
+
+    @property
+    def campo_produto(self) -> Locator:
+        return self._produto
+
+    def preencher_lote(self, valor: str) -> None:
+        self._numero.fill(valor)
+
+    def selecionar_produto(self, valor: str) -> None:
+        self._produto.select_option(valor)
+
+    def selecionar_status(self, valor: str) -> None:
+        self._status.select_option(valor)
+
+    def obter_status_selecionado(self) -> str:
+        return self._status.input_value()
+
+    def submeter(self) -> None:
         self._processar.click()
+
+    def mensagem_sucesso_visivel(self) -> bool:
+        return self._page.get_by_role("status").is_visible()
+
+    def capturar_evidencia(self, caminho: str | Path) -> None:
+        path = Path(caminho)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self._page.screenshot(path=str(path), full_page=True)
+
+    def preencher_e_enviar(self, item: Mapping[str, str]) -> None:
+        self.preencher_lote(item["lote_id"])
+        self.selecionar_produto(item["produto"])
+        self.selecionar_status(item["status"])
+        self.submeter()
         mensagens = [
             texto.strip()
             for texto in self._rejeicoes.all_inner_texts()
