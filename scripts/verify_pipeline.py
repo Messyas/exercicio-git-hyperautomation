@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -15,6 +16,20 @@ def _read_json(path: Path) -> dict:
     if not path.is_file():
         raise AssertionError(f"Arquivo não encontrado: {path}")
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _execution_records(path: Path, started_at: str) -> list[dict]:
+    start = datetime.fromisoformat(started_at)
+    records = [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    return [
+        record
+        for record in records
+        if datetime.fromisoformat(record["timestamp"]) >= start
+    ]
 
 
 def main() -> int:
@@ -68,17 +83,22 @@ def main() -> int:
     assert pd.read_excel(report, sheet_name="falhas_tecnicas").empty
     assert len(pd.read_excel(report, sheet_name="revisao_humana")) == 2
 
-    for name, expected_bot_id in (
-        ("produtor", "bot-lotes-cadastro-playwright-mk7"),
-        ("validador", "bot-lotes-validacao-mk7"),
+    for name, expected_bot_id, execution in (
+        (
+            "produtor",
+            "bot-lotes-cadastro-playwright-mk7",
+            producer,
+        ),
+        (
+            "validador",
+            "bot-lotes-validacao-mk7",
+            validator,
+        ),
     ):
-        records = [
-            json.loads(line)
-            for line in (ROOT / f"logs/{name}/execucao.log")
-            .read_text(encoding="utf-8")
-            .splitlines()
-            if line.strip()
-        ]
+        records = _execution_records(
+            ROOT / f"logs/{name}/execucao.log",
+            execution["started_at"],
+        )
         assert records
         assert all(record["execution_id"] == "local" for record in records)
         assert all(record["bot_id"] == expected_bot_id for record in records)

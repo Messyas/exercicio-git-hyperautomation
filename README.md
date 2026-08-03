@@ -41,7 +41,7 @@ Pré-requisito: Docker com Docker Compose.
 ```bash
 docker compose config --quiet
 docker compose build
-docker compose up --exit-code-from consumer
+docker compose up --abort-on-container-failure
 ```
 
 O Compose:
@@ -55,7 +55,7 @@ O Compose:
 Para reconstruir e executar em um único comando:
 
 ```bash
-docker compose up --build --exit-code-from consumer
+docker compose up --build --abort-on-container-failure
 ```
 
 Execução individual, quando o frontend já estiver disponível:

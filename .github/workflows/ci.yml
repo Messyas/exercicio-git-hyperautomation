@@ -78,9 +78,12 @@ jobs:
       - name: Validar Compose
         run: docker compose config --quiet
       - name: Executar produtor e consumidor
-        run: docker compose up --build --exit-code-from consumer
+        run: docker compose up --build --abort-on-container-failure
       - name: Verificar artefatos persistidos
-        run: python scripts/verify_pipeline.py
+        run: >-
+          docker compose run --rm --no-deps
+          --volume ./data/output:/app/data/output:ro
+          --entrypoint python producer scripts/verify_pipeline.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
