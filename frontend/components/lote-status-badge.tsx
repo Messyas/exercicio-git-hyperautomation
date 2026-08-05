@@ -2,7 +2,7 @@ import { CircleDashed, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { STATUS_CONFIG, type LoteStatus } from '@/lib/lotes'
 
-const ICONS: Record<LoteStatus, typeof CircleDashed> = {
+const ICONS: Record<string, typeof CircleDashed> = {
   APROVADO: CheckCircle2,
   REPROVADO: AlertCircle,
   PENDENTE: CircleDashed,
@@ -13,8 +13,11 @@ const ICONS: Record<LoteStatus, typeof CircleDashed> = {
 }
 
 export function LoteStatusBadge({ status }: { status: LoteStatus }) {
-  const config = STATUS_CONFIG[status]
-  const Icon = ICONS[status]
+  const config = STATUS_CONFIG[status] ?? {
+    label: status || 'Não informado',
+    badge: 'border-border text-muted-foreground bg-muted',
+  }
+  const Icon = ICONS[status] ?? CircleDashed
 
   return (
     <span

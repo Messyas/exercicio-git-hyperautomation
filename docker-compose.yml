@@ -47,7 +47,6 @@ services:
       APP_TIMEZONE: America/Manaus
       TZ: America/Manaus
     volumes:
-      - ./dados_entrada:/app/dados_entrada:ro
       - ./screenshots:/app/screenshots
       - ./data/datapool:/app/data/datapool
       - ./logs:/app/logs
@@ -115,7 +114,6 @@ services:
       APP_TIMEZONE: America/Manaus
       TZ: America/Manaus
     volumes:
-      - ./dados_entrada:/app/dados_entrada:ro
       - ./screenshots:/app/screenshots
       - ./data/datapool:/app/data/datapool
       - ./data/output:/app/data/output

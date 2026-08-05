@@ -43,24 +43,28 @@ def main() -> int:
 
     assert producer["status"] == "PARTIALLY_COMPLETED"
     assert producer_summary["total"] == 25
+    assert producer_summary["itens_publicados_datapool"] == 24
+    assert producer_summary["erros_fluxo"] == 1
     assert producer_summary["cadastros_sucesso"] == 24
     assert producer_summary["cadastros_rejeitados"] == 1
     assert producer_summary["cadastros_falha_tecnica"] == 0
     assert validator["status"] == "SUCCESS"
-    assert validator_summary["total_registros"] == 25
-    assert validator_summary["total_divergencias"] == 9
-    assert validator_summary["total_rejeicoes_cadastro"] == 1
+    assert validator_summary["total_registros"] == 24
+    assert validator_summary["total_divergencias"] == 8
+    assert validator_summary["total_regras_violadas"] == 9
+    assert validator_summary["total_lotes_validados"] == 16
+    assert validator_summary["total_rejeicoes_cadastro"] == 0
     assert validator_summary["total_falhas_tecnicas"] == 0
 
     batch_id = producer_summary["batch_id"]
     datapool = _read_json(ROOT / f"data/datapool/{batch_id}.processed.json")
-    assert datapool["total"] == 25
+    assert datapool["total"] == 24
     assert sum(item["datapool_state"] == "DONE" for item in datapool["items"]) == 16
-    assert sum(item["datapool_state"] == "ERROR" for item in datapool["items"]) == 9
+    assert sum(item["datapool_state"] == "ERROR" for item in datapool["items"]) == 8
     assert not any(
         item["datapool_state"] == "PROCESSING" for item in datapool["items"]
     )
-    assert sum(item["error_type"] == "BUSINESS" for item in datapool["items"]) == 9
+    assert sum(item["error_type"] == "BUSINESS" for item in datapool["items"]) == 8
     assert not (ROOT / f"data/datapool/{batch_id}.pending.json").exists()
 
     evidence_dir = ROOT / "screenshots/local" / batch_id / "produtor"
@@ -82,11 +86,20 @@ def main() -> int:
             "falhas_tecnicas",
             "revisao_humana",
         }
-    assert len(pd.read_excel(report, sheet_name="divergencias")) == 9
+    assert len(pd.read_excel(report, sheet_name="divergencias")) == 8
     assert len(pd.read_excel(report, sheet_name="lotes_validados")) == 16
-    assert len(pd.read_excel(report, sheet_name="rejeicoes_cadastro")) == 1
+    assert pd.read_excel(report, sheet_name="rejeicoes_cadastro").empty
     assert pd.read_excel(report, sheet_name="falhas_tecnicas").empty
     assert len(pd.read_excel(report, sheet_name="revisao_humana")) == 2
+
+    flow_report_name = Path(producer_summary["relatorio_erros_fluxo"]).name
+    flow_report = ROOT / "data/output" / flow_report_name
+    with pd.ExcelFile(flow_report) as workbook:
+        assert set(workbook.sheet_names) == {"resumo", "erros_fluxo"}
+    flow_errors = pd.read_excel(flow_report, sheet_name="erros_fluxo")
+    assert len(flow_errors) == 1
+    assert flow_errors.loc[0, "source_row"] == 27
+    assert flow_errors.loc[0, "cadastro_status"] == "REJEITADO_NEGOCIO"
 
     for name, expected_bot_id, execution in (
         (
@@ -114,10 +127,13 @@ def main() -> int:
                 "batch_id": batch_id,
                 "cadastros_sucesso": 24,
                 "cadastros_rejeitados": 1,
-                "divergencias": 9,
+                "itens_publicados_datapool": 24,
+                "erros_fluxo_produtor": 1,
+                "divergencias_bot2": 8,
                 "lotes_validados": 16,
                 "evidencias": 25,
                 "relatorio": str(report),
+                "relatorio_erros_fluxo": str(flow_report),
             },
             ensure_ascii=False,
         )

@@ -46,7 +46,7 @@ export default function Page() {
   }
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-8 md:py-12">
+    <main className="mx-auto max-w-7xl px-4 py-8 md:py-12">
       <header className="mb-8 flex items-center gap-3 border-b border-border pb-6">
         <div className="flex size-10 items-center justify-center border border-border bg-primary text-primary-foreground">
           <Boxes className="size-5" aria-hidden="true" />

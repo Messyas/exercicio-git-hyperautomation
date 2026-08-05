@@ -4,7 +4,10 @@ import re
 
 import pandas as pd
 
-from src.relatorio import gerar_relatorio_divergencias
+from src.relatorio import (
+    gerar_relatorio_divergencias,
+    gerar_relatorio_erros_fluxo,
+)
 
 
 def test_gera_xlsx_com_colunas_obrigatorias(tmp_path) -> None:
@@ -108,3 +111,33 @@ def test_relatorio_separa_rejeicoes_e_falhas_tecnicas(tmp_path) -> None:
     assert len(falhas) == 1
     assert rejeicoes.loc[0, "evidence_path"].endswith("rejeicao.png")
     assert falhas.loc[0, "evidence_path"].endswith("timeout.png")
+
+
+def test_bot1_gera_relatorio_para_item_nao_publicado(tmp_path) -> None:
+    erro = {
+        "item_id": "item-27",
+        "source_row": 27,
+        "lote_id": "",
+        "produto": "TV55-4K-B",
+        "linha": "L1",
+        "turno": "A",
+        "status": "APROVADO",
+        "responsavel": "Operador",
+        "data": "14/06/2026",
+        "observacao": "",
+        "cadastro_status": "REJEITADO_NEGOCIO",
+        "cadastro_error": "Informe o número do lote.",
+        "cadastro_error_type": "BUSINESS",
+        "evidence_name": "rejeicao.png",
+        "evidence_path": "/app/screenshots/rejeicao.png",
+    }
+
+    caminho = gerar_relatorio_erros_fluxo([erro], tmp_path)
+
+    with pd.ExcelFile(caminho) as arquivo:
+        assert set(arquivo.sheet_names) == {"resumo", "erros_fluxo"}
+    tabela = pd.read_excel(caminho, sheet_name="erros_fluxo")
+    assert len(tabela) == 1
+    assert tabela.loc[0, "source_row"] == 27
+    assert tabela.loc[0, "cadastro_status"] == "REJEITADO_NEGOCIO"
+    assert tabela.loc[0, "cadastro_error"] == "Informe o número do lote."

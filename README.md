@@ -2,33 +2,54 @@
 
 [![CI/CD](https://github.com/Messyas/exercicio-git-hyperautomation/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/Messyas/exercicio-git-hyperautomation/actions/workflows/ci-cd.yml)
 
-O projeto contém dois bots independentes:
+O projeto contém dois bots independentes, encadeados por um DataPool:
 
 1. **Produtor Playwright**: lê a planilha bruta, cadastra cada lote no sistema
-   web local, salva evidências e publica todos os registros no DataPool.
-2. **Consumidor BotCity**: consome o DataPool, executa RN01-RN07, atualiza o
-   estado individual dos itens e gera o relatório Excel.
+   web local, salva evidências e publica no DataPool apenas os cadastros
+   concluídos.
+2. **Consumidor compatível com BotCity**: consome o DataPool local ou remoto,
+   executa RN01-RN07, atualiza o estado individual dos itens e gera o relatório
+   Excel.
 
 O fuso operacional é sempre `America/Manaus`. Rejeições do formulário,
 divergências de negócio e falhas técnicas são classificadas separadamente;
 nenhuma divergência interrompe o processamento dos itens seguintes.
 
-Os dados inválidos também são enviados ao consumidor. Assim, uma rejeição do
-formulário web não elimina justamente o registro que precisa ser auditado.
+Rejeições e falhas de cadastro não entram no DataPool. O Bot 1 preserva esses
+itens em um relatório próprio, com os dados de origem, o motivo e o caminho da
+evidência. Assim, o Bot 2 recebe apenas itens que concluíram a etapa anterior.
 
 ## Fluxo
 
 ```text
 data/samples/inspecao_lotes_dia.xlsx
   -> producer.py + Playwright
-  -> DataPool local ou BotCity
-  -> consumer.py + RN01-RN07 + XLSX
+       |-> erros de cadastro -> relatório de erros do Bot 1
+       `-> cadastros concluídos -> DataPool local ou BotCity
+                                  -> consumer.py + RN01-RN07 + XLSX
 ```
+
+## Entrada processada
+
+Por padrão, o projeto usa `data/samples/inspecao_lotes_dia.xlsx`. A primeira
+aba contém os 25 registros didáticos e a aba `Base_Referencia` fornece os IDs
+válidos usados pela RN03. O arquivo possui os campos `lote_id`, `produto`,
+`linha`, `turno`, `status`, `responsavel`, `data` e `observacao`.
+
+Para usar outro arquivo dentro do projeto, defina no `.env`:
+
+```env
+BOT_INPUT_FILE=data/samples/minha_planilha.xlsx
+```
+
+Não há monitoramento de pasta nem agendamento automático nesta versão. O fluxo
+é iniciado por comando local, Docker Compose, GitHub Actions ou BotRunner.
 
 ## Modelagem do processo
 
 A imagem abaixo apresenta o **AS-IS** e o **TO-BE** do processo modelado de
-inspeção de lotes:
+inspeção de lotes. Os detalhes e limites da automação estão no
+[PDD do processo](docs/pdd/PDD_Process_Design_Document.md).
 
 ![Modelagem BPMN do processo de inspeção de lotes: AS-IS e TO-BE](docs/print_inspecao_lotes_bpmn.png)
 
@@ -54,13 +75,24 @@ antes de criar o Page Object.
 | `web/lote-teste.html` | aplicação Next.js em `frontend/` |
 | caminho local `file://` | `E2E_BASE_URL=http://127.0.0.1:3000` |
 | formulário acessível diretamente | login de demonstração antes do formulário |
-| radio button de status | `<select>` controlado pelo React |
+| radio button de status | campo de texto para preservar o valor original |
 | status padrão `pendente` | status padrão `APROVADO` |
 | opções como `TV-55` | códigos do domínio, como `TV55-4K-B` |
 | `PlaywrightFormularioLotesPage` | fachada E2E que reutiliza os Page Objects de `src/pages/` |
 
 Os oito testes E2E verificam título, lote, produto, status padrão, envio do
 formulário, validações negativas e captura de screenshot no Chromium.
+
+O formulário registra os oito campos da planilha: `lote_id`, `produto`,
+`linha`, `turno`, `status`, `responsavel`, `data` e `observacao`. O status é
+mantido como texto para que valores não normalizados também cheguem ao Bot 2,
+responsável pela aplicação das regras RN01-RN07.
+
+O frontend exige apenas lote e produto para concluir o cadastro demonstrativo.
+As demais obrigatoriedades pertencem ao motor de regras do Bot 2. Por isso, um
+responsável vazio chega ao DataPool para ser classificado pela RN02, enquanto
+um lote sem ID é rejeitado pelo Bot 1 e registrado no relatório de erros do
+produtor.
 
 A inicialização do Chromium fica em `src/web_automation.py`.
 `src/playwright_automation.py` controla o restante do ciclo de vida do browser.
@@ -99,7 +131,8 @@ docker compose run --rm bot-conferencia
 O serviço `bot-conferencia` atende ao comando previsto no exercício. Os serviços
 `producer` e `consumer` continuam disponíveis para execução separada.
 
-Execução individual, quando o frontend já estiver disponível:
+Execução individual: o produtor precisa do frontend, e o consumidor precisa de
+um lote pendente criado pelo produtor.
 
 ```bash
 docker compose run --rm producer
@@ -113,22 +146,17 @@ algum padrão:
 Copy-Item .env.example .env
 ```
 
-Para processar uma planilha colocada em `dados_entrada/`, configure no `.env`:
-
-```env
-BOT_INPUT_FILE=/app/dados_entrada/minha_planilha.xlsx
-```
-
 ## Saídas no host
 
 ```text
-screenshots/local/<batch_id>/produtor/ screenshots de sucesso e erro
-data/datapool/*.processed.json      estado final do DataPool local
-data/output/*.xlsx                  relatório de divergências
-logs/produtor/execucao.log          log JSON do produtor
-logs/validador/execucao.log         log JSON do consumidor
-logs/*/resumo_execucao.json         resumo de cada bot
-reports/                             volume reservado para relatórios adicionais
+screenshots/local/<batch_id>/produtor/             screenshots de sucesso e erro
+data/datapool/*.processed.json                      estado final do DataPool local
+data/output/relatorio_erros_fluxo_produtor_*.xlsx  erros retidos pelo Bot 1
+data/output/relatorio_divergencias_*.xlsx          resultado do Bot 2
+logs/produtor/execucao.log                          log JSON Lines do produtor
+logs/validador/execucao.log                         log JSON Lines do consumidor
+logs/*/resumo_execucao.json                         resumo de cada bot
+reports/                                             volume reservado
 ```
 
 Cada item do DataPool preserva `evidence_name` para compatibilidade e também
@@ -138,12 +166,19 @@ no Maestro precisam receber a coluna textual `evidence_path` antes do deploy.
 
 Na planilha didática atual, o resultado esperado é:
 
-- 25 itens publicados;
-- 24 cadastros web bem-sucedidos e 1 falha de formulário por lote vazio;
-- 9 registros divergentes;
-- 10 violações de regras;
+- 25 tentativas de cadastro pelo Bot 1;
+- 24 cadastros web bem-sucedidos e publicados no DataPool;
+- 1 rejeição por lote sem ID, retida no relatório de erros do Bot 1;
+- 8 registros divergentes identificados pelo Bot 2;
+- 9 violações de regras nesses 8 registros do Bot 2;
+- 9 exceções no fluxo completo, somando a rejeição do Bot 1 e as 8
+  divergências do Bot 2;
 - 16 lotes validados;
 - 2 itens para revisão humana.
+
+O Bot 1 termina como `PARTIALLY_COMPLETED` porque preserva a rejeição sem
+interromper o lote. O Bot 2 termina como `SUCCESS`; no DataPool local, 16 itens
+ficam `DONE` e 8 ficam `ERROR` do tipo `BUSINESS`.
 
 ## DataPool BotCity
 
@@ -198,10 +233,12 @@ No BotCity Orchestrator:
    `VALIDATOR_ACTIVITY_LABEL`;
 5. execute o produtor.
 
-O produtor adiciona todas as entradas e só depois cria a tarefa do consumidor.
-O campo `item_id`, formado pelo hash do arquivo e pela linha de origem, fornece
-idempotência. `lote_id` não é único porque valores vazios e duplicados também
-precisam chegar à validação.
+O produtor tenta cadastrar todas as entradas e só publica as que concluíram o
+cadastro web. Depois de publicar esse lote filtrado, cria a tarefa do
+consumidor. O campo `item_id`, formado pelo hash do arquivo e pela linha de
+origem, fornece idempotência. Um `lote_id` vazio é retido pelo Bot 1; IDs
+duplicados ou não encontrados na referência ainda chegam ao Bot 2 para a
+aplicação das regras de negócio.
 
 Itens válidos terminam como `DONE`. Divergências RN01-RN07 terminam como erro
 `BUSINESS`, sem acionar retentativa de sistema. Falhas técnicas usam erro
@@ -229,28 +266,87 @@ No Compose, os IDs dos bots são:
 
 ## Desenvolvimento e testes
 
-```bash
+Use Python 3.12. O ambiente virtual não é obrigatório, mas evita conflitos com
+outros projetos.
+
+### Preparar o ambiente no Windows PowerShell
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
 python -m pip install -r requirements-dev.txt
-pytest tests/ -m "not e2e" -v
 ```
 
-Para executar o produtor fora do Docker, instale o Chromium do Playwright:
+Se não quiser ativar o ambiente, execute os comandos com
+`.\.venv\Scripts\python.exe` no lugar de `python`.
+
+No Linux ou macOS:
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements-dev.txt
+```
+
+O arquivo `requirements-dev.txt` instala as dependências da aplicação, o pytest
+e o plugin pytest-playwright. Ele não instala Selenium.
+
+### Testes unitários
+
+Os testes unitários não precisam do frontend nem do Chromium:
+
+```bash
+python -m pytest tests -m "not e2e" -v
+```
+
+### Testes E2E
+
+Instale o Chromium uma vez dentro do ambiente virtual:
 
 ```bash
 python -m playwright install chromium
 ```
 
-Para executar os oito testes E2E do Exercício 19-X:
+Inicie o frontend Next.js, execute os oito testes e encerre o Compose:
 
 ```bash
 docker compose up -d --build --wait frontend
-pytest tests/e2e/ -v
-docker compose down --volumes
+python -m pytest tests/e2e -v
+docker compose down --volumes --remove-orphans
 ```
 
-O workflow `.github/workflows/ci-cd.yml` executa testes unitários, testes E2E e
-o pipeline em container. Os jobs publicam screenshots, logs e relatórios com
-`actions/upload-artifact@v4`.
+Os testes usam `http://127.0.0.1:3000` por padrão. Para usar outra URL no
+PowerShell:
+
+```powershell
+$env:E2E_BASE_URL = "http://127.0.0.1:3000"
+python -m pytest tests/e2e -v
+```
+
+Com o frontend em execução, todos os testes podem ser chamados juntos:
+
+```bash
+python -m pytest tests -v
+```
+
+### Pipeline completo em Docker
+
+Este caminho não usa o ambiente virtual local. As dependências e o Chromium são
+instalados na imagem:
+
+```bash
+docker compose --profile avaliacao build bot-conferencia
+docker compose run --rm bot-conferencia
+docker compose run --rm --no-deps --entrypoint python bot-conferencia scripts/verify_pipeline.py
+docker compose --profile avaliacao down --volumes --remove-orphans
+```
+
+O workflow `.github/workflows/ci-cd.yml` executa qualidade Python, testes
+unitários, build do frontend, oito testes E2E, pipeline completo em container e
+checagem de credenciais. Os jobs publicam screenshots, DataPool local, logs e
+relatórios com `actions/upload-artifact@v4`.
 
 ## Escopo e limitações das automações web
 
@@ -264,6 +360,10 @@ comparativa usada no passado está em `origin/feature/page-objects`. A branch
 Outras limitações conhecidas: o frontend é demonstrativo, aceita qualquer par
 não vazio de usuário e senha e persiste os lotes somente no `localStorage` do
 navegador. O estado durável entre os bots é o DataPool, não o frontend.
+
+Também não fazem parte desta versão: agendamento ou monitoramento de pasta,
+autenticação de produção, integração com ERP/MES, correção automática dos casos
+de revisão humana e reprocessamento automático após a decisão do analista.
 
 ## Estrutura principal
 

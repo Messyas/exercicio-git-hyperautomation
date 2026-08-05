@@ -18,7 +18,8 @@ type Props = {
   onDelete: (id: string) => void
 }
 
-function formatarData(iso: string) {
+function formatarCriacao(iso: string) {
+  if (!iso) return '-'
   const d = new Date(iso)
   return d.toLocaleString('pt-BR', {
     day: '2-digit',
@@ -51,7 +52,12 @@ export function LotesList({ lotes, onDelete }: Props) {
           <TableRow>
             <TableHead>Nº do lote</TableHead>
             <TableHead>Produto</TableHead>
+            <TableHead>Linha</TableHead>
+            <TableHead>Turno</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Responsável</TableHead>
+            <TableHead>Data</TableHead>
+            <TableHead>Observação</TableHead>
             <TableHead>Cadastrado em</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
@@ -60,14 +66,19 @@ export function LotesList({ lotes, onDelete }: Props) {
           {lotes.map((lote) => (
             <TableRow key={lote.id}>
               <TableCell className="font-mono font-medium">
-                {lote.numero}
+                {lote.lote_id}
               </TableCell>
               <TableCell>{lote.produto}</TableCell>
+              <TableCell>{lote.linha || '-'}</TableCell>
+              <TableCell>{lote.turno || '-'}</TableCell>
               <TableCell>
                 <LoteStatusBadge status={lote.status} />
               </TableCell>
+              <TableCell>{lote.responsavel || '-'}</TableCell>
+              <TableCell>{lote.data || '-'}</TableCell>
+              <TableCell>{lote.observacao || '-'}</TableCell>
               <TableCell className="text-muted-foreground">
-                {formatarData(lote.criadoEm)}
+                {formatarCriacao(lote.criadoEm)}
               </TableCell>
               <TableCell className="text-right">
                 <Button
@@ -75,7 +86,7 @@ export function LotesList({ lotes, onDelete }: Props) {
                   variant="ghost"
                   size="icon"
                   onClick={() => onDelete(lote.id)}
-                  aria-label={`Excluir lote ${lote.numero}`}
+                  aria-label={`Excluir lote ${lote.lote_id}`}
                 >
                   <Trash2 className="size-4" aria-hidden="true" />
                 </Button>

@@ -1,17 +1,15 @@
-export type LoteStatus =
-  | 'APROVADO'
-  | 'REPROVADO'
-  | 'PENDENTE'
-  | 'OK'
-  | 'NOK'
-  | 'REPROV.'
-  | 'APROVADO PARCIAL'
+export type LoteStatus = string
 
 export type Lote = {
   id: string
-  numero: string
+  lote_id: string
   produto: string
+  linha: string
+  turno: string
   status: LoteStatus
+  responsavel: string
+  data: string
+  observacao: string
   criadoEm: string
 }
 
@@ -30,10 +28,7 @@ export const PRODUTOS = [
   'TV65-OLED',
 ] as const
 
-export const STATUS_CONFIG: Record<
-  LoteStatus,
-  { label: string; badge: string }
-> = {
+export const STATUS_CONFIG: Record<string, { label: string; badge: string }> = {
   APROVADO: {
     label: 'Aprovado',
     badge: 'border-success text-success bg-success/10',
@@ -64,23 +59,25 @@ export const STATUS_CONFIG: Record<
   },
 }
 
-export const STATUS_ORDER: LoteStatus[] = [
-  'APROVADO',
-  'REPROVADO',
-  'PENDENTE',
-  'OK',
-  'NOK',
-  'REPROV.',
-  'APROVADO PARCIAL',
-]
-
 export function loadLotes(): Lote[] {
   if (typeof window === 'undefined') return []
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? (parsed as Lote[]) : []
+    if (!Array.isArray(parsed)) return []
+    return parsed.map((item) => ({
+      id: String(item.id ?? ''),
+      lote_id: String(item.lote_id ?? item.numero ?? ''),
+      produto: String(item.produto ?? ''),
+      linha: String(item.linha ?? ''),
+      turno: String(item.turno ?? ''),
+      status: String(item.status ?? ''),
+      responsavel: String(item.responsavel ?? ''),
+      data: String(item.data ?? ''),
+      observacao: String(item.observacao ?? ''),
+      criadoEm: String(item.criadoEm ?? ''),
+    }))
   } catch {
     return []
   }

@@ -22,15 +22,23 @@ class TestFormularioCadastroLotes:
         formulario_page.selecionar_produto("TV55-4K-B")
         assert formulario_page.campo_produto.input_value() == "TV55-4K-B"
 
-    def test_status_aprovado_selecionado_por_padrao(self, formulario_page) -> None:
+    def test_status_aprovado_preenchido_por_padrao(self, formulario_page) -> None:
         assert formulario_page.obter_status_selecionado() == "APROVADO"
 
     def test_formulario_completo_exibe_sucesso(self, formulario_page) -> None:
-        formulario_page.preencher_lote("LT-2026-9999")
-        formulario_page.selecionar_produto("MON27-QHD")
-        formulario_page.selecionar_status("APROVADO")
-        formulario_page.submeter()
+        registro = {
+            "lote_id": "LT-2026-9999",
+            "produto": "MON27-QHD",
+            "linha": "L2",
+            "turno": "B",
+            "status": "NOK",
+            "responsavel": "Ana Ferreira",
+            "data": "14/06/2026",
+            "observacao": "Defeito visual",
+        }
+        formulario_page.preencher_e_enviar(registro)
         assert formulario_page.mensagem_sucesso_visivel()
+        assert formulario_page.obter_ultimo_cadastro() == registro
 
     def test_submissao_sem_produto_nao_exibe_sucesso(
         self, formulario_page

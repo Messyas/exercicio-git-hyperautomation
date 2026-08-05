@@ -54,6 +54,10 @@ Para este curso, o PDD terá 19 seções. A tabela abaixo resume a função de c
 | Métricas iniciais | Registrar números base para medir impacto. |
 | Aprovação ou validação | Registrar quem revisou e aprovou o PDD. |
 
+# **PDD preenchido — Inspeção de Lotes Diários**
+
+As seções a seguir descrevem o comportamento atual deste repositório.
+
 # **1\. Identificação do processo**
 
 | 🎯  Finalidade da seçãoRegistrar os dados mínimos para rastrear o processo, a versão do PDD e os responsáveis. |
@@ -70,7 +74,7 @@ Para este curso, o PDD terá 19 seções. A tabela abaixo resume a função de c
 
 * Processo: Inspeção de Lotes Diários  
 * Área: Controle de Qualidade   
-* Versão: 0.2; Data 06/07/2026  
+* Versão: 0.3; Data: 04/08/2026
 * Responsável: Messyas Gois França 
 
 # **2\. Contexto e justificativa**
@@ -87,9 +91,9 @@ Para este curso, o PDD terá 19 seções. A tabela abaixo resume a função de c
 
 **Campo para preenchimento:**
 
-A inspeção diária de lotes é executada manualmente pelo operador de qualidade. Ao final de cada turno (A, B, C), os inspetores registram o resultado em lote na planilha de inspeção diária, que é gerada automaticamente pelo sistema de produção todas as manhãs. O processo atual é manual, repetitivo e sujeito a erros: na planilha inspecionada, 9 dos 25 registros apresentaram ao menos uma divergência, uma taxa de 36%. Os problemas concentram-se em status fora do padrão correto (Ex: OK, NOK, REPROV., APROVADO PARCIAL), campos obrigatórios vazios (responsável, lote\_id) e datas incorretas. 
+A inspeção diária de lotes é representada por uma planilha didática com 25 registros. Sem automação, a conferência de campos, status, data e existência do lote seria manual, repetitiva e sem evidência padronizada. Na amostra, 9 registros exigem tratamento: 1 lote sem ID é rejeitado no cadastro web pelo Bot 1 e 8 registros chegam ao Bot 2 com ao menos uma divergência. Os problemas incluem status não canônicos ou ambíguos (OK, NOK, REPROV. e APROVADO PARCIAL), responsável vazio, lote não encontrado na referência, data incorreta e ausência de observação em lotes reprovados.
 
-Datas erradas, por exemplo, afetam diretamente relatórios de dispensa e pagamento de impostos, ou até expõe a empresa a risco fiscal. A ausência de validação automática expõe a operação a propagação de dados ruins em escala. Status de avaliação, onde ocorrem diversas falhas de classificação que fogem das regras especificadas.
+No cenário de negócio simulado, datas erradas podem afetar relatórios operacionais e fiscais. A automação reduz a propagação de dados ruins e mantém rastreabilidade por logs, relatórios, estados do DataPool e screenshots. Esta versão é didática e não acessa sistemas oficiais.
 
 # **3\. Objetivo da automação**
 
@@ -105,7 +109,7 @@ Datas erradas, por exemplo, afetam diretamente relatórios de dispensa e pagamen
 
 **Campo para preenchimento:**
 
-Validar automaticamente cada registro da planilha aplicando as regras da RN01 a RN07, normalizar status incorretos (RN05), identificar e registrar todas as divergências com regra violada e ação recomendada, encaminhar casos ambíguos para fila de revisão humana e gerar relatório de execução auditável, eliminando a conferência manual item a item.
+Automatizar o cadastro e a conferência da planilha em duas etapas: o Bot 1 registra os dados no frontend Next.js com Playwright e publica apenas cadastros concluídos no DataPool; o Bot 2 aplica RN01-RN07, classifica divergências, atualiza o estado de cada item e gera relatórios auditáveis, incluindo a fila de revisão humana.
 
 # **4\. Escopo**
 
@@ -119,13 +123,27 @@ Validar automaticamente cada registro da planilha aplicando as regras da RN01 a 
 | ✅  Exemplo de preenchimentoInclui leitura de planilha .xlsx, validação de colunas obrigatórias, validação de campos, consulta à base de referência fictícia, relatório e log. |
 | :---- |
 
-O gatilho do processo começa com  chegada da planilha às 07:45. Os dados são então processados para serem validados pelas seguintes regras:
+Esta versão inclui:
+
+* leitura do arquivo `.xlsx` e da aba `Base_Referencia`;
+* validação estrutural antes do cadastro;
+* cadastro dos oito campos no frontend Next.js por Page Object Model com Playwright;
+* comparação entre os dados da planilha e o registro salvo no `localStorage`;
+* screenshots de sucesso, rejeição e falha técnica;
+* retenção, pelo Bot 1, dos itens que não concluíram o cadastro;
+* publicação dos cadastros concluídos no DataPool local ou BotCity;
+* aplicação de RN01-RN07 pelo Bot 2;
+* atualização dos itens como `DONE`, erro `BUSINESS` ou erro `SYSTEM`;
+* relatórios Excel, logs JSON Lines e resumos JSON;
+* execução local, com Docker Compose, no GitHub Actions ou pelo BotRunner.
+
+As regras aplicadas são:
 
 **Regras:**
 
 | Regra | Descrição | Tipo |
 | :---- | :---- | :---- |
-| RN01 | Planilha deve possuir estrutura esperada | Estrutural |
+| RN01 | Planilha deve possuir a estrutura esperada e a data deve coincidir com a referência | Estrutural / validação |
 | RN02 | Campos obrigatórios não podem estar vazios | Validação |
 | RN03 | Lote deve existir na referência | Existência |
 | RN04 | Valida se o Status pertence ao domínio permitido (APROVADO, REPROVADO, PENDENTE). | Validação  |
@@ -133,16 +151,7 @@ O gatilho do processo começa com  chegada da planilha às 07:45. Os dados são 
 | RN06 | Casos ambíguos vão para revisão humana | Exceção |
 | RN07 | Reprovados exigem observação | Obrigatoriedade |
 
-Qualquer ITEM que não cumprir com as regras de normalização deve ser tratado pelo fluxo autônomo, exceto pelos casos em que exige-se um operador humano para realizar a inspeção.
-
-Relatorios: 
-
-1. Planilha de lotes validados: Contém todos os itens que foram processados.  
-2. Planilha operacional: Itens cujo processo não é capaz de normalizar sem supervisão humana.
-
-Por fim, o processo finaliza quando todos os itens são avaliados e passam pela curadoria.
-
- **Futuro :** Para que o processo seja executado é necessário que a automação possua acesso ao banco de dados dos MODELOS dos produtos que passam pelo setor de controle de qualidade, com o objetivo de cruzar o modelo do item com os modelos de fato cadastrados no banco.
+Casos ambíguos são registrados na aba `revisao_humana`; o bot não decide o status por conta própria. A Base de Referência da própria planilha substitui uma integração real com banco de dados nesta versão.
 
 # **5\. Fora de escopo**
 
@@ -158,7 +167,7 @@ Por fim, o processo finaliza quando todos os itens são avaliados e passam pela 
 
 **Campo para preenchimento:**
 
-O bot não altera a planilha original, atua apenas em modo leitura. Não há integração com ERP, MES ou sistemas oficiais da fábrica nesta versão. O bot não decide automaticamente casos ambíguos (RN06), toda ambiguidade é encaminhada ao analista. Envio de alertas por e-mail ou mensageiro não faz parte do MVP. Validação de qualidade física do produto está fora do escopo, o bot valida apenas os dados da planilha.
+O bot não altera a planilha original e não acessa ERP, MES ou sistemas oficiais. Não fazem parte desta versão: dados ou credenciais reais, autenticação de produção, validação física do produto, agendamento, monitoramento de pasta, envio direto de e-mail ou mensagem, correção automática dos casos RN06 e reprocessamento automático após decisão humana. O frontend e a Base de Referência são didáticos.
 
  **Futuramente** : integração com ERP para consulta de lotes em tempo real, dashboard de KPIs de qualidade por linha/turno e notificações automáticas para lotes críticos.
 
@@ -176,7 +185,7 @@ O bot não altera a planilha original, atua apenas em modo leitura. Não há int
 
 **Campo para preenchimento:**
 
-1\. O Operador recebe o arquivo com a planilha *inspecao\_lotes\_dia.xlsx* às 07:45, gerado pelo sistema de produção.
+1\. No cenário AS-IS proposto, o operador recebe às 07:45 o arquivo *inspecao\_lotes\_dia.xlsx*, gerado pelo sistema de produção.
 
 2\. Abre a planilha e verifica visualmente cada linha: código do lote, produto, linha, turno, status, responsável, data e observação.
 
@@ -204,27 +213,27 @@ O bot não altera a planilha original, atua apenas em modo leitura. Não há int
 
 **Campo para preenchimento:**
 
- **Raia do Bot** : fluxo principal (automatizado):
+**Raia do Bot 1 - cadastro web:**
 
-1. **Carregar planilha**: O bot é acionado (gatilho às 07:45) e carrega os registros do arquivo gerado.  
-2. **Validar estrutura da planilha**: O bot aplica a RN01 (validação de 8 colunas). Se falhar, encerra imediatamente com erro estrutural.  
-3. **Executar validações**: Se a estrutura for válida, o bot aplica o motor de regras de negócio em bloco (RN02 a RN07), verificando campos vazios, existência no banco, normalização e status ambíguos.  
-4. **O fluxo se divide**:  
-* Se NÃO existirem divergências: o bot segue para **Gerar relatório final** e o processo é concluído.  
-* Se SIM, existirem divergências: o bot segue para **Gerar relatório de divergências**, enviando os casos para o analista.
+1. **Carregar a entrada**: a execução é iniciada manualmente, pelo Compose, pelo CI ou pelo BotRunner. O produtor lê a planilha e a Base de Referência.
+2. **Validar a estrutura**: exige exatamente as oito colunas previstas. Arquivo ausente ou estrutura inválida encerra a execução antes do navegador.
+3. **Validar o destino**: confirma que o diretório local ou o DataPool BotCity está disponível antes de alterar o frontend.
+4. **Cadastrar no Next.js**: autentica no frontend didático e envia os oito campos com Playwright.
+5. **Confirmar o cadastro**: compara os dados enviados com o último registro salvo no `localStorage` e captura o comprovante.
+6. **Separar falhas de fluxo**: rejeições e falhas técnicas são registradas com evidência no relatório do produtor e não entram no DataPool.
+7. **Publicar o handoff**: somente cadastros concluídos são publicados. No backend BotCity, o produtor cria a tarefa do validador depois de publicar o lote filtrado.
 
- **Raia do Analista** : apenas exceções:
+**Raia do Bot 2 - validação:**
 
-1. **Receber relatório de divergências**: O analista recebe a fila gerada pelo bot.  
-2. **Analisar divergência**: O analista avalia o erro apontado.  
-3. O fluxo se divide:  
-* Se a divergência for resolvida (SIM): O analista executa a tarefa **Corrigir registro**, e o lote retorna automaticamente para a etapa de **Executar validações do Bot**.   
-* Se não for resolvida (NÃO): O analista executa a tarefa **Escalar caso**.
+1. **Consumir o DataPool**: recebe somente os itens que concluíram o cadastro web.
+2. **Aplicar RN01-RN07**: valida data, campos obrigatórios, existência, domínio, normalização, ambiguidade e observação.
+3. **Atualizar cada item**: usa `DONE` para itens válidos, `BUSINESS` para divergências e `SYSTEM` para falhas técnicas.
+4. **Gerar evidências**: cria o relatório Excel de validação, o resumo JSON e o log estruturado.
 
- **Raia do Responsável da Trilha / Turno** : 
+**Raia do Analista:**
 
-1. **Analisar caso escalonado:** O supervisor avalia a anomalia sem solução padrão.  
-2. **Registrar decisão:** A liderança toma a ação final no sistema e o caso é encerrado.
+1. Revisa o relatório do Bot 1, as divergências e a aba `revisao_humana` do Bot 2.
+2. Corrige ou escala os casos fora da automação. A correção e a revalidação automática não estão implementadas nesta versão; um novo processamento precisa ser iniciado quando necessário.
 
 # **8\. Entradas**
 
@@ -242,14 +251,14 @@ O bot não altera a planilha original, atua apenas em modo leitura. Não há int
 
 **Arquivo principal: inspecao\_lotes\_dia.xlsx**
 
-* **Origem**: sistema de produção (gerado automaticamente).   
-* **Formato**: .xlsx. Disponibilidade: 07:45 diário.  
+* **Origem**: amostra didática versionada em `data/samples/inspecao_lotes_dia.xlsx`.
+* **Formato**: `.xlsx`; a execução é sob demanda.
 * **Campos críticos**: *lote\_id*, *produto*, *linha*, *turno*, *status*, *responsavel*, *data*, *observacao*.  
-* **Risco de entrada**: arquivo ausente ou com estrutura alterada (colunas renomeadas/reordenadas).
+* **Risco de entrada**: arquivo ausente, coluna obrigatória ausente ou coluna extra. A ordem das colunas não altera a validação.
 
 **Base de referência: aba Base\_Referencia da mesma planilha**
 
-* **Origem**: Planejamento/QA. Contém: lista de lote\_id válidos para cruzamento (RN03).  
+* **Origem**: aba didática da mesma planilha. Contém a lista de `lote_id` válidos para cruzamento (RN03).
 * **Risco**: base desatualizada pode gerar falsos positivos em RN03.
 
 # **9\. Saídas**
@@ -266,26 +275,31 @@ O bot não altera a planilha original, atua apenas em modo leitura. Não há int
 
 **Campo para preenchimento:**
 
-**1\. relatorio\_divergencias.xlsx**
+**1\. relatorio\_divergencias\_DDMMAAAA.xlsx**
 
 * Destinatário: Analista de Qualidade.   
 * Formato: .xlsx.   
-* Contém: lote\_id, regra violada, descrição, ação recomendada, severidade.
+* Contém as abas `resumo`, `divergencias`, `lotes_validados`, `rejeicoes_cadastro`, `falhas_tecnicas` e `revisao_humana`.
+* Como o Bot 1 filtra falhas antes do handoff, `rejeicoes_cadastro` e `falhas_tecnicas` ficam vazias no fluxo atual e permanecem no arquivo por compatibilidade.
 
-**2\. Aba revisao\_humana (dentro do relatório)**
+**2\. relatorio\_erros\_fluxo\_produtor\_DDMMAAAA.xlsx**
 
-* Destinatário: Analista de Qualidade.   
-* Contém: Registros RN06 (status ambíguo) para decisão manual.
+* Destinatário: Analista de Qualidade e equipe técnica.
+* Contém as abas `resumo` e `erros_fluxo`, com os itens não publicados, motivo, tipo do erro e evidência.
 
-**3\. log\_execucao.json**
+**3\. Logs e resumos de execução**
 
-* Destinatário: Equipe técnica.   
-* Contém: timestamp\_inicio, timestamp\_fim, arquivo\_processado, total\_registros, total\_divergencias, status\_execucao.
+* `logs/produtor/execucao.log` e `logs/validador/execucao.log`: JSON Lines com timestamp, nível, IDs de execução e bot, lote, linha de origem e mensagem.
+* `logs/*/resumo_execucao.json`: status, início, fim, contagens, caminhos dos artefatos e erro fatal, quando houver.
 
-**4\. Itens\_aprovados  (dentro do relatório)**
+**4\. Screenshots do cadastro**
 
-* Destinatário: Analista/Supervisor.   
-* Contém: registros que passaram em todas as validações RN01–RN07.
+* Diretório: `screenshots/local/<batch_id>/produtor/`.
+* Contém comprovantes de sucesso e evidências de rejeição ou falha.
+
+**5\. Estado do DataPool local**
+
+* `data/datapool/<batch_id>.processed.json`: valores publicados, estados finais, mensagens e tipos de erro.
 
 # **10\. Sistemas envolvidos**
 
@@ -301,21 +315,23 @@ O bot não altera a planilha original, atua apenas em modo leitura. Não há int
 
 **Campo para preenchimento:**
 
-Sistema de produção: gera inspecao\_lotes\_dia.xlsx automaticamente. 
+**Planilha Excel**: entrada em modo leitura e Base de Referência usada pela RN03.
 
-Acesso: leitura de pasta monitorada (rede local). Bot não escreve neste sistema.
+**Frontend Next.js**: sistema didático de cadastro. O Bot 1 acessa a aplicação por HTTP, autentica com credenciais de demonstração e grava os lotes no `localStorage` do navegador.
 
-Base\_Referencia: aba da planilha Excel com lote\_id válidos. 
+**Playwright/Chromium**: executa o cadastro por Page Object Model e captura screenshots. Em container, o Chromium usa as flags próprias para esse ambiente.
 
-Acesso: leitura. Sem credenciais externas.
+**DataPool**: contrato entre os bots. O backend local usa arquivos JSON; o backend BotCity usa o DataPool do Maestro e cria a tarefa do consumidor.
 
-Pasta de saída do relatório: diretório local ou pasta compartilhada de rede. Acesso: escrita. Responsável: Infraestrutura/TI.
+**BotCity Maestro/BotRunner**: integração opcional para tarefas, estados, alertas, métricas e artefatos. Fica desabilitada por padrão no modo local.
 
-Agendador de tarefas: Deve ser configurado para 07:50 diário.
+**Docker Compose**: inicia o frontend e executa os bots com volumes persistentes para DataPool, relatórios, logs e screenshots.
 
-Sem acesso a ERP, MES, sistemas oficiais ou internet nesta versão.
+**GitHub Actions**: executa qualidade, testes, build do frontend, E2E e pipeline Docker, publicando as evidências com `actions/upload-artifact@v4`.
 
-11\. Atores e responsabilidades
+Não há acesso a ERP, MES ou sistema oficial nesta versão.
+
+# **11\. Atores e responsabilidades**
 
 | 🎯  Finalidade da seçãoDefinir papéis humanos e responsabilidades. |
 | :---- |
@@ -329,17 +345,19 @@ Sem acesso a ERP, MES, sistemas oficiais ou internet nesta versão.
 
 **Campo para preenchimento:**
 
-**Bot de Validação**: executa RN01 \- RN07, normaliza status, gera relatório e log, envia exceções para fila do analista.
+**Bot 1 - produtor Playwright**: lê a planilha, valida o destino, cadastra no frontend, confirma os dados persistidos, captura evidências, retém falhas e publica os sucessos no DataPool.
 
-**Analista de Qualidade**: revisa fila de exceções (RN06 e demais divergências), corrige o registro, devolvendo o fluxo automaticamente para a revalidação do bot, escala casos irresolvíveis.
+**Bot 2 - consumidor/validador**: consome o DataPool, executa RN01-RN07, normaliza status, atualiza cada item e gera relatório e log.
+
+**Analista de Qualidade**: revisa o relatório de erros do produtor, as divergências e a fila RN06. Corrige fora da automação ou solicita um novo processamento.
 
 **Responsável da trilha/turno**: decide casos escalonados pelo analista.
 
 **Equipe técnica**: mantém e monitora o bot, atualiza regras quando necessário.
 
-**Planejamento/QA**: mantém a Base\_Referencia atualizada com lote\_id válidos.
+**Planejamento/QA**: no cenário de negócio, mantém a Base de Referência com `lote_id` válidos.
 
-**Ator BOT**: Executa o processo sequencial de validação, normalização e envio de registros.
+**Equipe de desenvolvimento**: mantém o frontend demonstrativo, os bots, os testes, os containers e os workflows.
 
 # **12\. Regras de negócio**
 
@@ -355,19 +373,21 @@ Sem acesso a ERP, MES, sistemas oficiais ou internet nesta versão.
 
 **Campo para preenchimento:**
 
-**Estrutura**: SE a planilha não possuir exatamente 8 colunas (lote\_id, produto, linha, turno, status, responsavel, data, observacao), ENTÃO interromper execução e gerar alerta de erro estrutural.
+**Pré-condição estrutural:** SE a planilha não possuir exatamente as oito colunas `lote_id`, `produto`, `linha`, `turno`, `status`, `responsavel`, `data` e `observacao`, ENTÃO interromper a execução antes do cadastro.
 
-**Preenchimento:** SE qualquer campo obrigatório (lote\_id, produto, linha, turno, status, responsável, data) estiver vazio, ENTÃO registrar divergência e encaminhar para fila de exceções.
+**RN01 - data de referência:** SE a data preenchida não for igual à data de referência obtida do nome da aba, ENTÃO registrar divergência. O código também identifica o erro estrutural com o prefixo RN01 por compatibilidade com os testes do exercício.
 
-**Existência**: SE o lote\_id não existir na Base\_Referencia, ENTÃO registrar divergência de existência e encaminhar para fila de exceções.
+**RN02 - preenchimento:** SE `lote_id`, produto, linha, turno, status, responsável ou data estiver vazio, ENTÃO registrar divergência. Na arquitetura atual, um `lote_id` vazio é barrado antes pelo formulário do Bot 1 e, por isso, não chega ao Bot 2; os demais campos seguem para validação.
 
-**Domínio**: SE o status não for APROVADO, REPROVADO ou PENDENTE (após normalização), ENTÃO aplicar RN06.
+**RN03 - existência:** SE o `lote_id` não existir na `Base_Referencia`, ENTÃO registrar divergência.
 
-**Normalização**: SE o status for OK, ENTÃO normalizar para APROVADO. SE for NOK, ENTÃO normalizar para REPROVADO. Registrar ocorrência como divergência de padronização na origem antes de continuar a validação.
+**RN04 - domínio:** após RN05, os valores aceitos são APROVADO, REPROVADO e PENDENTE. Um valor fora do domínio é identificado pela RN04 e tratado como caso RN06 no relatório operacional.
 
-**Ambiguidade**: SE o status não for reconhecível nem normalizado (ex: REPROV., APROVADO PARCIAL), ENTÃO registrar como caso ambíguo e encaminhar para revisão humana sem decisão automática.
+**RN05 - normalização:** SE o status for OK, ENTÃO normalizar para APROVADO. SE for NOK, ENTÃO normalizar para REPROVADO. Registrar a normalização como divergência de padronização antes de continuar.
 
-**Observação obrigatória**: SE o status final for REPROVADO (inclusive após normalização de NOK via RN05), ENTÃO o campo observacao deve estar preenchido. Caso contrário, registrar divergência.
+**RN06 - ambiguidade:** SE o status não for reconhecido nem normalizado, como REPROV. ou APROVADO PARCIAL, ENTÃO registrar a divergência e incluir o item em `revisao_humana`, sem decisão automática.
+
+**RN07 - observação obrigatória:** SE o status final for REPROVADO, inclusive após normalização de NOK, e `observacao` estiver vazia, ENTÃO registrar divergência.
 
 # **13\. Exceções e tratamento esperado**
 
@@ -383,11 +403,13 @@ Sem acesso a ERP, MES, sistemas oficiais ou internet nesta versão.
 
 **Campo para preenchimento:**
 
-Arquivo não encontrado até 08:15: bot encerra com status ERRO\_ARQUIVO, gera log e aguarda retry em 30 min.
-
- Responsável: Infraestrutura.
+**Arquivo ausente:** a execução encerra com falha e registra o motivo no resumo/log. No modo Maestro, o cliente pode emitir um alerta. Não há espera ou retry agendado nesta versão.
 
 **Estrutura da planilha alterada (RN01):** bot interrompe execução imediatamente, gera alerta estrutural, não processa nenhum registro. Responsável: TI \+ Equipe técnica.
+
+**Frontend ou login indisponível:** o Bot 1 encerra com falha antes de publicar no DataPool. A causa fica no log e no resumo de execução.
+
+**Cadastro rejeitado ou falha técnica por item:** o Bot 1 captura a evidência, registra o item em `relatorio_erros_fluxo_produtor_*.xlsx`, não o publica e continua com as linhas seguintes. Se nenhum cadastro for concluído, o produtor encerra com falha.
 
 **lote\_id não cadastrado na Base\_Referencia (RN03):** registrar divergência RN03, encaminhar para analista. 
 
@@ -399,27 +421,27 @@ Responsável: Planejamento.
 
 Registrar como divergência de padronização. 
 
-Casos de teste: EX-2026-00105 (OK) e EX-2026-00107 (NOK sem observação).
+Casos de teste: LG-2026-00105 (OK) e LG-2026-00107 (NOK sem observação).
 
-**Status ambíguo não normalizável (RN06):** REPROVADO, APROVADO PARCIAL \=\> fila de revisão humana sem decisão automática. 
+**Status ambíguo não normalizável (RN06):** REPROV. ou APROVADO PARCIAL \=\> fila de revisão humana sem decisão automática.
 
 Responsável: Analista de Qualidade. 
 
-Casos de teste: EX-2026-00112 e LG-2026-00118.
+Casos de teste: LG-2026-00112 e LG-2026-00118.
 
 **REPROVADO sem observação (RN07):** registrar divergência, encaminhar ao analista para preenchimento. 
 
-Casos de teste: EX-2026-00107 e EX-2026-00121.
+Casos de teste: LG-2026-00107 e LG-2026-00121.
 
-**Campo obrigatório vazio (RN02):** lote\_id ou responsável ausente \=\> divergência RN02. 
+**Campo obrigatório vazio (RN02):** responsável ausente em item publicado \=\> divergência RN02. Um lote sem ID é rejeitado no Bot 1 e não entra no DataPool.
 
-Casos de teste: EX-2026-00109 (responsável) e linha 24 (lote\_id).
+Casos de teste: LG-2026-00109 (responsável) e linha de origem 27 (lote sem ID, relatório do Bot 1).
 
 **Data fora do período de referência (RN01):** registrar divergência de dados, notificar analista. 
 
-Caso de teste: 	EX-2026-00115 (15-06 \!= 14/06).
+Caso de teste: LG-2026-00115 (15/06/2026 diferente da referência 14/06/2026).
 
-**Divergência irresolvível pelo analista:** escalar para responsável da trilha/turno \=\> caso encerrado como pendência de liderança com evidência registrada.
+**Divergência irresolvível pelo analista:** o analista escala para o responsável da trilha/turno. A decisão ocorre fora do software atual e deve ser registrada pelo processo de negócio.
 
 # **14\. Critérios de aceite**
 
@@ -435,9 +457,9 @@ Caso de teste: 	EX-2026-00115 (15-06 \!= 14/06).
 
 **Campo para preenchimento:**
 
-CA01: Dado inspecao\_lotes\_dia.xlsx (14/06/2026) com 25 registros, o bot deve detectar exatamente 9 divergências, 0 falsos negativos. 
+CA01: Dado inspecao\_lotes\_dia.xlsx (14/06/2026) com 25 registros, o fluxo deve registrar exatamente 9 exceções: 1 rejeição no Bot 1 e 8 divergências no Bot 2, sem falsos negativos.
 
-Evidência: relatório com 9 linhas de divergência.
+Evidência: relatório de erros do Bot 1 com 1 entrada e relatório do Bot 2 com 8 registros divergentes.
 
 CA02: Os 16 registros válidos não devem ser marcados como divergência, 0 falsos positivos. Evidência: aba lotes\_validados com 16 entradas.
 
@@ -447,17 +469,21 @@ CA04: LG-2026-00112 e LG-2026-00118 encaminhados para aba revisao\_humana sem de
 
 Evidência: aba revisao\_humana com 2 entradas.
 
-CA05: Log de execução gerado com timestamp\_inicio, timestamp\_fim, total\_registros=25, total\_divergencias==9, status\_execucao==SUCESSO. 
+CA05: O Bot 1 deve terminar como `PARTIALLY_COMPLETED` e registrar total=25, itens\_publicados\_datapool=24 e erros\_fluxo=1. O Bot 2 deve terminar como `SUCCESS` e registrar total\_registros=24, total\_divergencias=8, total\_regras\_violadas=9 e total\_lotes\_validados=16. No DataPool local, 16 itens devem terminar como `DONE` e 8 como erro `BUSINESS`.
 
-Evidência: log\_execucao.json.
+Evidência: `logs/produtor/resumo_execucao.json`, `logs/validador/resumo_execucao.json` e relatórios Excel.
 
 CA06: Execução completa em menos de 60 segundos. 
 
-Evidência: diferença entre timestamp\_inicio e timestamp\_fim no log.
+Evidência: diferença entre `started_at` e `finished_at` nos resumos dos bots.
 
 CA07: SE planilha sem a coluna status, ENTÃO bot interrompe com ERRO\_ESTRUTURA antes de processar qualquer registro. 
 
-Evidência: log com status ERRO\_ESTRUTURA.
+Evidência: resumo/log com erro estrutural e ausência de itens publicados.
+
+CA08: `docker compose run --rm bot-conferencia` deve executar o frontend, o Bot 1 e o Bot 2, persistindo logs, DataPool, relatórios e screenshots nos volumes do host.
+
+CA09: o CI deve concluir os jobs de qualidade, testes Python, build do frontend, oito E2E, `build-docker` e verificação de credenciais, anexando as evidências com `actions/upload-artifact@v4`.
 
 # **15\. Evidências de execução**
 
@@ -473,10 +499,14 @@ Evidência: log com status ERRO\_ESTRUTURA.
 
 **Campo para preenchimento:**
 
-* log\_execucao.json: timestamp\_inicio, timestamp\_fim, nome e hash MD5 do arquivo processado, total\_registros, total\_divergencias, status\_execucao (SUCESSO / ERRO\_ESTRUTURA / ERRO\_ARQUIVO). Gerado a cada execução.  
-* relatorio\_divergencias\_DDMMAAAA.xlsx: tabela com lote\_id, regra violada, descrição da divergência, ação recomendada e severidade para cada dos 9 casos identificados.  
+* `logs/produtor/execucao.log` e `logs/validador/execucao.log`: logs JSON Lines com contexto de execução, lote e linha de origem.
+* `logs/*/resumo_execucao.json`: status padronizado, início, fim, contagens, caminhos e erro fatal, quando houver.
+* relatorio\_erros\_fluxo\_produtor\_DDMMAAAA.xlsx: entrada que não concluiu o cadastro, com motivo, tipo do erro e evidência; o item não entra no DataPool.
+* relatorio\_divergencias\_DDMMAAAA.xlsx: tabela com lote\_id, regra violada, descrição da divergência, ação recomendada e severidade para os 8 registros divergentes processados pelo Bot 2.
 * Aba lotes\_validados: lista dos registros que passaram em todas as validações, serve como evidência de processamento correto.  
 * Aba revisao\_humana: registros RN06 com status original, data e campo para anotação do analista, rastreabilidade da decisão humana.  
+* `data/datapool/*.processed.json`: valores recebidos pelo Bot 2, estado final e mensagem de cada item no backend local.
+* `screenshots/local/<batch_id>/produtor/`: 24 comprovantes e 1 evidência de rejeição na amostra atual. O `evidence_path` também fica registrado no DataPool ou no relatório do produtor.
 * Nenhuma evidência deve conter dados sensíveis (credenciais, CPF, informações pessoais além do nome do inspetor já presente na planilha original).
 
 # **16\. Riscos e controles**
@@ -493,55 +523,17 @@ Evidência: log com status ERRO\_ESTRUTURA.
 
 **Campo para preenchimento:**
 
-R01 \- Propagação de erros em escala: entrada não padronizada,  o  bot classifica errado em volume.
+**R01 - entrada com estrutura incompatível.** Probabilidade: média. Impacto: alto. Controle: validação estrutural antes de abrir o navegador; a execução falha sem publicar itens. Dono: equipe de desenvolvimento/QA.
 
- Probabilidade: Alta.
+**R02 - frontend indisponível ou contrato visual alterado.** Probabilidade: média. Impacto: alto. Controle: locators semânticos, Page Object Model, healthcheck do Compose, oito testes E2E e screenshot de falha. Dono: equipe de desenvolvimento.
 
- Impacto: Alto. 
+**R03 - Base de Referência desatualizada.** Probabilidade: baixa. Impacto: médio. Controle: versionar a amostra didática e validar a aba antes da execução; em cenário real, Planejamento/QA deve aprovar a atualização. Dono: Planejamento/QA.
 
-Controle: ativar bot somente após padronização da entrada na origem (dropdown de status, campos obrigatórios). 
+**R04 - perda de evidências geradas no container.** Probabilidade: baixa. Impacto: alto. Controle: volumes explícitos para `logs`, `data/datapool`, `data/output`, `reports` e `screenshots`, além de upload de artefatos no CI. Dono: equipe técnica.
 
-Revisão humana obrigatória nas 2 primeiras semanas. 
+**R05 - exposição de credenciais.** Probabilidade: baixa. Impacto: alto. Controle: `.env` ignorado pelo Git, exemplo sem segredo real, credenciais do BotRunner injetadas em execução e job de verificação no CI. Dono: equipe técnica.
 
-Dono: QA.
-
-R02 \- Arquivo ausente ou fora do horário: bot não encontra planilha às 07:50. 
-
-Probabilidade: Média. 
-
-Impacto: Médio. 
-
-Controle: monitor de disponibilidade com alerta após 08:15 e retry automático após 30 min. 
-
-Dono: Infraestrutura.
-
-R03 \- Alteração do layout da planilha: colunas renomeadas ou reordenadas quebram RN01. Probabilidade: Média. 
-
-Impacto: Alto. 
-
-Controle: RN01 detecta estrutura incorreta e aborta com erro claro. A TI deve notificar a equipe antes de qualquer mudança. 
-
-Dono: TI \+ QA.
-
-R04 \- Data incorreta com impacto fiscal: data errada em registros gera inconsistências em relatórios de dispensa e impostos. 
-
-Probabilidade: Média. 
-
-Impacto: Alto. 
-
-Controle: RN01 sinaliza divergência de data; operador notificado para correção antes do fechamento do período fiscal. 
-
-Dono: QA \+ Fiscal.
-
-R05 \- Base\_Referencia desatualizada: lote\_id válido não cadastrado,RN03 falso positivo.
-
-Probabilidade: Baixa. 
-
-Impacto: Médio. 
-
-Controle: Planejamento atualiza base diariamente antes das 07:30.
-
-Dono: Planejamento.
+**R06 - indisponibilidade do Maestro/DataPool remoto.** Probabilidade: média. Impacto: alto no modo BotCity. Controle: validação do DataPool antes do cadastro, retry de chamadas de rede e backend local para desenvolvimento/CI. Dono: equipe técnica/BotCity.
 
 # **17\. Premissas e dependências**
 
@@ -557,19 +549,20 @@ Dono: Planejamento.
 
 **Campo para preenchimento:**
 
-**Premissas (assumidas como verdadeiras)**:
+**Premissas:**
 
-* A planilha inspecao\_lotes\_dia.xlsx é gerada pelo sistema de produção diariamente até 07:45, sem intervenção manual.  
-* As regras RN01 \- RN07 foram formalizadas e validadas pelo responsável de negócio antes do desenvolvimento.  
-* O ambiente de execução está disponível e configurado.  
-* A padronização da entrada (dropdown de status, campos obrigatórios) é implementada na origem antes da ativação do bot em produção.
+* A planilha respeita o layout de oito colunas e contém a aba `Base_Referencia`.
+* RN01-RN07 e a data de referência da amostra foram definidas para fins didáticos.
+* O status permanece como texto no frontend para preservar valores não normalizados até o Bot 2.
+* O frontend e os dados usados nesta versão não são sistemas de produção.
 
-**Dependências (elementos externos necessários)**:
+**Dependências:**
 
-* Base\_Referencia atualizada diariamente pelo time de Planejamento antes das 07:30.  
-* Agendador de tarefas configurado para 07:50 com permissão de leitura/escrita nas pastas.  
-* Pasta de saída acessível ao Analista de Qualidade para leitura do relatório.  
-* Critério de dependência crítica: se Base\_Referencia não for atualizada, RN03 gerará falsos positivos sistêmicos.
+* Docker com Compose para o pipeline isolado; alternativamente, Python 3.12 e Chromium Playwright para execução local.
+* Node.js/pnpm somente quando o frontend for desenvolvido fora do Docker.
+* Permissão de escrita nos diretórios de logs, DataPool, relatórios e screenshots.
+* Frontend Next.js acessível ao Bot 1.
+* No modo BotCity: pacotes implantados, DataPool com schema compatível, atividade do validador registrada e credenciais fornecidas pelo BotRunner ou por variáveis de ambiente.
 
 # **18\. Métricas iniciais**
 
@@ -589,21 +582,21 @@ Volume por execução: 25 registros/dia.
 
 Fonte: planilha de referência 14/06/2026 (Entre 500 a 750 registros/mês caso a fábrica funcione todo dia).
 
-Frequência: diária \- gatilho às 07:45. Fonte: sistema de produção.
+Frequência do cenário de negócio: diária. Frequência implementada: sob demanda, em push/pull request no CI ou por tarefa do BotRunner; não existe gatilho horário no repositório.
 
 Tempo manual atual: 2-3 minutos por execução (conferência completa da planilha). 
 
 Fonte: estimativa do responsável de QA.
 
-Taxa de divergência atual: 36% (9/25 registros com ao menos 1 violação). 
+Taxa de exceções na entrada: 36% (9/25 registros), composta por 1 rejeição no Bot 1 e 8 divergências no Bot 2.
 
 Fonte: análise da planilha 14/06/2026.
 
-Distribuição de divergências: RN02=2, RN03=1, RN05=2, RN06=2, RN07=2. 
+Distribuição do fluxo: 1 rejeição no cadastro web. Nos 8 registros divergentes do Bot 2 há 9 violações de regra: RN01=1, RN02=1, RN03=1, RN05=2, RN06=2 e RN07=2.
 
 Fonte: análise item a item das RNs.
 
-Meta pós-automação: taxa de divergência na entrada abaixo de 5% após padronização do formulário de origem.
+Meta didática: detectar todas as 9 exceções da amostra sem interromper o processamento dos itens seguintes.
 
 Ganho estimado: eliminação de 2-3 min/dia de conferência manual \+ rastreabilidade sistêmica completa de cada execução.
 
@@ -621,17 +614,23 @@ Ganho estimado: eliminação de 2-3 min/dia de conferência manual \+ rastreabil
 
 **Campo para preenchimento:**
 
-Pendências antes do desenvolvimento: 
+Situação atual: implementação validada tecnicamente por testes unitários, oito testes E2E e execução completa em Docker.
 
-(1) Formalizar padronização do formulário de origem (dropdown de status, campos obrigatórios) com o time de TI/produção. 
+Pendências para uma eventual adoção fora do ambiente didático:
 
-(2) Confirmar permissões de acesso à pasta monitorada. 
+1. obter aprovação formal do responsável de negócio para as regras e métricas;
+2. substituir frontend, credenciais e Base de Referência demonstrativos por integrações autorizadas;
+3. definir agendamento, monitoramento e política de reprocessamento;
+4. validar o schema e os labels definitivos no workspace BotCity;
+5. definir como a decisão humana será registrada e reapresentada ao fluxo.
 
-(3) Validar Base\_Referencia com time de Planejamento.
+Versão: 0.3
 
-Versão: 0.1
+Próxima revisão: após aprovação do responsável de negócio ou implantação no workspace BotCity.
 
-Próxima revisão: após conclusão da padronização da entrada.
+# **Anexos do modelo do curso**
+
+As tabelas, checklists e o template resumido a seguir são material genérico de apoio fornecido pelo curso. Eles não descrevem o comportamento implementado; a especificação deste projeto termina na seção 19 acima.
 
 # **Modelo de tabela — Entradas do processo**
 

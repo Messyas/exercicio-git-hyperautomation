@@ -233,11 +233,11 @@ class MaestroClient:
         """Registra no Maestro o início da auditoria."""
         self._call("registrar início", self._register_start)
 
-    def alert_missing_input(self, input_dir: Path) -> None:
-        """Envia o alerta exigido quando a pasta de entrada não existe."""
-        message = f"Pasta de entrada não encontrada: {input_dir}"
+    def alert_missing_input(self, input_file: Path) -> None:
+        """Envia um alerta quando o arquivo de entrada não existe."""
+        message = f"Arquivo de entrada não encontrado: {input_file}"
         self._call(
-            "enviar alerta de pasta ausente",
+            "enviar alerta de entrada ausente",
             lambda: self._send_alert(
                 title="Entrada ausente",
                 message=message,
