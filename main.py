@@ -94,14 +94,17 @@ def main(argumentos: list[str] | None = None) -> int:
                 exc,
             )
 
-        if not settings.input_dir.is_dir():
-            message = f"Pasta de entrada não encontrada: {settings.input_dir}"
+        if not settings.default_input_file.is_file():
+            message = (
+                "Arquivo de entrada não encontrado: "
+                f"{settings.default_input_file}"
+            )
             logger.error("%s | lote_id=N/A", message)
-            maestro.alert_missing_input(settings.input_dir)
+            maestro.alert_missing_input(settings.default_input_file)
             result = _failure_result(
                 started_at=started_at,
                 message=message,
-                error="INPUT_DIRECTORY_NOT_FOUND",
+                error="INPUT_FILE_NOT_FOUND",
             )
             report_path = _persist_report(
                 result, settings.execution_report_file, logger

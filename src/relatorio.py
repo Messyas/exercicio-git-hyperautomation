@@ -24,6 +24,24 @@ COLUNAS_RELATORIO: tuple[str, ...] = (
     "severidade",
 )
 
+COLUNAS_ERROS_FLUXO: tuple[str, ...] = (
+    "item_id",
+    "source_row",
+    "lote_id",
+    "produto",
+    "linha",
+    "turno",
+    "status",
+    "responsavel",
+    "data",
+    "observacao",
+    "cadastro_status",
+    "cadastro_error",
+    "cadastro_error_type",
+    "evidence_name",
+    "evidence_path",
+)
+
 
 def _valor_descricao(erro: Mapping[str, Any]) -> str:
     """Obtém a descrição em formatos usados pelas regras RN02 a RN07."""
@@ -113,6 +131,45 @@ def _caminho_disponivel(caminho_base: Path) -> Path:
         if not candidato.exists():
             return candidato
         contador += 1
+
+
+def gerar_relatorio_erros_fluxo(
+    erros: Iterable[Mapping[str, Any]],
+    diretorio_saida: str | Path,
+) -> Path:
+    """Registra itens que o Bot 1 não publicou no DataPool."""
+    registros = [dict(erro) for erro in erros]
+    if not registros:
+        raise ValueError("O relatório de erros de fluxo exige ao menos um item.")
+
+    diretorio = Path(diretorio_saida)
+    diretorio.mkdir(parents=True, exist_ok=True)
+    data_execucao = now_local().strftime("%d%m%Y")
+    caminho = _caminho_disponivel(
+        diretorio / f"relatorio_erros_fluxo_produtor_{data_execucao}.xlsx"
+    )
+    tabela = pd.DataFrame(registros).reindex(columns=COLUNAS_ERROS_FLUXO)
+    resumo = pd.DataFrame(
+        [
+            {"metrica": "total_erros_fluxo", "valor": len(tabela)},
+            {
+                "metrica": "cadastros_rejeitados",
+                "valor": int(
+                    tabela["cadastro_status"].eq("REJEITADO_NEGOCIO").sum()
+                ),
+            },
+            {
+                "metrica": "falhas_tecnicas",
+                "valor": int(
+                    tabela["cadastro_status"].eq("FALHA_TECNICA").sum()
+                ),
+            },
+        ]
+    )
+    with pd.ExcelWriter(caminho, engine="openpyxl") as escritor:
+        resumo.to_excel(escritor, index=False, sheet_name="resumo")
+        tabela.to_excel(escritor, index=False, sheet_name="erros_fluxo")
+    return caminho
 
 
 def gerar_relatorio_divergencias(

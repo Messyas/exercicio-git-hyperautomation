@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import re
 from pathlib import Path
 from typing import Any
@@ -24,6 +23,7 @@ from src.maestro_client import (
 )
 from src.pages import RegistrationRejectedError
 from src.playwright_automation import PlaywrightAutomation
+from src.relatorio import gerar_relatorio_erros_fluxo
 from src.resilience import close_logger
 from src.time_utils import now_local
 
@@ -83,6 +83,7 @@ def run_producer() -> int:
     evidence_root = settings.playwright_artifacts_dir / settings.execution_id
     evidence_dir = evidence_root / "produtor"
     created_evidence: list[Path] = []
+    flow_report_path: Path | None = None
     result: ExecutionResult
 
     try:
@@ -107,7 +108,8 @@ def run_producer() -> int:
             extra={"batch_id": batch.batch_id},
         )
 
-        processed: list[dict[str, Any]] = []
+        published: list[dict[str, Any]] = []
+        flow_errors: list[dict[str, Any]] = []
         credentials = {
             "usuario": settings.web_username,
             "senha": settings.web_password,
@@ -223,34 +225,55 @@ def run_producer() -> int:
                         error_path,
                         **_context(record),
                     )
-                processed.append(item)
+                if item["cadastro_status"] == "SUCESSO":
+                    published.append(item)
+                else:
+                    flow_errors.append(item)
 
-        for item in processed:
-            item["batch_total"] = len(processed)
+        if flow_errors:
+            flow_report_path = gerar_relatorio_erros_fluxo(
+                flow_errors,
+                settings.output_dir,
+            )
+            logger.warning(
+                "ERROS_FLUXO_REGISTRADOS total=%d relatorio=%s",
+                len(flow_errors),
+                flow_report_path,
+                extra={"batch_id": batch.batch_id},
+            )
+
+        if not published:
+            raise RuntimeError("Nenhum cadastro concluído para publicar no DataPool.")
+
+        for item in published:
+            item["batch_total"] = len(published)
             item["producer_execution_id"] = settings.execution_id
 
         destination = publisher.publish(
             batch_id=batch.batch_id,
-            records=processed,
+            records=published,
             reference_lote_ids=batch.reference_lote_ids,
         )
-        successes = sum(
-            item["cadastro_status"] == "SUCESSO" for item in processed
-        )
+        successes = len(published)
         rejections = sum(
             item["cadastro_status"] == "REJEITADO_NEGOCIO"
-            for item in processed
+            for item in flow_errors
         )
         technical_failures = sum(
             item["cadastro_status"] == "FALHA_TECNICA"
-            for item in processed
+            for item in flow_errors
         )
         summary = {
             "batch_id": batch.batch_id,
             "source_file": str(batch.source_file),
             "source_hash": batch.source_hash,
             "datapool": destination,
-            "total": len(processed),
+            "total": len(records),
+            "itens_publicados_datapool": len(published),
+            "erros_fluxo": len(flow_errors),
+            "relatorio_erros_fluxo": (
+                str(flow_report_path) if flow_report_path else ""
+            ),
             "cadastros_sucesso": successes,
             "cadastros_rejeitados": rejections,
             "cadastros_falha_tecnica": technical_failures,
@@ -258,7 +281,7 @@ def run_producer() -> int:
         }
         result_factory = (
             ExecutionResult.partial
-            if rejections or technical_failures
+            if flow_errors
             else ExecutionResult.success
         )
         result = result_factory(
@@ -269,7 +292,7 @@ def run_producer() -> int:
         logger.info(
             "DATAPOOL_PUBLICADO destino=%s total=%d",
             destination,
-            len(processed),
+            len(published),
             extra={"batch_id": batch.batch_id},
         )
     except Exception as error:
@@ -284,6 +307,11 @@ def run_producer() -> int:
     try:
         saved_report = write_execution_report(result, report_path)
         maestro.post_artifact(saved_report, "resumo_produtor.json")
+        if flow_report_path is not None:
+            maestro.post_artifact(
+                flow_report_path,
+                "relatorio_erros_fluxo_produtor.xlsx",
+            )
         if result.completed and maestro.enabled:
             for evidence in created_evidence:
                 maestro.post_artifact(evidence)

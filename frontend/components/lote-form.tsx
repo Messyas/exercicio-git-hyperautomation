@@ -7,9 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   PRODUTOS,
-  STATUS_ORDER,
   type Lote,
-  type LoteStatus,
 } from '@/lib/lotes'
 
 type Props = {
@@ -17,17 +15,22 @@ type Props = {
 }
 
 export function LoteForm({ onCreate }: Props) {
-  const [numero, setNumero] = useState('')
+  const [loteId, setLoteId] = useState('')
   const [produto, setProduto] = useState('')
-  const [status, setStatus] = useState<LoteStatus>('APROVADO')
+  const [linha, setLinha] = useState('')
+  const [turno, setTurno] = useState('')
+  const [status, setStatus] = useState('APROVADO')
+  const [responsavel, setResponsavel] = useState('')
+  const [data, setData] = useState('')
+  const [observacao, setObservacao] = useState('')
   const [sucesso, setSucesso] = useState<string | null>(null)
-  const [erro, setErro] = useState<{ numero?: string; produto?: string }>({})
+  const [erro, setErro] = useState<{ loteId?: string; produto?: string }>({})
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
-    const novoErro: { numero?: string; produto?: string } = {}
-    if (!numero.trim()) novoErro.numero = 'Informe o número do lote.'
+    const novoErro: { loteId?: string; produto?: string } = {}
+    if (!loteId.trim()) novoErro.loteId = 'Informe o número do lote.'
     if (!produto) novoErro.produto = 'Selecione um produto.'
     setErro(novoErro)
     if (Object.keys(novoErro).length > 0) return
@@ -37,17 +40,27 @@ export function LoteForm({ onCreate }: Props) {
         typeof crypto !== 'undefined' && 'randomUUID' in crypto
           ? crypto.randomUUID()
           : String(Date.now()),
-      numero: numero.trim(),
+      lote_id: loteId.trim(),
       produto,
+      linha: linha.trim(),
+      turno: turno.trim(),
       status,
+      responsavel: responsavel.trim(),
+      data: data.trim(),
+      observacao: observacao.trim(),
       criadoEm: new Date().toISOString(),
     }
 
     onCreate(lote)
-    setSucesso(`Lote ${lote.numero} processado com sucesso.`)
-    setNumero('')
+    setSucesso(`Lote ${lote.lote_id} processado com sucesso.`)
+    setLoteId('')
     setProduto('')
+    setLinha('')
+    setTurno('')
     setStatus('APROVADO')
+    setResponsavel('')
+    setData('')
+    setObservacao('')
   }
 
   return (
@@ -78,18 +91,18 @@ export function LoteForm({ onCreate }: Props) {
       )}
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="numero">Número do lote</Label>
+        <Label htmlFor="lote_id">Número do lote</Label>
         <Input
-          id="numero"
-          value={numero}
-          onChange={(e) => setNumero(e.target.value)}
+          id="lote_id"
+          value={loteId}
+          onChange={(e) => setLoteId(e.target.value)}
           placeholder="Ex.: LT-2026-0042"
-          aria-invalid={!!erro.numero}
-          aria-describedby={erro.numero ? 'numero-erro' : undefined}
+          aria-invalid={!!erro.loteId}
+          aria-describedby={erro.loteId ? 'lote-id-erro' : undefined}
         />
-        {erro.numero && (
-          <p id="numero-erro" role="alert" className="text-xs text-destructive">
-            {erro.numero}
+        {erro.loteId && (
+          <p id="lote-id-erro" role="alert" className="text-xs text-destructive">
+            {erro.loteId}
           </p>
         )}
       </div>
@@ -118,20 +131,67 @@ export function LoteForm({ onCreate }: Props) {
         )}
       </div>
 
+      <div className="grid gap-6 sm:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="linha">Linha</Label>
+          <Input
+            id="linha"
+            value={linha}
+            onChange={(e) => setLinha(e.target.value)}
+            placeholder="Ex.: L1"
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="turno">Turno</Label>
+          <Input
+            id="turno"
+            value={turno}
+            onChange={(e) => setTurno(e.target.value)}
+            placeholder="Ex.: A"
+          />
+        </div>
+      </div>
+
       <div className="flex flex-col gap-2">
         <Label htmlFor="status">Status</Label>
-        <select
+        <Input
           id="status"
           value={status}
-          onChange={(e) => setStatus(e.target.value as LoteStatus)}
-          className="h-9 w-full border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
-        >
-          {STATUS_ORDER.map((statusOption) => (
-            <option key={statusOption} value={statusOption}>
-              {statusOption}
-            </option>
-          ))}
-        </select>
+          onChange={(e) => setStatus(e.target.value)}
+          placeholder="Ex.: APROVADO"
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="responsavel">Responsável</Label>
+        <Input
+          id="responsavel"
+          value={responsavel}
+          onChange={(e) => setResponsavel(e.target.value)}
+          placeholder="Nome do responsável"
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="data">Data</Label>
+        <Input
+          id="data"
+          value={data}
+          onChange={(e) => setData(e.target.value)}
+          placeholder="DD/MM/AAAA"
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="observacao">Observação</Label>
+        <textarea
+          id="observacao"
+          value={observacao}
+          onChange={(e) => setObservacao(e.target.value)}
+          placeholder="Observação do lote"
+          className="min-h-24 w-full border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+        />
       </div>
 
       <Button type="submit" className="w-full sm:w-auto">

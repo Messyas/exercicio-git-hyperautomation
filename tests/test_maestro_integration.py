@@ -112,13 +112,13 @@ def test_relogio_operacional_usa_fuso_manaus(monkeypatch) -> None:
     assert timestamp.utcoffset().total_seconds() == -4 * 60 * 60
 
 
-def test_main_falha_imediatamente_quando_pasta_de_entrada_nao_existe(
+def test_main_falha_imediatamente_quando_arquivo_de_entrada_nao_existe(
     tmp_path, monkeypatch
 ) -> None:
-    entrada_ausente = tmp_path / "dados_entrada_ausente"
+    entrada_ausente = tmp_path / "entrada_ausente.xlsx"
     relatorio = tmp_path / "resumo.json"
     monkeypatch.setenv("MAESTRO_ENABLED", "false")
-    monkeypatch.setenv("BOT_INPUT_DIR", str(entrada_ausente))
+    monkeypatch.setenv("BOT_INPUT_FILE", str(entrada_ausente))
     monkeypatch.setenv("BOT_EXECUTION_REPORT_FILE", str(relatorio))
     monkeypatch.setenv("BOT_LOG_DIR", str(tmp_path / "logs"))
 
@@ -127,10 +127,10 @@ def test_main_falha_imediatamente_quando_pasta_de_entrada_nao_existe(
     assert codigo == 1
     payload = json.loads(relatorio.read_text(encoding="utf-8"))
     assert payload["status"] == "FAILED"
-    assert payload["error"] == "INPUT_DIRECTORY_NOT_FOUND"
+    assert payload["error"] == "INPUT_FILE_NOT_FOUND"
     log = (tmp_path / "logs" / "execucao.log").read_text(encoding="utf-8")
     assert "ERROR" in log
-    assert "Pasta de entrada" in log
+    assert "Arquivo de entrada" in log
 
 
 def test_retry_tenta_tres_vezes_apenas_para_falha_de_rede() -> None:

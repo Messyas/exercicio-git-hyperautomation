@@ -76,7 +76,6 @@ class Settings:
     """Configurações usadas pelas etapas atuais e futuras do bot."""
 
     project_root: Path
-    input_dir: Path
     output_dir: Path
     log_dir: Path
     default_input_file: Path
@@ -109,7 +108,6 @@ def get_settings() -> Settings:
     """Monta as configurações a partir das variáveis de ambiente."""
     return Settings(
         project_root=PROJECT_ROOT,
-        input_dir=_env_path("BOT_INPUT_DIR", "dados_entrada"),
         output_dir=_env_path("BOT_OUTPUT_DIR", "data/output"),
         log_dir=_env_path("BOT_LOG_DIR", "logs"),
         default_input_file=_env_path(
