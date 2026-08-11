@@ -12,6 +12,7 @@ import argparse
 import logging
 import re
 import sys
+import unicodedata
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -228,13 +229,57 @@ def _montar_resumo(writer: pd.ExcelWriter, resultado: pd.DataFrame) -> None:
     ws.column_dimensions["A"].width, ws.column_dimensions["B"].width, ws.column_dimensions["C"].width = 28, 18, 14
 
 
-def _exportar_pdf(resumo: dict[str, int], destino: Path) -> Path | None:
+def _escapar_texto_pdf(texto: str) -> str:
+    """Converte texto para o conjunto simples suportado pelo PDF de reserva."""
+    texto_ascii = unicodedata.normalize("NFKD", texto).encode("ascii", "ignore")
+    return texto_ascii.decode("ascii").replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+
+def _exportar_pdf_basico(resumo: dict[str, int], destino: Path) -> Path:
+    """Gera um PDF valido sem depender de bibliotecas opcionais."""
+    linhas = [
+        "BT",
+        "/F1 18 Tf",
+        "48 790 Td",
+        "(Resumo Executivo - Conferencia de Lotes) Tj",
+        "/F1 11 Tf",
+        "0 -25 Td",
+        f"(Gerado em {_escapar_texto_pdf(datetime.now().strftime('%d/%m/%Y %H:%M:%S'))}) Tj",
+    ]
+    for rotulo, quantidade in resumo.items():
+        linhas.extend(("0 -28 Td", f"({_escapar_texto_pdf(rotulo)}: {quantidade}) Tj"))
+    linhas.append("ET")
+    conteudo = "\n".join(linhas).encode("ascii")
+    objetos = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        b"<< /Length " + str(len(conteudo)).encode() + b" >>\nstream\n" + conteudo + b"\nendstream",
+    ]
+    partes = [b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n"]
+    offsets = [0]
+    for numero, objeto in enumerate(objetos, start=1):
+        offsets.append(sum(len(parte) for parte in partes))
+        partes.append(f"{numero} 0 obj\n".encode() + objeto + b"\nendobj\n")
+    inicio_xref = sum(len(parte) for parte in partes)
+    xref = [f"xref\n0 {len(objetos) + 1}\n", "0000000000 65535 f \n"]
+    xref.extend(f"{offset:010d} 00000 n \n" for offset in offsets[1:])
+    partes.append("".join(xref).encode())
+    partes.append(
+        f"trailer\n<< /Size {len(objetos) + 1} /Root 1 0 R >>\nstartxref\n{inicio_xref}\n%%EOF\n".encode()
+    )
+    destino.write_bytes(b"".join(partes))
+    return destino
+
+
+def _exportar_pdf(resumo: dict[str, int], destino: Path) -> Path:
     """Gera um PDF simples do resumo quando reportlab estiver disponível."""
     try:
         from reportlab.lib.pagesizes import A4
         from reportlab.pdfgen.canvas import Canvas
     except ImportError:
-        return None
+        return _exportar_pdf_basico(resumo, destino)
     pdf = Canvas(str(destino), pagesize=A4)
     pdf.setTitle("Resumo Executivo — Conferência de Lotes")
     pdf.setFont("Helvetica-Bold", 18)
