@@ -36,3 +36,11 @@ class PlaywrightFormularioLotesPage(PlaywrightFormPage):
             self._credenciais,
             timeout_ms=self._timeout_ms,
         )
+
+    def preencher_lote(self, valor: str) -> None:
+        """Preenche o numero do lote no formulario de cadastro."""
+        super().preencher_lote(valor)
+
+    def selecionar_status(self, valor: str) -> None:
+        """Seleciona o status pelo radio button do formulario."""
+        super().selecionar_status(valor)

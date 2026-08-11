@@ -12,6 +12,7 @@ import argparse
 import logging
 import re
 import sys
+import unicodedata
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -19,7 +20,6 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from openpyxl import load_workbook
 from openpyxl.chart import DoughnutChart, LineChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -39,6 +39,19 @@ ARQUIVO_ENTRADA_PADRAO = ROOT / "data" / "samples" / "inspecao_lotes_10dias_sem 
 DIRETORIO_SAIDA_PADRAO = ROOT / "data" / "output"
 CLASSIFICACOES = ("Válido", "Divergência", "Ambíguo", "Erro de Entrada")
 ABAS_DIARIAS = re.compile(r"^Insp_(\d{2})_(\d{2})_(\d{4})$")
+COLUNAS_RELATORIO = {
+    "lote_id": "Lote",
+    "produto": "Produto",
+    "linha": "Linha",
+    "turno": "Turno",
+    "status_normalizado": "Status",
+    "responsavel": "Responsável",
+    "data": "Data da inspeção",
+    "data_referencia": "Data de referência",
+    "observacao": "Observação",
+    "descricao_validacao": "Orientação",
+    "classificacao": "Classificação",
+}
 
 
 def _texto(valor: Any) -> str:
@@ -177,6 +190,13 @@ def validar_registros(df: pd.DataFrame, lotes_referencia: set[str]) -> pd.DataFr
     return resultado
 
 
+def preparar_dados_relatorio(resultado: pd.DataFrame) -> pd.DataFrame:
+    """Expõe no Excel somente campos compreensíveis ao público de negócio."""
+    return resultado.loc[:, list(COLUNAS_RELATORIO)].rename(
+        columns=COLUNAS_RELATORIO
+    )
+
+
 def _ajustar_aba(ws) -> None:
     cabecalho = PatternFill("solid", fgColor="1F4E78")
     for celula in ws[1]:
@@ -198,7 +218,7 @@ def _montar_resumo(writer: pd.ExcelWriter, resultado: pd.DataFrame) -> None:
     totais = resultado["classificacao"].value_counts().reindex(CLASSIFICACOES, fill_value=0)
     total = len(resultado)
     pd.DataFrame({"Classificação": CLASSIFICACOES, "Quantidade": totais.tolist(), "Percentual": [valor / total for valor in totais.tolist()]}).to_excel(writer, sheet_name="Resumo", startrow=4, index=False)
-    evolucao = (resultado.assign(alerta=resultado["classificacao"].isin(["Divergência", "Ambíguo"]).astype(int)).groupby("data_referencia", sort=False)["alerta"].sum().reset_index(name="Divergências + Ambíguos"))
+    evolucao = _calcular_evolucao_alertas(resultado)
     evolucao.to_excel(writer, sheet_name="Resumo", startrow=12, index=False)
     ws = writer.book["Resumo"]
     ws["A1"] = "Dashboard Executivo — Conferência de Lotes"
@@ -228,23 +248,125 @@ def _montar_resumo(writer: pd.ExcelWriter, resultado: pd.DataFrame) -> None:
     ws.column_dimensions["A"].width, ws.column_dimensions["B"].width, ws.column_dimensions["C"].width = 28, 18, 14
 
 
-def _exportar_pdf(resumo: dict[str, int], destino: Path) -> Path | None:
-    """Gera um PDF simples do resumo quando reportlab estiver disponível."""
+def _calcular_evolucao_alertas(resultado: pd.DataFrame) -> pd.DataFrame:
+    return (
+        resultado.assign(
+            alerta=resultado["classificacao"].isin(
+                ["Divergência", "Ambíguo"]
+            ).astype(int)
+        )
+        .groupby("data_referencia", sort=False)["alerta"]
+        .sum()
+        .reset_index(name="Divergências + Ambíguos")
+    )
+
+
+def _escapar_texto_pdf(texto: str) -> str:
+    """Converte texto para o conjunto simples suportado pelo PDF de reserva."""
+    texto_ascii = unicodedata.normalize("NFKD", texto).encode("ascii", "ignore")
+    return texto_ascii.decode("ascii").replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+
+def _exportar_pdf_basico(resumo: dict[str, int], destino: Path) -> Path:
+    """Gera um PDF valido sem depender de bibliotecas opcionais."""
+    linhas = [
+        "BT",
+        "/F1 18 Tf",
+        "48 790 Td",
+        "(Resumo Executivo - Conferencia de Lotes) Tj",
+        "/F1 11 Tf",
+        "0 -25 Td",
+        f"(Gerado em {_escapar_texto_pdf(datetime.now().strftime('%d/%m/%Y %H:%M:%S'))}) Tj",
+    ]
+    for rotulo, quantidade in resumo.items():
+        linhas.extend(("0 -28 Td", f"({_escapar_texto_pdf(rotulo)}: {quantidade}) Tj"))
+    linhas.append("ET")
+    conteudo = "\n".join(linhas).encode("ascii")
+    objetos = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        b"<< /Length " + str(len(conteudo)).encode() + b" >>\nstream\n" + conteudo + b"\nendstream",
+    ]
+    partes = [b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n"]
+    offsets = [0]
+    for numero, objeto in enumerate(objetos, start=1):
+        offsets.append(sum(len(parte) for parte in partes))
+        partes.append(f"{numero} 0 obj\n".encode() + objeto + b"\nendobj\n")
+    inicio_xref = sum(len(parte) for parte in partes)
+    xref = [f"xref\n0 {len(objetos) + 1}\n", "0000000000 65535 f \n"]
+    xref.extend(f"{offset:010d} 00000 n \n" for offset in offsets[1:])
+    partes.append("".join(xref).encode())
+    partes.append(
+        f"trailer\n<< /Size {len(objetos) + 1} /Root 1 0 R >>\nstartxref\n{inicio_xref}\n%%EOF\n".encode()
+    )
+    destino.write_bytes(b"".join(partes))
+    return destino
+
+
+def _exportar_pdf(
+    resumo: dict[str, int], evolucao: pd.DataFrame, destino: Path
+) -> Path:
+    """Exporta uma versão visual dos indicadores e gráficos da aba Resumo."""
     try:
+        from reportlab.graphics import renderPDF
+        from reportlab.graphics.charts.linecharts import HorizontalLineChart
+        from reportlab.graphics.charts.piecharts import Pie
+        from reportlab.graphics.shapes import Drawing
+        from reportlab.lib.colors import HexColor
         from reportlab.lib.pagesizes import A4
         from reportlab.pdfgen.canvas import Canvas
     except ImportError:
-        return None
+        return _exportar_pdf_basico(resumo, destino)
+
     pdf = Canvas(str(destino), pagesize=A4)
     pdf.setTitle("Resumo Executivo — Conferência de Lotes")
     pdf.setFont("Helvetica-Bold", 18)
     pdf.drawString(48, 790, "Resumo Executivo — Conferência de Lotes")
     pdf.setFont("Helvetica", 11)
     pdf.drawString(48, 765, f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
-    y = 720
+
+    x = 48
     for rotulo, quantidade in resumo.items():
-        pdf.drawString(60, y, f"{rotulo}: {quantidade}")
-        y -= 28
+        pdf.setFont("Helvetica-Bold", 10)
+        pdf.drawString(x, 730, rotulo)
+        pdf.setFont("Helvetica", 20)
+        pdf.drawString(x, 705, str(quantidade))
+        x += 125
+
+    desenho = Drawing(500, 330)
+    rosquinha = Pie()
+    rosquinha.x, rosquinha.y = 10, 100
+    rosquinha.width, rosquinha.height = 180, 180
+    rosquinha.data = [resumo[classe] for classe in CLASSIFICACOES]
+    rosquinha.labels = [
+        f"{classe}: {resumo[classe] / resumo['total']:.0%}"
+        for classe in CLASSIFICACOES
+    ]
+    rosquinha.slices.strokeWidth = 0
+    for indice, cor in enumerate(("#5C0011", "#8A1024", "#B71C35", "#D94B62")):
+        rosquinha.slices[indice].fillColor = HexColor(cor)
+    desenho.add(rosquinha)
+
+    linha = HorizontalLineChart()
+    linha.x, linha.y = 260, 115
+    linha.width, linha.height = 210, 150
+    linha.data = [evolucao["Divergências + Ambíguos"].tolist()]
+    linha.categoryNames = evolucao["data_referencia"].tolist()
+    linha.lines[0].strokeColor = HexColor("#B71C35")
+    linha.lines[0].strokeWidth = 2
+    linha.valueAxis.valueMin = 0
+    linha.valueAxis.valueMax = max(linha.data[0]) + 1
+    linha.valueAxis.valueStep = 1
+    linha.categoryAxis.labels.angle = 30
+    linha.categoryAxis.labels.boxAnchor = "n"
+    desenho.add(linha)
+    renderPDF.draw(desenho, pdf, 48, 300)
+
+    pdf.setFont("Helvetica-Bold", 11)
+    pdf.drawString(48, 280, "Distribuição por classificação")
+    pdf.drawString(308, 280, "Evolução diária de alertas")
     pdf.save()
     return destino
 
@@ -259,21 +381,25 @@ def gerar_relatorio(caminho_entrada: str | Path = ARQUIVO_ENTRADA_PADRAO, direto
     if int(totais.sum()) != 250 or int(totais["Divergência"] + totais["Ambíguo"] + totais["Erro de Entrada"]) != 100:
         raise RuntimeError(f"Totais inesperados: {totais.to_dict()}")
     destino = diretorio_saida / "relatorio_conferencia_lotes.xlsx"
+    relatorio = preparar_dados_relatorio(resultado)
     with pd.ExcelWriter(destino, engine="openpyxl") as writer:
         _montar_resumo(writer, resultado)
-        resultado.to_excel(writer, sheet_name="Todos", index=False)
-        resultado.loc[resultado["classificacao"] == "Válido"].to_excel(writer, sheet_name="Válidos", index=False)
-        resultado.loc[resultado["classificacao"] == "Divergência"].to_excel(writer, sheet_name="Divergências", index=False)
-        resultado.loc[resultado["classificacao"] == "Ambíguo"].to_excel(writer, sheet_name="Ambiguos", index=False)
-        resultado.loc[resultado["classificacao"] == "Erro de Entrada"].to_excel(writer, sheet_name="Erros de Entrada", index=False)
+        relatorio.to_excel(writer, sheet_name="Todos", index=False)
+        relatorio.loc[relatorio["Classificação"] == "Válido"].to_excel(writer, sheet_name="Válidos", index=False)
+        relatorio.loc[relatorio["Classificação"] == "Divergência"].to_excel(writer, sheet_name="Divergências", index=False)
+        relatorio.loc[relatorio["Classificação"] == "Ambíguo"].to_excel(writer, sheet_name="Ambiguos", index=False)
+        relatorio.loc[relatorio["Classificação"] == "Erro de Entrada"].to_excel(writer, sheet_name="Erros de Entrada", index=False)
         for nome in ("Todos", "Válidos", "Divergências", "Ambiguos", "Erros de Entrada"):
             _ajustar_aba(writer.book[nome])
-    load_workbook(destino).save(destino)
     resumo_log = {"total": int(len(resultado)), **{classe: int(totais[classe]) for classe in CLASSIFICACOES}}
     logging.basicConfig(filename=diretorio_saida / "execucao_dashboard.log", level=logging.INFO, encoding="utf-8", force=True)
     logging.info("Relatório gerado | entrada=%s | totais=%s", caminho_entrada.name, resumo_log)
     logging.shutdown()
-    _exportar_pdf(resumo_log, diretorio_saida / "resumo_conferencia_lotes.pdf")
+    _exportar_pdf(
+        resumo_log,
+        _calcular_evolucao_alertas(resultado),
+        diretorio_saida / "resumo_conferencia_lotes.pdf",
+    )
     return destino
 
 

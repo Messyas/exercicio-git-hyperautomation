@@ -16,17 +16,25 @@ def test_relatorio_dashboard_tem_totais_e_abas_isoladas(tmp_path: Path) -> None:
         assert arquivo.sheet_names == ["Resumo", "Todos", "Válidos", "Divergências", "Ambiguos", "Erros de Entrada"]
         todos = pd.read_excel(arquivo, sheet_name="Todos")
         assert len(todos) == 250
-        assert todos["classificacao"].value_counts().to_dict() == {
+        assert todos.columns.tolist() == [
+            "Lote", "Produto", "Linha", "Turno", "Status", "Responsável",
+            "Data da inspeção", "Data de referência", "Observação", "Orientação",
+            "Classificação",
+        ]
+        assert todos["Classificação"].value_counts().to_dict() == {
             "Válido": 150,
             "Divergência": 50,
             "Erro de Entrada": 30,
             "Ambíguo": 20,
         }
+        assert not todos["Status"].isin(["OK", "NOK"]).any()
         for aba, classificacao in (("Válidos", "Válido"), ("Divergências", "Divergência"), ("Ambiguos", "Ambíguo"), ("Erros de Entrada", "Erro de Entrada")):
             tabela = pd.read_excel(arquivo, sheet_name=aba)
-            assert set(tabela["classificacao"]) <= {classificacao}
+            assert set(tabela["Classificação"]) <= {classificacao}
 
     workbook = openpyxl.load_workbook(destino)
     assert len(workbook["Resumo"]._charts) == 2
     assert (tmp_path / "execucao_dashboard.log").exists()
-    assert (tmp_path / "resumo_conferencia_lotes.pdf").exists()
+    resumo_pdf = tmp_path / "resumo_conferencia_lotes.pdf"
+    assert resumo_pdf.exists()
+    assert resumo_pdf.read_bytes().startswith(b"%PDF")
