@@ -45,7 +45,7 @@ class PlaywrightFormPage:
         self._produto = page.get_by_label("Produto", exact=True)
         self._linha = page.get_by_label("Linha", exact=True)
         self._turno = page.get_by_label("Turno", exact=True)
-        self._status = page.get_by_label("Status", exact=True)
+        self._status = page.locator('input[name="status"]:checked')
         self._responsavel = page.get_by_label("Responsável", exact=True)
         self._data = page.get_by_label("Data", exact=True)
         self._observacao = page.get_by_label("Observação", exact=True)
@@ -75,8 +75,13 @@ class PlaywrightFormPage:
     def selecionar_produto(self, valor: str) -> None:
         self._produto.select_option(valor)
 
+    def selecionar_status(self, valor: str) -> None:
+        """Seleciona o radio button correspondente ao status informado."""
+        self._page.get_by_label(valor, exact=True).check()
+
     def preencher_status(self, valor: str) -> None:
-        self._status.fill(valor)
+        """Compatibilidade com o nome usado pela automacao de producao."""
+        self.selecionar_status(valor)
 
     def obter_status_selecionado(self) -> str:
         return self._status.input_value()

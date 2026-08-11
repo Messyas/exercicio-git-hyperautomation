@@ -112,6 +112,8 @@ jobs:
           chmod -R a+rwX screenshots data/datapool data/output logs reports
       - name: Validar Compose
         run: docker compose --profile avaliacao config --quiet
+      - name: Build de todos os servicos Compose
+        run: docker compose build
       - name: Build da imagem
         run: docker compose --profile avaliacao build bot-conferencia
       - name: Executar bot em container
