@@ -180,6 +180,26 @@ O Bot 1 termina como `PARTIALLY_COMPLETED` porque preserva a rejeição sem
 interromper o lote. O Bot 2 termina como `SUCCESS`; no DataPool local, 16 itens
 ficam `DONE` e 8 ficam `ERROR` do tipo `BUSINESS`.
 
+## Dashboard executivo da planilha de 10 dias
+
+O script abaixo lê as 10 abas `Insp_DD_MM_2026` a partir da terceira linha,
+descarta o rodapé de cada aba e gera `data/output/relatorio_conferencia_lotes.xlsx`.
+O arquivo contém as seis abas solicitadas, gráficos nativos editáveis no Excel,
+log de execução e o PDF do resumo.
+
+```bash
+python dashboard/gerar_relatorio.py
+```
+
+O dashboard web apenas consome o relatório já processado em `data/output`:
+
+```bash
+docker compose -f dashboard/docker-compose.yml up --build
+```
+
+Depois, abra `http://localhost:8501`. Para encerrar, execute
+`docker compose -f dashboard/docker-compose.yml down`.
+
 ## DataPool BotCity
 
 > Não crie o DataPool antes de implantar os dois bots. O produtor só cria a

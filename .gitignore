@@ -44,7 +44,8 @@ Thumbs.db
 Desktop.ini
 
 # Saídas geradas pelo bot
-data/output/
+data/output/*
+!data/output/.gitkeep
 data/datapool/
 logs/
 
