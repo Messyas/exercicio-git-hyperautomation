@@ -15,9 +15,9 @@ def pagina_web() -> str:
 
 
 @pytest.fixture
-def pagina_html(pagina_web: str) -> str:
+def pagina_html() -> str:
     """Mantém o nome de fixture usado no exercício 19-X."""
-    return pagina_web
+    return (Path(__file__).parents[1] / "web" / "lote-teste.html").as_uri()
 
 
 @pytest.fixture

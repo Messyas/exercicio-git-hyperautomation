@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 
@@ -25,9 +26,15 @@ class TestFormularioCadastroLotes:
     def test_status_aprovado_preenchido_por_padrao(self, formulario_page) -> None:
         assert formulario_page.obter_status_selecionado() == "APROVADO"
 
+    def test_selecionar_status_marca_radio_button_correto(
+        self, formulario_page
+    ) -> None:
+        formulario_page.selecionar_status("NOK")
+        assert formulario_page.obter_status_selecionado() == "NOK"
+
     def test_formulario_completo_exibe_sucesso(self, formulario_page) -> None:
         registro = {
-            "lote_id": "LT-2026-9999",
+            "lote_id": f"LT-E2E-{uuid4().hex[:8].upper()}",
             "produto": "MON27-QHD",
             "linha": "L2",
             "turno": "B",
@@ -36,6 +43,9 @@ class TestFormularioCadastroLotes:
             "data": "14/06/2026",
             "observacao": "Defeito visual",
         }
+        formulario_page.preencher_lote(registro["lote_id"])
+        formulario_page.selecionar_produto(registro["produto"])
+        formulario_page.selecionar_status(registro["status"])
         formulario_page.preencher_e_enviar(registro)
         assert formulario_page.mensagem_sucesso_visivel()
         assert formulario_page.obter_ultimo_cadastro() == registro

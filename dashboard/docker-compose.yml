@@ -7,4 +7,10 @@ services:
       - "8501:8501"
     volumes:
       - ../data:/app/data
+    command:
+      - /bin/sh
+      - -c
+      - >-
+        python dashboard/gerar_relatorio.py
+        && exec streamlit run dashboard/app.py --server.address=0.0.0.0 --server.port=8501 --browser.gatherUsageStats=false
     restart: unless-stopped

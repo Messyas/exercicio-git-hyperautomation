@@ -14,6 +14,16 @@ type Props = {
   onCreate: (lote: Lote) => void
 }
 
+const STATUS_OPTIONS = [
+  'APROVADO',
+  'REPROVADO',
+  'PENDENTE',
+  'OK',
+  'NOK',
+  'REPROV.',
+  'APROVADO PARCIAL',
+]
+
 export function LoteForm({ onCreate }: Props) {
   const [loteId, setLoteId] = useState('')
   const [produto, setProduto] = useState('')
@@ -153,15 +163,23 @@ export function LoteForm({ onCreate }: Props) {
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="status">Status</Label>
-        <Input
-          id="status"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          placeholder="Ex.: APROVADO"
-        />
-      </div>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="text-sm font-medium">Status</legend>
+        <div className="flex flex-wrap gap-4">
+          {STATUS_OPTIONS.map((statusOption) => (
+            <label key={statusOption} className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="status"
+                value={statusOption}
+                checked={status === statusOption}
+                onChange={() => setStatus(statusOption)}
+              />
+              {statusOption}
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="responsavel">Responsável</Label>
