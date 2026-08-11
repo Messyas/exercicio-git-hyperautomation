@@ -20,7 +20,6 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from openpyxl import load_workbook
 from openpyxl.chart import DoughnutChart, LineChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -313,7 +312,6 @@ def gerar_relatorio(caminho_entrada: str | Path = ARQUIVO_ENTRADA_PADRAO, direto
         resultado.loc[resultado["classificacao"] == "Erro de Entrada"].to_excel(writer, sheet_name="Erros de Entrada", index=False)
         for nome in ("Todos", "Válidos", "Divergências", "Ambiguos", "Erros de Entrada"):
             _ajustar_aba(writer.book[nome])
-    load_workbook(destino).save(destino)
     resumo_log = {"total": int(len(resultado)), **{classe: int(totais[classe]) for classe in CLASSIFICACOES}}
     logging.basicConfig(filename=diretorio_saida / "execucao_dashboard.log", level=logging.INFO, encoding="utf-8", force=True)
     logging.info("Relatório gerado | entrada=%s | totais=%s", caminho_entrada.name, resumo_log)
