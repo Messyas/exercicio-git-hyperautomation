@@ -36,10 +36,25 @@ for coluna, classificacao in zip(colunas, CLASSIFICACOES):
 esquerda, direita = st.columns(2)
 with esquerda:
     st.subheader("Classificações")
-    st.bar_chart(totais)
+    distribuicao = totais.rename_axis("classificacao").reset_index(name="quantidade")
+    st.vega_lite_chart(
+        distribuicao,
+        {
+            "mark": {"type": "arc", "tooltip": True},
+            "encoding": {
+                "theta": {"field": "quantidade", "type": "quantitative"},
+                "color": {"field": "classificacao", "type": "nominal"},
+                "tooltip": [
+                    {"field": "classificacao", "type": "nominal", "title": "Classificacao"},
+                    {"field": "quantidade", "type": "quantitative", "title": "Quantidade"},
+                ],
+            },
+        },
+        use_container_width=True,
+    )
 with direita:
-    st.subheader("Alertas por dia")
-    alertas = (todos.assign(alerta=todos["classificacao"].isin(["Divergência", "Ambíguo"]))
+    st.subheader("Alertas por dia (Divergências + Ambíguos)")
+    alertas = (todos.assign(alerta=todos["classificacao"].isin(["Divergência", "Ambíguo"]).astype(int))
         .groupby("data_referencia", sort=False)["alerta"].sum())
     st.line_chart(alertas)
 
