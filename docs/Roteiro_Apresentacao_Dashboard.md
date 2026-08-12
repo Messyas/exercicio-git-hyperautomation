@@ -11,6 +11,8 @@ Streamlit.
 
 - A quantidade declarada em cada aba limita a leitura a 25 registros e exclui
   o rodapé da planilha.
+- Cada linha é encaminhada ao Serviço de Validação por
+  `validar_registro()` e convertida para pandas por `RegistroValidado.to_dict()`.
 - A Base_Referencia confirma a existência do lote (RN05).
 - `OK` e `NOK` são normalizados, preservando o valor original para auditoria.
 - A duplicidade usa `Counter` por execução diária: apenas a segunda ocorrência
@@ -52,3 +54,8 @@ As seis abas são auditáveis e os dois gráficos da aba `Resumo` são objetos
 nativos e editáveis do Excel. O dashboard Streamlit é a camada de consulta:
 ele lê exclusivamente o relatório processado, evitando que a visualização
 altere a regra de negócio ou os dados de origem.
+
+O PDF e o log da rodada final ficam no mesmo diretório. A decisão sustentada
+pela visão executiva é priorizar a correção dos erros de entrada, encaminhar
+os casos ambíguos à revisão humana e conciliar as divergências com os
+responsáveis pelas linhas antes de liberar os lotes afetados.
