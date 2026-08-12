@@ -45,7 +45,7 @@ O comando de geração grava estes artefatos em `data/output/`:
 - `execucao_dashboard.log`: horário da execução e totais por classificação.
 
 O Excel possui seis abas: `Resumo`, `Todos`, `Válidos`, `Divergências`,
-`Ambiguos` e `Erros de Entrada`. A aba `Resumo` contém os indicadores, um
+`Ambíguos` e `Erros de Entrada`. A aba `Resumo` contém os indicadores, um
 gráfico de rosca e a evolução diária dos alertas como objetos nativos do Excel.
 
 ## O que o dashboard mostra
@@ -62,6 +62,8 @@ A amostra possui 250 registros e 100 casos não válidos: 50 divergências,
 
 ## Estrutura
 
+- `servico_validacao.py`: concentra `RegistroValidado` e a aplicação das
+  regras RN01–RN12 por `validar_registro()`;
 - `gerar_relatorio.py`: consolida as abas diárias, aplica as regras e gera os
   artefatos;
 - `app.py`: interface Streamlit para consulta do relatório;
