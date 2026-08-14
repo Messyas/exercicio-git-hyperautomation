@@ -3,8 +3,12 @@
 import json
 
 import pandas as pd
+import pytest
 
 from bot import executar_bot
+
+
+pytestmark = pytest.mark.e2e
 
 
 ARQUIVO_AMOSTRA = "data/samples/inspecao_lotes_dia.xlsx"

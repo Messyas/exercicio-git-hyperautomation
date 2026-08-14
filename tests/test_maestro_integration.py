@@ -18,6 +18,9 @@ from src.resilience import call_with_network_retry
 from src.time_utils import now_local
 
 
+pytestmark = pytest.mark.integration
+
+
 def test_execution_result_gera_relatorio_json(tmp_path) -> None:
     inicio = datetime.now().astimezone()
     resultado = ExecutionResult.success(

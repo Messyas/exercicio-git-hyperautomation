@@ -1,4 +1,3 @@
-import re
 from pathlib import Path
 
 import openpyxl
@@ -10,10 +9,21 @@ from dashboard.gerar_relatorio import gerar_relatorio, validar_registros
 from dashboard.servico_validacao import RegistroValidado, validar_registro
 
 
+pytestmark = pytest.mark.integration
+
+
 ENTRADA = Path("data/samples/inspecao_lotes_10dias_sem gabarito.xlsx")
 
 
-def test_relatorio_dashboard_tem_totais_e_abas_isoladas(tmp_path: Path) -> None:
+def test_relatorio_dashboard_tem_totais_e_abas_isoladas(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    instante_fixo_manaus,
+) -> None:
+    monkeypatch.setattr(
+        "dashboard.gerar_relatorio._agora_manaus",
+        lambda: instante_fixo_manaus,
+    )
     destino = gerar_relatorio(ENTRADA, tmp_path)
 
     with pd.ExcelFile(destino) as arquivo:
@@ -71,7 +81,7 @@ def test_relatorio_dashboard_tem_totais_e_abas_isoladas(tmp_path: Path) -> None:
     ]
 
     log = (tmp_path / "execucao_dashboard.log").read_text(encoding="utf-8")
-    assert re.search(r"Executado em \d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2} -0400", log)
+    assert "Executado em 30/06/2026 08:15:00 -0400" in log
     for trecho in ("total': 250", "Válido': 150", "Divergência': 50", "Ambíguo': 20", "Erro de Entrada': 30"):
         assert trecho in log
 

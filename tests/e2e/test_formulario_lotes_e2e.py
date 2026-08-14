@@ -2,13 +2,24 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from uuid import uuid4
 
 import pytest
 
 
-pytestmark = pytest.mark.e2e
+pytestmark = [
+    pytest.mark.e2e,
+    pytest.mark.browser,
+    pytest.mark.skipif(
+        os.getenv("RUN_BROWSER_E2E") != "1",
+        reason=(
+            "E2E de browser opcional: defina RUN_BROWSER_E2E=1 e disponibilize "
+            "Chromium/frontend"
+        ),
+    ),
+]
 
 
 class TestFormularioCadastroLotes:

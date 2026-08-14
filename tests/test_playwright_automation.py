@@ -3,8 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 import src.web_automation as browser_module
 from producer import _evidence_fields
+
+
+pytestmark = pytest.mark.unit
 
 
 class FakeChromium:

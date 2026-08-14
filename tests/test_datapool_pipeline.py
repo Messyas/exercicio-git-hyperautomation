@@ -16,6 +16,9 @@ from src.datapool_gateway import (
     LocalDatapoolPublisher,
 )
 from src.excel_source import load_excel_batch
+
+
+pytestmark = pytest.mark.integration
 from src.maestro_client import configure_local_logging
 from src.resilience import close_logger
 

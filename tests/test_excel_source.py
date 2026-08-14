@@ -1,6 +1,11 @@
 """Testes do contrato entre a planilha bruta e o produtor."""
 
+import pytest
+
 from src.excel_source import load_excel_batch
+
+
+pytestmark = pytest.mark.integration
 
 
 SAMPLE = "data/samples/inspecao_lotes_dia.xlsx"

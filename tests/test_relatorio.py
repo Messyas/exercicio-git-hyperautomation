@@ -3,11 +3,15 @@
 import re
 
 import pandas as pd
+import pytest
 
 from src.relatorio import (
     gerar_relatorio_divergencias,
     gerar_relatorio_erros_fluxo,
 )
+
+
+pytestmark = pytest.mark.integration
 
 
 def test_gera_xlsx_com_colunas_obrigatorias(tmp_path) -> None:
