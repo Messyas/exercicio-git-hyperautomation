@@ -861,6 +861,35 @@ Use este bloco como primeira versão do PDD. Depois, complemente com as tabelas 
 
 \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_
 
+## **20. Estratégia de testes automatizados — Aula 23**
+
+A automação possui uma suíte consolidada com testes unitários, de integração,
+de regressão e end-to-end. Os markers `unit`, `integration`, `regression` e
+`e2e` são declarados no `pytest.ini` e permitem executar cada camada de forma
+independente.
+
+As regras RN01–RN12 são verificadas com dados pequenos e controlados. A classe
+`unittest.TestCase` usa `setUp` e `subTest`, e um teste parametrizado cobre os
+cenários válido, RN05, RN09, RN10, RN11 e RN12 com IDs descritivos. Os testes de
+regressão protegem a normalização de `NOK` para `REPROVADO` e a classificação
+de `REPROVADO` sem observação.
+
+As fronteiras externas são controladas: `Base_Referencia` usa `MagicMock`,
+arquivos e screenshots usam `tmp_path`, e timestamps são fixados por
+`monkeypatch`. O E2E obrigatório gera dez abas e 250 registros sintéticos e
+confere o gabarito de 150 válidos, 50 divergências, 20 ambíguos e 30 erros de
+entrada. Browser, internet, Maestro real e credenciais não são necessários.
+
+Limitações permanecem visíveis no relatório do pytest: a integração real com
+Maestro está marcada como `skip`, e a aceitação de datas impossíveis no nome da
+aba está marcada como `xfail(strict=True)` até a correção da RN12.
+
+A cobertura de `src` e do núcleo de `dashboard` deve permanecer em pelo menos
+80%, bloqueada por `--cov-fail-under=80`. O relatório XML é anexado pelo CI.
+Page Objects, Playwright e a interface Streamlit ficam fora desta medição por
+pertencerem ao job separado de browser; as regras de negócio e a geração dos
+relatórios permanecem incluídas.
+
 **Formulário de revisão**
 
 ![][image2]

@@ -6,6 +6,9 @@ import pytest
 from src.regras_negocio import normalizar_status, validar_dominio_status
 
 
+pytestmark = pytest.mark.unit
+
+
 def test_normaliza_ok_e_nok_e_registra_divergencia() -> None:
     """RN05 deve converter os dois valores conhecidos e deixar rastreabilidade."""
     entrada = pd.DataFrame({"lote_id": ["L1", "L2"], "status": ["OK", "NOK"]})

@@ -295,45 +295,81 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements-dev.txt
 ```
 
-O arquivo `requirements-dev.txt` instala as dependências da aplicação, o pytest
-e o plugin pytest-playwright. Ele não instala Selenium.
+O arquivo `requirements-dev.txt` instala as dependências da aplicação,
+`pytest`, `pytest-cov` e `pytest-playwright`. Ele não instala Selenium.
 
-### Testes unitários
+### Suíte consolidada da Aula 23
 
-Os testes unitários não precisam do frontend nem do Chromium:
+A suíte é dividida em quatro camadas. Os markers são obrigatórios e validados
+com `--strict-markers` pelo `pytest.ini`:
 
-```bash
-python -m pytest tests -m "not e2e" -v
-```
+- `unit`: funções isoladas e regras RN01–RN12;
+- `integration`: colaboração entre leitura, validação, DataPool e relatório;
+- `regression`: alarmes para comportamentos corrigidos, como NOK e RN10;
+- `e2e`: fluxo completo das dez abas até o dashboard final;
+- `browser`: E2E opcional com Chromium, separado do E2E local de dados.
 
-### Testes E2E
-
-Instale o Chromium uma vez dentro do ambiente virtual:
-
-```bash
-python -m playwright install chromium
-```
-
-Inicie o frontend Next.js, execute os oito testes e encerre o Compose:
+Executar a suíte completa sem browser ou serviço externo:
 
 ```bash
-docker compose up -d --build --wait frontend
-python -m pytest tests/e2e -v
-docker compose down --volumes --remove-orphans
+python -m pytest -m "not browser" -q -rsxX
 ```
 
-Os testes usam `http://127.0.0.1:3000` por padrão. Para usar outra URL no
-PowerShell:
+Executar cada camada separadamente:
+
+```bash
+python -m pytest -m unit -v
+python -m pytest -m integration -v
+python -m pytest -m regression -v
+python -m pytest -m "e2e and not browser" -v
+```
+
+O E2E local cria uma planilha sintética de 10 dias e 250 registros em
+`tmp_path`, simula a `Base_Referencia` com `MagicMock`, fixa o relógio e confere
+o gabarito de 150 válidos, 50 divergências, 20 ambíguos e 30 erros de entrada.
+Ele não usa internet, credenciais ou arquivo preparado manualmente.
+Os testes legados dos adaptadores Excel ainda usam apenas fixtures versionadas
+em `data/samples`; a lógica de negócio e o E2E da Aula 23 usam dados sintéticos
+e mocks, portanto não dependem de arquivos locais não versionados.
+
+Os motivos de limitações conhecidas aparecem com:
+
+```bash
+python -m pytest -q -rsxX
+```
+
+Atualmente, a integração real com Maestro é `SKIPPED` por exigir credenciais de
+homologação. A aceitação de datas impossíveis em nomes de aba é `XFAIL` estrito
+e documenta um bug conhecido da RN12.
+
+### Cobertura
+
+A cobertura mínima obrigatória é 80%. O comando usado localmente e no CI é:
+
+```bash
+python -m pytest -m "not browser" -q \
+  --cov=src --cov=dashboard --cov-config=.coveragerc \
+  --cov-report=term-missing --cov-fail-under=80
+```
+
+A medição consolidada da implementação da Aula 23 atingiu 85,84%; a medição
+literal de `src` atingiu 84,33%. A
+configuração exclui apenas os Page Objects/Playwright e a interface Streamlit:
+essas interfaces pertencem ao job de browser, enquanto
+`dashboard/gerar_relatorio.py` e `dashboard/servico_validacao.py` continuam
+obrigatoriamente cobertos. O CI anexa `reports/coverage.xml` como evidência.
+
+### E2E opcional de browser
+
+Instale o Chromium, inicie o frontend e habilite explicitamente os testes:
 
 ```powershell
+python -m playwright install chromium
+docker compose up -d --build --wait frontend
+$env:RUN_BROWSER_E2E = "1"
 $env:E2E_BASE_URL = "http://127.0.0.1:3000"
-python -m pytest tests/e2e -v
-```
-
-Com o frontend em execução, todos os testes podem ser chamados juntos:
-
-```bash
-python -m pytest tests -v
+python -m pytest -m browser -v
+docker compose down --volumes --remove-orphans
 ```
 
 ### Pipeline completo em Docker

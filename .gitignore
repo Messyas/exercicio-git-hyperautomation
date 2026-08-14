@@ -46,6 +46,9 @@ Desktop.ini
 # Saídas geradas pelo bot
 data/output/*
 !data/output/.gitkeep
+!data/output/relatorio_conferencia_lotes.xlsx
+!data/output/resumo_conferencia_lotes.pdf
+!data/output/execucao_dashboard.log
 data/datapool/
 logs/
 

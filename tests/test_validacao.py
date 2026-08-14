@@ -23,6 +23,9 @@ from src.validacao import (
 )
 
 
+pytestmark = pytest.mark.unit
+
+
 # Fixtures reutilizáveis
 
 

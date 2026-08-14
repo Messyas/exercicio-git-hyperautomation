@@ -51,7 +51,7 @@ with esquerda:
     grafico_rosquinha.update_layout(showlegend=False, margin={"t": 0, "b": 0, "l": 0, "r": 0})
     st.plotly_chart(grafico_rosquinha, width="stretch")
 with direita:
-    st.subheader("Alertas por dia (Divergências + Ambíguos)")
+    st.subheader("Evolução dos registros (Divergências + Ambíguos)")
     alertas = (todos.assign(alerta=todos[COLUNA_CLASSIFICACAO].isin(["Divergência", "Ambíguo"]).astype(int))
         .groupby(COLUNA_DATA_REFERENCIA, sort=False)["alerta"].sum())
     st.line_chart(alertas, color="#B71C35")
