@@ -12,6 +12,7 @@ import pytest
 pytestmark = [
     pytest.mark.e2e,
     pytest.mark.browser,
+    pytest.mark.slow,
     pytest.mark.skipif(
         os.getenv("RUN_BROWSER_E2E") != "1",
         reason=(

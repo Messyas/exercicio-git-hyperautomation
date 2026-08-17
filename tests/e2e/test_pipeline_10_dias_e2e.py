@@ -12,7 +12,7 @@ import pytest
 from dashboard.gerar_relatorio import gerar_relatorio
 
 
-pytestmark = pytest.mark.e2e
+pytestmark = [pytest.mark.e2e, pytest.mark.slow]
 
 
 def test_pipeline_completo_bate_com_o_gabarito_sem_dependencia_externa(

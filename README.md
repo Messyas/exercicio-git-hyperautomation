@@ -300,14 +300,14 @@ O arquivo `requirements-dev.txt` instala as dependências da aplicação,
 
 ### Suíte consolidada da Aula 23
 
-A suíte é dividida em quatro camadas. Os markers são obrigatórios e validados
-com `--strict-markers` pelo `pytest.ini`:
+A suíte é organizada estritamente em quatro pastas correspondentes às camadas de teste (`tests/unit/`, `tests/integration/`, `tests/regression/`, `tests/e2e/`). Os markers são declarados e validados com `--strict-markers` pelo `pytest.ini`:
 
 - `unit`: funções isoladas e regras RN01–RN12;
 - `integration`: colaboração entre leitura, validação, DataPool e relatório;
-- `regression`: alarmes para comportamentos corrigidos, como NOK e RN10;
-- `e2e`: fluxo completo das dez abas até o dashboard final;
-- `browser`: E2E opcional com Chromium, separado do E2E local de dados.
+- `regression`: alarmes isolados para comportamentos corrigidos e salva-guardas de regras (RN05, RN07, RN10, RN11, RN12);
+- `e2e`: fluxo completo sintético de dados até o relatório/dashboard executivo;
+- `browser`: E2E opcional com Chromium e interface web;
+- `slow`: testes de maior duração (pipeline de 10 dias e navegadores).
 
 Executar a suíte completa sem browser ou serviço externo:
 
@@ -315,13 +315,14 @@ Executar a suíte completa sem browser ou serviço externo:
 python -m pytest -m "not browser" -q -rsxX
 ```
 
-Executar cada camada separadamente:
+Executar cada camada isoladamente:
 
 ```bash
 python -m pytest -m unit -v
 python -m pytest -m integration -v
 python -m pytest -m regression -v
 python -m pytest -m "e2e and not browser" -v
+python -m pytest -m slow -v
 ```
 
 O E2E local cria uma planilha sintética de 10 dias e 250 registros em
@@ -418,8 +419,10 @@ src/datapool_gateway.py             DataPool local e BotCity
 src/playwright_automation.py        ciclo do navegador
 src/web_automation.py               lançamento do Chromium local/container
 src/pages/playwright_pages.py       locators semânticos e waits
-src/pages/formulario_lotes_page.py  fachada usada pelos testes E2E
-tests/e2e/                          oito testes com Chromium real
+tests/unit/                         testes unitários isolados
+tests/integration/                  testes de integração entre componentes
+tests/regression/                   alarmes de regressão (RN05, RN07, RN10, RN11, RN12)
+tests/e2e/                          testes end-to-end de pipeline e browser
 src/maestro_client.py               Maestro, artefatos e logs JSON
 frontend/                           aplicação Next.js de cadastro
 ```

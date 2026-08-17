@@ -18,7 +18,7 @@ from src.base_referencia import (
 )
 
 
-pytestmark = pytest.mark.integration
+pytestmark = pytest.mark.unit
 
 
 # Fixtures reutilizáveis

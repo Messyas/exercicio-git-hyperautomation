@@ -7,7 +7,7 @@ import pytest
 from scripts.verify_pipeline import _execution_records
 
 
-pytestmark = pytest.mark.unit
+pytestmark = pytest.mark.integration
 
 
 def test_logs_do_mesmo_segundo_do_inicio_sao_considerados(tmp_path) -> None:
