@@ -180,10 +180,54 @@ O Bot 1 termina como `PARTIALLY_COMPLETED` porque preserva a rejeição sem
 interromper o lote. O Bot 2 termina como `SUCCESS`; no DataPool local, 16 itens
 ficam `DONE` e 8 ficam `ERROR` do tipo `BUSINESS`.
 
-## Dashboard executivo da planilha de 10 dias
+## Dashboard executivo da planilha de 10 dias — Aula 24
 
-As instruções de execução, artefatos gerados e detalhes dos gráficos estão em
-[dashboard/README.md](dashboard/README.md).
+O dashboard é um fluxo independente do processo legado RN01–RN07. Ele aplica
+RN01–RN12 à planilha de dez dias, preserva cada `RegistroValidado` e calcula os
+indicadores uma única vez antes de gerar todos os artefatos.
+
+```text
+Planilha + Base de Referência
+  -> validação RN01–RN12
+  -> OperationalIndicators
+  -> Excel (8 abas) + resumo executivo Markdown + PDF compatível + log
+```
+
+Execute o fluxo oficial com:
+
+```bash
+python -m dashboard.main \
+  --entrada "data/samples/inspecao_lotes_10dias_sem gabarito.xlsx" \
+  --saida data/output
+```
+
+Os dez indicadores incluem volume processado, classificações, regra mais
+acionada, qualidade da entrada, revisão humana, retrabalho e ganho de tempo.
+Para o conjunto didático, o resultado esperado é 250 registros: 150 válidos,
+50 divergências, 20 ambíguos, 30 erros de entrada, RN06 como regra principal
+(25 ocorrências) e 437,5 minutos de ganho estimado.
+
+O ganho é uma **estimativa didática**, baseada em 2,00 minutos por registro no
+processo manual e 0,25 minuto no automatizado; não representa uma medição de
+produção. As taxas devem ser interpretadas com as limitações do conjunto de
+dados didático e não substituem telemetria operacional contínua.
+
+Os artefatos são gravados em `data/output/`: Excel com oito abas, resumo
+executivo Markdown, PDF compatível e log. Para detalhes sobre as abas, o
+dicionário, Docker e demonstração, consulte [dashboard/README.md](dashboard/README.md).
+
+### Testes do dashboard
+
+```bash
+python -m pytest -m unit -v
+python -m pytest -m integration -v
+python -m pytest -m regression -v
+python -m pytest -m "e2e and not browser" -v
+python -m pytest -m "not browser" --cov=src --cov=dashboard \
+  --cov-config=.coveragerc --cov-report=term-missing \
+  --cov-report=xml:reports/coverage.xml \
+  --cov-report=html:reports/coverage-html --cov-fail-under=80
+```
 
 ## DataPool BotCity
 

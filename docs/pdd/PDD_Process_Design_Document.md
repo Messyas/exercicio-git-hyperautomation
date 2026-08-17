@@ -890,6 +890,28 @@ Page Objects, Playwright e a interface Streamlit ficam fora desta medição por
 pertencerem ao job separado de browser; as regras de negócio e a geração dos
 relatórios permanecem incluídas.
 
+### 20.1 Evolução da Aula 24 — Arquitetura de Fonte Única e Indicadores Operacionais
+
+Na entrega da Aula 24, o PDD passa a contemplar o dashboard executivo consolidado das 10 abas diárias (250 registros), com as seguintes especificações técnicas e de negócio:
+
+```text
+RegistroValidado
+  → OperationalIndicators (chamada única)
+      ├─ Excel de 8 abas (relatorio_conferencia_lotes.xlsx)
+      ├─ Resumo Executivo Markdown (resumo_executivo.md)
+      ├─ PDF de compatibilidade (resumo_conferencia_lotes.pdf)
+      └─ Log estruturado (execucao_dashboard.log)
+```
+
+**Regras de Nomenclatura e Domínio de Regras (Aula 24):**
+
+- O fluxo legado de um dia (Bot 1 e Bot 2) continua utilizando a nomenclatura simplificada RN01–RN07 para a automação web.
+- O dashboard executivo de 10 dias utiliza a matriz completa RN01–RN12 descrita em `dashboard/servico_validacao.py`.
+- Não houve alteração no comportamento técnico das regras RN01–RN12.
+- A camada pura de indicadores (`src/operational_indicators.py`) não possui dependências de apresentação e é invocada **uma única vez** por execução.
+- Os dez indicadores, as três taxas (qualidade da entrada, revisão humana e retrabalho) e o ganho estimado de tempo são derivados da lista auditada de `RegistroValidado`.
+- O ganho estimado de tempo (437,5 minutos / 7h17min30s) é rotulado como **estimativa didática** baseada nas premissas de 2,00 min/registro para o processo manual e 0,25 min/registro para o processo automatizado, não constituindo medição real de produção sem a implementação prévia de telemetria observada.
+
 **Formulário de revisão**
 
 ![][image2]

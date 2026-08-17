@@ -43,20 +43,34 @@ jobs:
           cache: pip
       - run: pip install -r requirements-dev.txt
       - name: Executar suite local e validar cobertura
+        shell: bash
         env:
           MAESTRO_ENABLED: "false"
-        run: >-
-          pytest tests/ -m "not browser" -v --tb=short -rsxX
-          --cov=src --cov=dashboard --cov-config=.coveragerc
-          --cov-report=term-missing
-          --cov-report=xml:reports/coverage.xml
-          --cov-fail-under=80
-      - name: Anexar relatorio de cobertura
+        run: |
+          mkdir -p reports/coverage-html data/output
+          set -o pipefail
+          pytest tests/ -m "not browser" -v --tb=short -rsxX \
+            --cov=src --cov=dashboard --cov-config=.coveragerc \
+            --cov-report=term-missing \
+            --cov-report=xml:reports/coverage.xml \
+            --cov-report=html:reports/coverage-html \
+            --cov-fail-under=80 | tee reports/pytest-aula24.log
+          python -m dashboard.main \
+            --entrada "data/samples/inspecao_lotes_10dias_sem gabarito.xlsx" \
+            --saida data/output
+      - name: Anexar evidências da Aula 24
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: cobertura-aula23-${{ github.run_number }}
-          path: reports/coverage.xml
+          name: evidencias-aula24-${{ github.run_number }}
+          path: |
+            reports/coverage.xml
+            reports/coverage-html/
+            reports/pytest-aula24.log
+            data/output/relatorio_conferencia_lotes.xlsx
+            data/output/resumo_executivo.md
+            data/output/resumo_conferencia_lotes.pdf
+            data/output/execucao_dashboard.log
           if-no-files-found: warn
 
   frontend:
