@@ -15,6 +15,20 @@ pytestmark = pytest.mark.unit
     (
         pytest.param({}, False, "Válido", None, id="registro_valido"),
         pytest.param(
+            {"lote_id": ""},
+            False,
+            "Erro de Entrada",
+            "RN01",
+            id="lote_id_ausente_rn01",
+        ),
+        pytest.param(
+            {"linha": ""},
+            False,
+            "Erro de Entrada",
+            "RN03",
+            id="linha_ausente_rn03",
+        ),
+        pytest.param(
             {"lote_id": "LG-2026-99999"},
             False,
             "Divergência",

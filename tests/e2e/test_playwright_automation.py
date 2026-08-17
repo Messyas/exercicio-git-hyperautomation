@@ -9,7 +9,7 @@ import src.web_automation as browser_module
 from producer import _evidence_fields
 
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.e2e, pytest.mark.browser]
 
 
 class FakeChromium:

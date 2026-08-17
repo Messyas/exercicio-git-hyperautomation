@@ -7,7 +7,7 @@ import pytest
 from scripts.build_botcity_packages import build_packages
 
 
-pytestmark = pytest.mark.integration
+pytestmark = pytest.mark.unit
 
 
 def test_pacotes_possuem_entrypoint_e_dependencias_na_raiz(tmp_path) -> None:

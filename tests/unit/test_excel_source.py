@@ -5,7 +5,7 @@ import pytest
 from src.excel_source import load_excel_batch
 
 
-pytestmark = pytest.mark.integration
+pytestmark = pytest.mark.unit
 
 
 SAMPLE = "data/samples/inspecao_lotes_dia.xlsx"

@@ -11,7 +11,7 @@ from src.relatorio import (
 )
 
 
-pytestmark = pytest.mark.integration
+pytestmark = pytest.mark.unit
 
 
 def test_gera_xlsx_com_colunas_obrigatorias(tmp_path) -> None:
