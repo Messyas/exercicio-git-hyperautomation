@@ -104,7 +104,7 @@ def test_runner_define_contexto_e_defaults_botcity(monkeypatch) -> None:
     assert settings.maestro_task_id == "task-123"
     assert settings.execution_id == "task-123"
     assert settings.datapool_backend == "botcity"
-    assert settings.playwright_url == "http://localhost:3000"
+    assert "lote-teste.html" in settings.playwright_url
 
 
 def test_relogio_operacional_usa_fuso_manaus(monkeypatch) -> None:

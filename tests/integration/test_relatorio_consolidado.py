@@ -61,8 +61,10 @@ def test_relatorio_consolidado_8_abas_e_markdown(tmp_path: Path):
         "Erros de Entrada",
         "Ranking de Regras",
         "Dicionário",
+        "Decisões de ML",
     ]
     assert wb.sheetnames == abas_esperadas
+
 
     # Aba Todos
     ws_todos = wb["Todos"]

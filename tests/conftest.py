@@ -117,7 +117,10 @@ def planilha_10_dias_factory(tmp_path: Path):
 @pytest.fixture
 def pagina_web() -> str:
     """Retorna a URL usada nos testes E2E."""
-    return os.getenv("E2E_BASE_URL", "http://127.0.0.1:3000")
+    return os.getenv(
+        "E2E_BASE_URL",
+        (Path(__file__).parents[1] / "web" / "lote-teste.html").as_uri(),
+    )
 
 
 @pytest.fixture

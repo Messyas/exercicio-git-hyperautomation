@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -102,12 +103,18 @@ def _item_metrics(batch: ConsumedBatch | None) -> dict[str, int]:
 
 
 def _signal_pipeline_finished() -> None:
+    """Registra o marcador de término sem invalidar uma execução já concluída."""
     shutdown_file = os.getenv("SHUTDOWN_FILE")
     if not shutdown_file:
         return
     path = Path(shutdown_file)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.touch()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.touch()
+    except OSError as exc:
+        logging.getLogger("botcity.validador").warning(
+            "Não foi possível registrar o marcador de término %s: %s", path, exc
+        )
 
 
 def run_consumer() -> int:

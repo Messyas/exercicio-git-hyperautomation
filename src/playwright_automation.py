@@ -27,10 +27,10 @@ class PlaywrightAutomation:
         slow_mo: int,
         timeout_ms: int,
     ) -> None:
-        host = urlsplit(url).hostname
-        if host not in ALLOWED_HOSTS:
+        parsed = urlsplit(url)
+        if parsed.scheme != "file" and parsed.hostname not in ALLOWED_HOSTS:
             raise ValueError(
-                f"Destino {host!r} não permitido para a automação local."
+                f"Destino {parsed.hostname!r} não permitido para a automação local."
             )
         self._url = url
         self._headless = headless

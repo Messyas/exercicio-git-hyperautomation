@@ -56,7 +56,3 @@ logs/
 !/reports/.gitkeep
 /tests/e2e/screenshots/*
 !/tests/e2e/screenshots/.gitkeep
-
-# Frontend
-frontend/node_modules/
-frontend/.next/

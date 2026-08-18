@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 
@@ -10,12 +11,18 @@ from producer import run_producer
 
 
 def _signal_finished() -> None:
+    """Tenta registrar o fim sem sobrescrever o resultado do bot."""
     shutdown_file = os.getenv("SHUTDOWN_FILE")
     if not shutdown_file:
         return
     path = Path(shutdown_file)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.touch()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.touch()
+    except OSError as exc:
+        logging.getLogger("botcity.pipeline").warning(
+            "Não foi possível registrar o marcador de término %s: %s", path, exc
+        )
 
 
 def main() -> int:

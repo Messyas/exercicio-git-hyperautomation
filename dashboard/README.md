@@ -20,7 +20,9 @@ Na raiz do repositório, execute:
 docker compose -f dashboard/docker-compose.yml up --build
 ```
 
-O serviço executa `python -m dashboard.main` antes de iniciar a interface visual. Quando a inicialização terminar, abra `http://localhost:8501`.
+Os serviços iniciam a API de ML, aguardam seu healthcheck e executam
+`python -m dashboard.main` antes da interface visual. Quando a inicialização
+terminar, abra `http://localhost:8501`.
 
 Para encerrar o serviço:
 
@@ -42,12 +44,12 @@ streamlit run dashboard/app.py
 
 O orquestrador grava os quatro artefatos em `data/output/`:
 
-- `relatorio_conferencia_lotes.xlsx`: relatório consolidado oficial com exatamente **8 abas**;
+- `relatorio_conferencia_lotes.xlsx`: relatório consolidado oficial com exatamente **9 abas**;
 - `resumo_executivo.md`: resumo executivo em linguagem de negócio;
 - `resumo_conferencia_lotes.pdf`: exportação PDF (compatibilidade);
-- `execucao_dashboard.log`: log de execução com timestamp e resumo por classificação.
+- `execucao_dashboard.log`: JSON Lines com resumo da execução e uma decisão `ML_DECISION` por lote ambíguo.
 
-### Estrutura das 8 Abas do Excel
+### Estrutura das 9 Abas do Excel
 
 1. `Resumo`: visão executiva com os 10 indicadores, nota de premissas, tabela diária de alertas e 2 gráficos nativos (Rosca e Evolução);
 2. `Todos`: os 250 registros com dados normalizados e orientações;
@@ -56,7 +58,8 @@ O orquestrador grava os quatro artefatos em `data/output/`:
 5. `Ambíguos`: 20 registros para revisão humana (8%);
 6. `Erros de Entrada`: 30 registros com falhas de preenchimento ou data (12%);
 7. `Ranking de Regras`: regras acionadas ordenadas por ocorrência (regra principal: **RN06** com 25 ocorrências / 10%);
-8. `Dicionário`: documentação de termos, colunas, classificações, RN01–RN12, taxas e premissas.
+8. `Dicionário`: documentação de termos, colunas, classificações, RN01–RN12, taxas e premissas;
+9. `Decisões de ML`: registro auditável de cada chamada do modelo ML para registros ambíguos (timestamp, probabilidade, confiança, ação final, latência).
 
 ## O que o dashboard mostra
 

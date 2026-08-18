@@ -1,0 +1,93 @@
+{
+  "dataset_name": "historico_lotes_sintetico.csv",
+  "total_rows": 12000,
+  "sha256": "7fb97c2cbfe13729b2574ff116471920837979f20beb38b552979713b94c5374",
+  "seed": 42,
+  "columns": [
+    "sample_id",
+    "status_raw",
+    "turno",
+    "tem_obs",
+    "classe"
+  ],
+  "features": [
+    "status_raw",
+    "turno",
+    "tem_obs"
+  ],
+  "class_distribution": {
+    "revisar": 4000,
+    "valido_automatico": 4000,
+    "recusar_automatico": 4000
+  },
+  "turno_distribution": {
+    "A": 4002,
+    "B": 3999,
+    "C": 3999
+  },
+  "tem_obs_distribution": {
+    "False": 6033,
+    "True": 5967
+  },
+  "status_raw_distribution": {
+    "APROVADO PARCIAL": 1550,
+    "AJUSTE CONCLUIDO": 1452,
+    "PENDENTE": 1217,
+    "CANCELADO": 1198,
+    "AJUSTE REPROVADO": 1065,
+    "ESPECIFICAÇÃO EM REVISÃO": 953,
+    "REINSPECAO REPROVADA": 953,
+    "EM ANALISE": 924,
+    "AGUARDANDO REINSPEÇÃO": 866,
+    "EM AJUSTE": 774,
+    "FORA DE ESPECIFICACAO": 731,
+    "EM ANÁLISE": 317
+  },
+  "classe_turno_combinations": [
+    {
+      "classe": "recusar_automatico",
+      "turno": "A",
+      "count": 1334
+    },
+    {
+      "classe": "recusar_automatico",
+      "turno": "B",
+      "count": 1333
+    },
+    {
+      "classe": "recusar_automatico",
+      "turno": "C",
+      "count": 1333
+    },
+    {
+      "classe": "revisar",
+      "turno": "A",
+      "count": 1334
+    },
+    {
+      "classe": "revisar",
+      "turno": "B",
+      "count": 1333
+    },
+    {
+      "classe": "revisar",
+      "turno": "C",
+      "count": 1333
+    },
+    {
+      "classe": "valido_automatico",
+      "turno": "A",
+      "count": 1334
+    },
+    {
+      "classe": "valido_automatico",
+      "turno": "B",
+      "count": 1333
+    },
+    {
+      "classe": "valido_automatico",
+      "turno": "C",
+      "count": 1333
+    }
+  ]
+}

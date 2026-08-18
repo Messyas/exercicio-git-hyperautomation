@@ -5,6 +5,17 @@ Todas as alterações notáveis deste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.1.0] — Exercício 24-A (ML + RPA) — 2026-08-18
+
+### Adicionado
+- Microserviço `api_ml` em FastAPI com endpoints `POST /predict` e `GET /health`.
+- Pipeline de treino Random Forest com `CalibratedClassifierCV` em `scripts/train_model.py` e dataset sintético de 12.000 amostras.
+- Cliente resiliente `MLClient` com `CircuitBreaker` (abertura após 5 falhas consecutivas) em `src/ml_client.py`.
+- Módulo `src/item_processor.py` integrando ML para registros ambíguos sem interromper o fluxo do lote (`REVISAO_ML_OFFLINE`).
+- 9ª aba `Decisões de ML` no relatório Excel consolidado `relatorio_conferencia_lotes.xlsx`.
+- Script de demonstração `scripts/demo_torneio.py` para os 50 casos ambíguos.
+- Suíte completa de testes unitários e de integração/sabotagem para ML (`test_api_ml.py`, `test_ml_client.py`, `test_item_processor_ml.py`, `test_sabotagem_ml.py`).
+
 ## [1.0.0] — Aula 24 — 2026-08-17
 
 ### Adicionado
