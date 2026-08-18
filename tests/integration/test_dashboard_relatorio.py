@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 
 import openpyxl
 import pandas as pd
@@ -36,7 +37,9 @@ def test_relatorio_dashboard_tem_totais_e_abas_isoladas(
             "Erros de Entrada",
             "Ranking de Regras",
             "Dicionário",
+            "Decisões de ML",
         ]
+
         todos = pd.read_excel(arquivo, sheet_name="Todos")
         assert len(todos) == 250
         assert todos.columns.tolist() == [
@@ -82,10 +85,23 @@ def test_relatorio_dashboard_tem_totais_e_abas_isoladas(
         "26/06/2026",
     ]
 
-    log = (tmp_path / "execucao_dashboard.log").read_text(encoding="utf-8")
-    assert "Executado em 30/06/2026 08:15:00 -0400" in log
-    for trecho in ("total': 250", "Válido': 150", "Divergência': 50", "Ambíguo': 20", "Erro de Entrada': 30"):
-        assert trecho in log
+    eventos = [
+        json.loads(linha)
+        for linha in (tmp_path / "execucao_dashboard.log").read_text(encoding="utf-8").splitlines()
+    ]
+    resumo_log = next(
+        evento
+        for evento in eventos
+        if evento.get("event") == "DASHBOARD_EXECUTION_COMPLETED"
+    )
+    assert "Executado em 30/06/2026 08:15:00 -0400" in resumo_log["message"]
+    assert resumo_log["summary"] == {
+        "total": 250,
+        "Válido": 150,
+        "Divergência": 50,
+        "Ambíguo": 20,
+        "Erro de Entrada": 30,
+    }
 
     resumo_pdf = tmp_path / "resumo_conferencia_lotes.pdf"
     assert resumo_pdf.exists()

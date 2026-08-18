@@ -2,7 +2,7 @@
 
 Concentra o fluxo oficial de processamento, cálculo de indicadores operacionais
 (através do módulo puro ``src.operational_indicators``) e geração de todos os
-artefatos consolidados (Excel 8 abas, Resumo Executivo Markdown, PDF compatível e Log).
+artefatos consolidados (Excel 9 abas, Resumo Executivo Markdown, PDF compatível e Log).
 """
 
 from __future__ import annotations
@@ -30,6 +30,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.base_referencia import carregar_base_referencia
+from src.item_processor import ItemProcessor, MLDecision
+from src.ml_client_factory import create_ml_client
+from config import settings
+from src.structured_logging import configure_structured_logging
 from src.operational_indicators import (
     CATALOGO_REGRAS,
     OperationalIndicators,
@@ -42,6 +46,7 @@ from dashboard.servico_validacao import (
     RegistroValidado,
     validar_registros_lista,
 )
+
 
 ARQUIVO_ENTRADA_PADRAO = (
     ROOT / "data" / "samples" / "inspecao_lotes_10dias_sem gabarito.xlsx"
@@ -626,12 +631,74 @@ def _montar_aba_dicionario(ws) -> None:
     ws.column_dimensions["D"].width = 45
 
 
+def _montar_aba_decisoes_ml(ws, decisoes_ml: Sequence[MLDecision]) -> None:
+    """Preenche a 9ª aba 'Decisões de ML' com histórico de inferências e auditoria."""
+    ws.title = "Decisões de ML"
+
+    headers = [
+        "Timestamp",
+        "Lote",
+        "Status original",
+        "Turno",
+        "Tem observação",
+        "Classe predita",
+        "Probabilidade",
+        "Nível de confiança",
+        "Ação final",
+        "Latência total (ms)",
+        "Tentou rede",
+        "Circuit breaker aberto",
+        "Versão do modelo",
+        "Tipo de erro",
+    ]
+    fill_header = PatternFill("solid", fgColor="1F4E78")
+    font_header = Font(color="FFFFFF", bold=True)
+
+    for col_idx, text in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col_idx, value=text)
+        cell.fill = fill_header
+        cell.font = font_header
+        cell.alignment = Alignment(horizontal="center")
+
+    for r_idx, dec in enumerate(decisoes_ml, start=2):
+        row_dict = dec.to_dict()
+        for c_idx, h in enumerate(headers, start=1):
+            cell = ws.cell(row=r_idx, column=c_idx)
+            val = row_dict.get(h)
+            cell.value = val
+            if h == "Probabilidade" and isinstance(val, (int, float)):
+                cell.number_format = "0.00%"
+            elif h == "Latência total (ms)" and isinstance(val, (int, float)):
+                cell.number_format = "0.00"
+
+    max_r = max(len(decisoes_ml) + 1, 2)
+    tabela = Table(displayName="TabelaDecisoesML", ref=f"A1:N{max_r}")
+    tabela.tableStyleInfo = TableStyleInfo(
+        name="TableStyleMedium2", showRowStripes=True
+    )
+    ws.add_table(tabela)
+
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = f"A1:N{max_r}"
+
+    for col_idx in range(1, 15):
+        valores = [
+            len(str(ws.cell(l, col_idx).value or ""))
+            for l in range(1, min(max_r, 100) + 1)
+        ]
+        ws.column_dimensions[get_column_letter(col_idx)].width = min(
+            max(valores, default=10) + 2, 40
+        )
+
+
 def gerar_excel_consolidado(
     validados: Sequence[RegistroValidado],
     indicadores: OperationalIndicators,
     destino: Path,
+    *,
+    decisoes_ml: Sequence[MLDecision] = (),
 ) -> Path:
-    """Gera o arquivo Excel com exatamente as 8 abas exigidas na ordem oficial."""
+    """Gera o arquivo Excel com exatamente as 9 abas consolidadas (incluindo Decisões de ML)."""
     df_validados = pd.DataFrame([r.to_dict() for r in validados])
     df_relatorio = df_validados.loc[:, list(COLUNAS_RELATORIO)].rename(
         columns=COLUNAS_RELATORIO
@@ -685,9 +752,14 @@ def gerar_excel_consolidado(
     ws_dicionario = wb.create_sheet(title="Dicionário")
     _montar_aba_dicionario(ws_dicionario)
 
+    # Aba 9: Decisões de ML
+    ws_ml = wb.create_sheet(title="Decisões de ML")
+    _montar_aba_decisoes_ml(ws_ml, decisoes_ml)
+
     destino.parent.mkdir(parents=True, exist_ok=True)
     wb.save(destino)
     return destino
+
 
 
 def gerar_resumo_executivo_md(
@@ -951,6 +1023,7 @@ def registrar_log_execucao(
     indicadores: OperationalIndicators,
     caminho_entrada: Path,
     destino_log: Path,
+    logger: logging.Logger,
 ) -> Path:
     """Registra o log final da execução usando os indicadores consolidados."""
     resumo_log = {
@@ -960,22 +1033,19 @@ def registrar_log_execucao(
         "Ambíguo": indicadores.ambiguos,
         "Erro de Entrada": indicadores.erros_entrada,
     }
-    destino_log.parent.mkdir(parents=True, exist_ok=True)
-    logging.basicConfig(
-        filename=destino_log,
-        filemode="w",
-        level=logging.INFO,
-        encoding="utf-8",
-        format="%(levelname)s:%(name)s:%(message)s",
-        force=True,
-    )
-    logging.info(
+    logger.info(
         "Executado em %s | Relatório gerado | entrada=%s | totais=%s",
         _agora_manaus().strftime("%d/%m/%Y %H:%M:%S %z"),
         caminho_entrada.name,
         resumo_log,
+        extra={
+            "event": "DASHBOARD_EXECUTION_COMPLETED",
+            "input_file": caminho_entrada.name,
+            "summary": resumo_log,
+        },
     )
-    logging.shutdown()
+    for handler in logger.handlers:
+        handler.flush()
     return destino_log
 
 
@@ -1006,9 +1076,29 @@ def executar_pipeline_dashboard(
         validados, tempo_manual_minutos=2.0, tempo_automatizado_minutos=0.25
     )
 
-    # 4. Gerar artefatos consumindo os indicadores calculados
+    # 4. Executar inferência de ML para registros ambíguos
+    caminho_log = diretorio_saida / "execucao_dashboard.log"
+    logger = configure_structured_logging(
+        diretorio_saida,
+        execution_id=settings.execution_id,
+        bot_id=settings.bot_id,
+        logger_name="dashboard.auditoria",
+        log_filename=caminho_log.name,
+    )
+    decisoes_ml: list[MLDecision] = []
+    ml_client = create_ml_client(settings, logger)
+    try:
+        processor = ItemProcessor(ml_client, logger)
+        decisoes_ml = processor.processar_lote(validados)
+    finally:
+        ml_client.close()
+
+    # 5. Gerar artefatos consumindo os indicadores calculados e decisões de ML
     caminho_excel = gerar_excel_consolidado(
-        validados, indicadores, diretorio_saida / "relatorio_conferencia_lotes.xlsx"
+        validados,
+        indicadores,
+        diretorio_saida / "relatorio_conferencia_lotes.xlsx",
+        decisoes_ml=decisoes_ml,
     )
     caminho_md = gerar_resumo_executivo_md(
         indicadores, diretorio_saida / "resumo_executivo.md"
@@ -1016,9 +1106,7 @@ def executar_pipeline_dashboard(
     caminho_pdf = gerar_pdf_compativel(
         validados, indicadores, diretorio_saida / "resumo_conferencia_lotes.pdf"
     )
-    caminho_log = registrar_log_execucao(
-        indicadores, caminho_entrada, diretorio_saida / "execucao_dashboard.log"
-    )
+    caminho_log = registrar_log_execucao(indicadores, caminho_entrada, caminho_log, logger)
 
     return {
         "excel": caminho_excel,
@@ -1026,6 +1114,7 @@ def executar_pipeline_dashboard(
         "pdf": caminho_pdf,
         "log": caminho_log,
     }
+
 
 
 def main() -> None:

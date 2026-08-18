@@ -102,6 +102,12 @@ class Settings:
     datapool_local_dir: Path
     validator_activity_label: str
     timezone: str
+    ml_enabled: bool
+    ml_api_url: str
+    ml_timeout_ms: int
+    ml_failure_threshold: int
+    ml_model_path: Path
+
 
 
 def get_settings() -> Settings:
@@ -142,11 +148,7 @@ def get_settings() -> Settings:
             "BOT_URL",
             os.getenv(
                 "PLAYWRIGHT_URL",
-                (
-                    "http://localhost:3000"
-                    if _running_from_botcity()
-                    else "http://frontend:3000"
-                ),
+                (PROJECT_ROOT / "web" / "lote-teste.html").as_uri(),
             ),
         ).strip(),
         playwright_headless=_env_bool(
@@ -177,7 +179,13 @@ def get_settings() -> Settings:
             "VALIDATOR_ACTIVITY_LABEL", "bot-lotes-validacao-mk7"
         ).strip(),
         timezone=os.getenv("APP_TIMEZONE", "America/Manaus").strip(),
+        ml_enabled=_env_bool("ML_ENABLED", default=True),
+        ml_api_url=os.getenv("ML_API_URL", "http://127.0.0.1:8000").strip(),
+        ml_timeout_ms=_env_int("ML_TIMEOUT_MS", 1000, minimum=1),
+        ml_failure_threshold=_env_int("ML_FAILURE_THRESHOLD", 5, minimum=1),
+        ml_model_path=_env_path("ML_MODEL_PATH", "models/classificador_lotes.pkl"),
     )
+
 
 
 settings = get_settings()

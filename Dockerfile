@@ -20,6 +20,13 @@ COPY bots/validacao/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 
+# Runtime dedicado ao classificador da Aula 24-A. Mantém o bot de ML
+# independente das dependências do consumidor legado e da interface Streamlit.
+FROM runtime-base AS ml-runner-dependencies
+COPY dashboard/requirements-runner.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+
 FROM runtime-base AS producer-dependencies
 COPY bots/cadastro/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
@@ -42,6 +49,16 @@ RUN mkdir -p /app/data/output /app/data/datapool /app/logs /app/reports \
     && chown -R appuser:appuser /app
 USER appuser
 CMD ["python", "consumer.py"]
+
+
+FROM ml-runner-dependencies AS ml-runner
+
+RUN adduser --disabled-password --gecos "" appuser
+COPY --chown=appuser:appuser . .
+RUN mkdir -p /app/data/output /app/logs \
+    && chown -R appuser:appuser /app
+USER appuser
+CMD ["python", "dashboard/main.py"]
 
 
 FROM browser-dependencies AS producer

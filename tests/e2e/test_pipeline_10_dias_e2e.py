@@ -59,7 +59,9 @@ def test_pipeline_completo_bate_com_o_gabarito_sem_dependencia_externa(
             "Erros de Entrada",
             "Ranking de Regras",
             "Dicionário",
+            "Decisões de ML",
         ]
+
         todos = pd.read_excel(excel, sheet_name="Todos")
         assert todos["Classificação"].value_counts().to_dict() == {
             "Válido": 150,

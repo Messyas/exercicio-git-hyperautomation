@@ -1,0 +1,8 @@
+# Runtime do processamento em lote da Aula 24-A. Não inclui Streamlit.
+pandas==2.3.3
+openpyxl==3.1.5
+python-dotenv==1.2.2
+python-json-logger==4.1.0
+httpx==0.28.1
+reportlab==4.4.10
+tzdata==2025.2

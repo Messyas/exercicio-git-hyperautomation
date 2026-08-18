@@ -1,34 +1,32 @@
 services:
-  frontend:
+  api-ml:
+    profiles: ["ml"]
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api_ml/Dockerfile
     ports:
-      - "3000:3000"
+      - "8000:8000"
     environment:
-      SHUTDOWN_FILE: /run-status/pipeline-finished
+      ML_MODEL_PATH: /service/models/classificador_lotes.pkl
+      ML_MAX_CONCURRENCY: "1"
       TZ: America/Manaus
-    volumes:
-      - run-status:/run-status
     healthcheck:
       test:
         - CMD
-        - node
-        - -e
-        - "fetch('http://localhost:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-      interval: 3s
-      timeout: 5s
-      retries: 20
-      start_period: 15s
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    restart: "no"
 
   producer:
     build:
       context: .
       dockerfile: Dockerfile
       target: producer
-    depends_on:
-      frontend:
-        condition: service_healthy
     env_file:
       - path: ./.env.example
         required: true
@@ -36,7 +34,7 @@ services:
         required: false
     environment:
       BOT_ID: bot-lotes-cadastro-playwright-mk7
-      BOT_URL: http://frontend:3000
+      BOT_URL: file:///app/web/lote-teste.html
       BOT_HEADLESS: "true"
       BOT_LOG_DIR: /app/logs
       DATAPOOL_BACKEND: local
@@ -46,6 +44,7 @@ services:
       ENVIRONMENT: container
       APP_TIMEZONE: America/Manaus
       TZ: America/Manaus
+      ML_API_URL: http://api-ml:8000
     volumes:
       - ./screenshots:/app/screenshots
       - ./data/datapool:/app/data/datapool
@@ -78,6 +77,7 @@ services:
       ENVIRONMENT: container
       APP_TIMEZONE: America/Manaus
       TZ: America/Manaus
+      ML_API_URL: http://api-ml:8000
     volumes:
       - ./data/datapool:/app/data/datapool
       - ./data/output:/app/data/output
@@ -92,16 +92,13 @@ services:
       context: .
       dockerfile: Dockerfile
       target: producer
-    depends_on:
-      frontend:
-        condition: service_healthy
     env_file:
       - path: ./.env.example
         required: true
       - path: ./.env
         required: false
     environment:
-      BOT_URL: http://frontend:3000
+      BOT_URL: file:///app/web/lote-teste.html
       BOT_HEADLESS: "true"
       BOT_LOG_DIR: /app/logs
       BOT_OUTPUT_DIR: /app/data/output
@@ -113,6 +110,7 @@ services:
       ENVIRONMENT: container
       APP_TIMEZONE: America/Manaus
       TZ: America/Manaus
+      ML_API_URL: http://api-ml:8000
     volumes:
       - ./screenshots:/app/screenshots
       - ./data/datapool:/app/data/datapool
@@ -123,6 +121,29 @@ services:
     shm_size: 1gb
     restart: "no"
     command: ["python", "pipeline.py"]
+
+  bot-classificador:
+    profiles: ["ml"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: ml-runner
+    depends_on:
+      api-ml:
+        condition: service_healthy
+    env_file:
+      - path: ./.env.example
+        required: true
+      - path: ./.env
+        required: false
+    environment:
+      ML_API_URL: http://api-ml:8000
+      APP_TIMEZONE: America/Manaus
+      TZ: America/Manaus
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    command: ["python", "dashboard/main.py"]
 
 volumes:
   run-status:
