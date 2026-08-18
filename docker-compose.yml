@@ -1,4 +1,17 @@
 services:
+  run-status-init:
+    # Volumes nomeados são criados como root. Este init libera apenas o volume
+    # de sinalização para o usuário não-root (UID 1000) dos bots.
+    image: busybox:1.36.1
+    user: "0:0"
+    volumes:
+      - run-status:/run-status
+    command:
+      - sh
+      - -c
+      - "mkdir -p /run-status && chown -R 1000:1000 /run-status && chmod -R u+rwX,g+rwX /run-status"
+    restart: "no"
+
   api-ml:
     profiles: ["ml"]
     build:
@@ -27,6 +40,9 @@ services:
       context: .
       dockerfile: Dockerfile
       target: producer
+    depends_on:
+      run-status-init:
+        condition: service_completed_successfully
     env_file:
       - path: ./.env.example
         required: true
@@ -60,6 +76,8 @@ services:
       dockerfile: Dockerfile
       target: consumer
     depends_on:
+      run-status-init:
+        condition: service_completed_successfully
       producer:
         condition: service_completed_successfully
     env_file:
@@ -92,6 +110,9 @@ services:
       context: .
       dockerfile: Dockerfile
       target: producer
+    depends_on:
+      run-status-init:
+        condition: service_completed_successfully
     env_file:
       - path: ./.env.example
         required: true
