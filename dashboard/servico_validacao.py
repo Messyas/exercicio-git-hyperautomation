@@ -8,6 +8,7 @@ consolida as planilhas, identifica as repetições de cada dia e chama
 from __future__ import annotations
 
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Mapping
@@ -181,3 +182,31 @@ def validar_registro(
         registro.classificacao = "Divergência"
 
     return registro
+
+
+def validar_registros_lista(
+    df: pd.DataFrame, lotes_referencia: set[str]
+) -> list[RegistroValidado]:
+    """Deduplica por dia e aplica RN01–RN12 para cada linha de um DataFrame.
+
+    Retorna a lista preservada de ``RegistroValidado`` sem converter para DataFrame.
+    """
+    repetidos: set[int] = set()
+    for _, diario in df.groupby("aba_origem", sort=False):
+        ids = [texto(valor) for valor in diario["lote_id"]]
+        contador = Counter(lote_id for lote_id in ids if lote_id)
+        vistos: Counter[str] = Counter()
+        for indice, lote_id in zip(diario.index, ids):
+            vistos[lote_id] += 1
+            if lote_id and contador[lote_id] > 1 and vistos[lote_id] > 1:
+                repetidos.add(indice)
+
+    validados: list[RegistroValidado] = []
+    for indice, linha in df.iterrows():
+        registro = validar_registro(
+            linha.to_dict(),
+            lotes_referencia,
+            duplicado_no_dia=indice in repetidos,
+        )
+        validados.append(registro)
+    return validados

@@ -21,7 +21,7 @@ def test_relatorio_dashboard_tem_totais_e_abas_isoladas(
     instante_fixo_manaus,
 ) -> None:
     monkeypatch.setattr(
-        "dashboard.gerar_relatorio._agora_manaus",
+        "dashboard.main._agora_manaus",
         lambda: instante_fixo_manaus,
     )
     destino = gerar_relatorio(ENTRADA, tmp_path)
@@ -34,6 +34,8 @@ def test_relatorio_dashboard_tem_totais_e_abas_isoladas(
             "Divergências",
             "Ambíguos",
             "Erros de Entrada",
+            "Ranking de Regras",
+            "Dicionário",
         ]
         todos = pd.read_excel(arquivo, sheet_name="Todos")
         assert len(todos) == 250
@@ -67,7 +69,7 @@ def test_relatorio_dashboard_tem_totais_e_abas_isoladas(
     assert resumo._charts[1].title.tx.rich.p[0].r[0].t == (
         "Evolução dos registros"
     )
-    assert [resumo.cell(linha, 1).value for linha in range(14, 24)] == [
+    assert [resumo.cell(linha, 1).value for linha in range(20, 30)] == [
         "15/06/2026",
         "16/06/2026",
         "17/06/2026",
