@@ -2,3 +2,7 @@
 *.py text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
+
+# O SHA-256 do bundle ML é calculado sobre os bytes deste dataset. Mantê-lo em
+# CRLF em todos os checkouts preserva a integridade entre Windows e CI Linux.
+data/ml/historico_lotes_sintetico.csv text eol=crlf
