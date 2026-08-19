@@ -1,9 +1,12 @@
 import json
+from pathlib import Path
+import subprocess
 
 import httpx
 
 from scripts.demo_torneio import (
     construir_payloads,
+    derrubar_api_docker,
     executar_fila,
     montar_resumo,
     verificar_completude,
@@ -45,3 +48,34 @@ def test_ensaio_processa_50_tarefas_com_fila_limitada_sem_perdas():
         sabotagem=False,
     )
     assert {"p50", "p95", "media", "max"} <= set(resumo["latencia_ms"])
+
+
+def test_sabotagem_usa_compose_isolado_quando_informado(monkeypatch, tmp_path: Path):
+    """O ensaio pode derrubar a API do Compose de sabotagem, sem tocar o principal."""
+    compose_file = tmp_path / "docker-compose.sabotagem.yml"
+    compose_file.touch()
+    comandos: list[list[str]] = []
+
+    def fake_run(comando, **_kwargs):
+        comandos.append(comando)
+        return subprocess.CompletedProcess(comando, returncode=0)
+
+    monkeypatch.setattr("scripts.demo_torneio.subprocess.run", fake_run)
+
+    derrubar_api_docker(
+        compose_file=compose_file,
+        compose_project="sabotagem-ml",
+    )
+
+    assert comandos == [
+        [
+            "docker",
+            "compose",
+            "-f",
+            str(compose_file.resolve()),
+            "-p",
+            "sabotagem-ml",
+            "kill",
+            "api-ml",
+        ]
+    ]

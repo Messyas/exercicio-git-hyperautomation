@@ -174,9 +174,23 @@ def executar_fila(
     return sorted(resultados, key=lambda resultado: resultado.sequencia)
 
 
-def derrubar_api_docker() -> None:
-    """Derruba deliberadamente a API do Compose raiz; uso somente em demonstração."""
-    comando = ["docker", "compose", "--profile", "ml", "kill", "api-ml"]
+def derrubar_api_docker(
+    *, compose_file: Path | None = None, compose_project: str | None = None
+) -> None:
+    """Derruba deliberadamente a API em um Compose; uso somente em demonstração.
+
+    ``compose_file`` permite isolar o ensaio de carga do Compose principal. Sem
+    ele, preserva o comportamento histórico de usar o perfil ``ml`` do Compose
+    da raiz do repositório.
+    """
+    comando = ["docker", "compose"]
+    if compose_file is not None:
+        comando.extend(["-f", str(compose_file.resolve())])
+    else:
+        comando.extend(["--profile", "ml"])
+    if compose_project:
+        comando.extend(["-p", compose_project])
+    comando.extend(["kill", "api-ml"])
     resultado = subprocess.run(comando, cwd=ROOT, check=False, capture_output=True, text=True, timeout=30)
     if resultado.returncode != 0:
         detalhe = resultado.stderr.strip() or resultado.stdout.strip()
@@ -230,6 +244,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout-ms", type=int, default=settings.ml_timeout_ms, help="Timeout por requisição.")
     parser.add_argument("--sabotage-docker", action="store_true", help="Derruba api-ml entre as duas fases do ensaio.")
     parser.add_argument("--sabotage-after", type=int, default=10, help="Quantidade processada antes da sabotagem.")
+    parser.add_argument(
+        "--compose-file",
+        type=Path,
+        help="Arquivo Compose usado para derrubar api-ml; permite usar o ambiente isolado de sabotagem.",
+    )
+    parser.add_argument(
+        "--compose-project",
+        help="Nome do projeto Compose usado na sabotagem (ex.: sabotagem-ml).",
+    )
     parser.add_argument("--output", type=Path, default=Path("data/output/ensaio_torneio_ml.json"), help="Relatório JSON de saída.")
     args = parser.parse_args()
     if args.total < 1 or args.workers < 1 or args.queue_size < 1 or args.timeout_ms < 1:
@@ -261,7 +284,10 @@ def main() -> int:
                 workers=args.workers,
                 tamanho_fila=args.queue_size,
             )
-            derrubar_api_docker()
+            derrubar_api_docker(
+                compose_file=args.compose_file,
+                compose_project=args.compose_project,
+            )
             segunda_fase = executar_fila(
                 payloads[args.sabotage_after:],
                 ml_client=ml_client,

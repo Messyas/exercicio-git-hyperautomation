@@ -318,6 +318,8 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -r requirements-dev.txt
+# Necessário para os testes e comandos da API de ML (FastAPI, Pydantic e Uvicorn).
+python -m pip install -r api_ml/requirements.txt
 ```
 
 Se não quiser ativar o ambiente, execute os comandos com
@@ -330,10 +332,15 @@ python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements-dev.txt
+# Necessário para os testes e comandos da API de ML (FastAPI, Pydantic e Uvicorn).
+python -m pip install -r api_ml/requirements.txt
 ```
 
 O arquivo `requirements-dev.txt` instala as dependências da aplicação,
-`pytest`, `pytest-cov` e `pytest-playwright`. Ele não instala Selenium.
+`pytest`, `pytest-cov` e `pytest-playwright`. Ele não instala Selenium nem
+as dependências do microserviço de ML. Portanto, para executar a suíte que
+inclui `api_ml/` (inclusive `tests/unit/test_api_ml.py`) ou iniciar a API fora
+do Docker, instale também `api_ml/requirements.txt`, como mostrado acima.
 
 ### Suíte consolidada da Aula 23
 
@@ -601,6 +608,34 @@ contrato da resposta e gera `data/output/ensaio_torneio_ml.json`. A flag
 `--sabotage-docker` é opt-in: ela executa `docker compose kill api-ml`; depois
 da sabotagem, o relatório deve apresentar fallbacks e circuit breaker aberto,
 sem perder tarefas da fila.
+
+#### Ensaio isolado de carga com queda real da API
+
+Para a apresentação, use o Compose separado abaixo. Ele limita a API a
+**256 MB de RAM** e **0,5 CPU**, publica-a na porta `8001` e não interfere no
+Compose principal. A queda é deliberada depois de uma primeira fase de carga:
+isso comprova indisponibilidade real sem tentar esgotar a memória da máquina
+anfitriã, o que seria instável e inseguro.
+
+```powershell
+# 1. Subir somente a API limitada no projeto isolado.
+docker compose -f docker-compose.sabotagem.yml -p sabotagem-ml up -d --build
+
+# 2. Aplicar carga real; após 100 requisições válidas, o script executa
+#    "docker compose ... kill api-ml" no projeto isolado e valida o fallback.
+python scripts/demo_torneio.py --total 1000 --workers 16 --queue-size 64 --timeout-ms 500 --api-url http://127.0.0.1:8001 --sabotage-docker --sabotage-after 100 --compose-file docker-compose.sabotagem.yml --compose-project sabotagem-ml --output data/output/ensaio_sabotagem_carga.json
+
+# 3. Guardar o JSON e os logs para apresentar a evidência da queda.
+docker compose -f docker-compose.sabotagem.yml -p sabotagem-ml logs api-ml
+
+# 4. Limpar o ambiente isolado.
+docker compose -f docker-compose.sabotagem.yml -p sabotagem-ml down --volumes --remove-orphans
+```
+
+O comando deve terminar com sucessos antes da sabotagem, `fallbacks_offline`
+maior que zero e `circuito_aberto_em` maior que zero em
+`data/output/ensaio_sabotagem_carga.json`. Não execute esse ensaio no Compose
+principal ou em um ambiente compartilhado.
 
 ### 8. Auditoria de viés, robustez e confiança do modelo
 

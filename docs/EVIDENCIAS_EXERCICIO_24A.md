@@ -111,6 +111,27 @@ Os relatórios brutos estão em
 [`ensaio_torneio_sabotagem.json`](../data/output/ensaio_torneio_sabotagem.json)
 e [`ensaio_torneio_1000.json`](../data/output/ensaio_torneio_1000.json).
 
+### Validação do Compose isolado de sabotagem (19/08/2026)
+
+Foi validado o arquivo
+[`docker-compose.sabotagem.yml`](../docker-compose.sabotagem.yml), criado para
+o ensaio de carga com queda real da API sem afetar o Compose principal.
+
+| Verificação | Comando | Resultado observado |
+| --- | --- | --- |
+| Sintaxe do Compose | `docker compose -f docker-compose.sabotagem.yml -p sabotagem-ml config --quiet` | concluído com código 0 |
+| Inicialização da API | `docker compose -f docker-compose.sabotagem.yml -p sabotagem-ml up -d --build` | container `sabotagem-ml-api-ml-1` saudável |
+| Health real | `GET http://localhost:8001/health` | HTTP 200, `model_loaded: true`, versão `rf-lotes-1.0.0` |
+| Limites efetivos | `docker inspect sabotagem-ml-api-ml-1` | `Memory=268435456` (256 MB) e `NanoCpus=500000000` (0,5 CPU) |
+| Log de inicialização | `docker compose ... logs api-ml` | modelo carregado e requisições `/health` respondendo 200 |
+
+O roteiro completo para carga e sabotagem está no
+[README](../README.md#ensaio-isolado-de-carga-com-queda-real-da-api). Ele envia
+1.000 requisições com 16 workers e fila de 64 itens, derruba
+deliberadamente a API isolada após 100 chamadas e grava
+`data/output/ensaio_sabotagem_carga.json`. Essa etapa deve ser executada antes
+da apresentação para guardar o JSON e o log da queda como evidência.
+
 ## Auditoria de robustez do classificador
 
 Random Forest não interpreta instruções, logo não sofre *prompt injection* no
