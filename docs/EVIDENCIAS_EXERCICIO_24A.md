@@ -129,8 +129,10 @@ O roteiro completo para carga e sabotagem está no
 [README](../README.md#ensaio-isolado-de-carga-com-queda-real-da-api). Ele envia
 1.000 requisições com 16 workers e fila de 64 itens, derruba
 deliberadamente a API isolada após 100 chamadas e grava
-`data/output/ensaio_sabotagem_carga.json`. Essa etapa deve ser executada antes
-da apresentação para guardar o JSON e o log da queda como evidência.
+`data/output/ensaio_sabotagem_carga.json`. O resultado executado está
+registrado em
+[ensaio_sabotagem_carga.md](../data/output/ensaio_sabotagem_carga.md), com o
+JSON bruto versionado na mesma pasta para apresentação da evidência.
 
 ## Auditoria de robustez do classificador
 

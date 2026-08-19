@@ -637,6 +637,9 @@ maior que zero e `circuito_aberto_em` maior que zero em
 `data/output/ensaio_sabotagem_carga.json`. Não execute esse ensaio no Compose
 principal ou em um ambiente compartilhado.
 
+O resultado do ensaio executado em 19/08/2026 está documentado em
+[data/output/ensaio_sabotagem_carga.md](data/output/ensaio_sabotagem_carga.md).
+
 ### 8. Auditoria de viés, robustez e confiança do modelo
 
 Random Forest não interpreta instruções, portanto não sofre *prompt injection*

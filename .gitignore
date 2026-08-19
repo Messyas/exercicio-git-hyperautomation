@@ -45,6 +45,8 @@ Desktop.ini
 
 data/output/*
 !data/output/.gitkeep
+!data/output/ensaio_sabotagem_carga.json
+!data/output/ensaio_sabotagem_carga.md
 data/datapool/
 logs/
 
