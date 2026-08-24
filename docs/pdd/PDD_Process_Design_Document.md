@@ -213,24 +213,24 @@ O bot não altera a planilha original e não acessa ERP, MES ou sistemas oficiai
 
 **Campo para preenchimento:**
 
-**Raia do Bot 1 - Coletor / Ingestão (`grupo-bot-coletor-v1`):**
+**Raia do Bot 1 - Coletor / Ingestão (`messyas-bot-coletor-v1`):**
 
 1. **Carregar a entrada**: a execução é iniciada sob demanda ou via Maestro. Lê a planilha e valida estrutura.
 2. **Validar a estrutura**: exige exatamente as oito colunas previstas.
-3. **Encadear tarefa**: dispara o Bot 2 (`grupo-bot-cadastro-v1`) via `create_task()` no Maestro.
+3. **Encadear tarefa**: dispara o Bot 2 (`messyas-bot-cadastro-v1`) via `create_task()` no Maestro.
 
-**Raia do Bot 2 - Cadastro Web RPA (`grupo-bot-cadastro-v1`):**
+**Raia do Bot 2 - Cadastro Web RPA (`messyas-bot-cadastro-v1`):**
 
 1. **Cadastrar no Next.js**: autentica no frontend e envia os dados com Playwright.
 2. **Confirmar o cadastro**: captura comprovantes e screenshots.
-3. **Encadear tarefa**: dispara o Bot 3 (`grupo-bot-conferencia-v1`) via `create_task()`.
+3. **Encadear tarefa**: dispara o Bot 3 (`messyas-bot-conferencia-v1`) via `create_task()`.
 
-**Raia do Bot 3 - Conferência Híbrida RPA + ML (`grupo-bot-conferencia-v1`):**
+**Raia do Bot 3 - Conferência Híbrida RPA + ML (`messyas-bot-conferencia-v1`):**
 
 1. **Consumir dados**: recebe o lote processado.
 2. **Aplicar RN01–RN07**: valida data, campos obrigatórios, existência, domínio, normalização, ambiguidade e observação.
 3. **Enriquecimento com ML Híbrido (`ClassificadorDivergencia`)**: para cada item com divergência, consulta o modelo ML para sugerir a `causa_provavel_ml`. O modelo é controlado por `ML_ENABLED` e respeita o limiar `ML_CONFIANCA_MINIMA`. Se houver indisponibilidade, timeout ou baixa confiança, aplica o fallback seguro com `origem_decisao="fallback"`, sem interromper o bot.
-4. **Gerar Evidências e Auditoria**: inclui as colunas `origem_decisao` (`ml` ou `fallback`), `confianca_ml` e `causa_provavel_ml` na planilha `.xlsx` e salva falhas irrecuperáveis em `data/output/dead_letter.jsonl`.
+4. **Gerar Evidências e Auditoria**: inclui as colunas `origem_decisao` (`ml` ou `fallback`), `confianca_ml`, `causa_provavel_ml` e `motivo_fallback` na planilha `.xlsx` e salva falhas irrecuperáveis em `data/output/dead_letter.jsonl`.
 5. **Notificação Multicanal (`SistemaAlertas`)**: envia alertas via Telegram (canal principal), com fallback automático para WhatsApp/Email em caso de falha. Dispara alerta de severidade AVISO se 100% dos itens caírem em modo fallback de ML.
 
 **Raia do Analista:**

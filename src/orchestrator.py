@@ -1,9 +1,9 @@
 """Orquestrador Multi-Bot para o Maestro (Estudo de Caso S10-B).
 
 Este módulo implementa o encadeamento sequencial de 3+ bots registrados no Maestro:
-1. `grupo-bot-coletor-v1`: Ingestão, validação da planilha e disponibilização do lote.
-2. `grupo-bot-cadastro-v1`: Processamento web RPA via Playwright.
-3. `grupo-bot-conferencia-v1`: Conferência RN01–RN07, classificação híbrida ML e alertas.
+1. `messyas-bot-coletor-v1`: Ingestão, validação da planilha e disponibilização do lote.
+2. `messyas-bot-cadastro-v1`: Processamento web RPA via Playwright.
+3. `messyas-bot-conferencia-v1`: Conferência RN01–RN07, classificação híbrida ML e alertas.
 
 Atende às Seções 3.1, 8 e 9.1 do enunciado.
 """
