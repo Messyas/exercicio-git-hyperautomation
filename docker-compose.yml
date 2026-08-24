@@ -166,5 +166,30 @@ services:
       - ./logs:/app/logs
     command: ["python", "dashboard/main.py"]
 
+  simulacao-crise:
+    profiles: ["sabotagem", "simulacao"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: producer
+    depends_on:
+      api-ml:
+        condition: service_healthy
+    env_file:
+      - path: ./.env.example
+        required: true
+      - path: ./.env
+        required: false
+    environment:
+      ML_API_URL: http://api-ml:8000
+      APP_TIMEZONE: America/Manaus
+      TZ: America/Manaus
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+    command: ["python", "scripts/simular_cenarios_sabotagem.py"]
+
+
 volumes:
   run-status:
