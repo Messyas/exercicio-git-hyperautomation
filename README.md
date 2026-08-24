@@ -19,7 +19,46 @@ Rejeições e falhas de cadastro não entram no DataPool. O Bot 1 preserva esses
 itens em um relatório próprio, com os dados de origem, o motivo e o caminho da
 evidência. Assim, o Bot 2 recebe apenas itens que concluíram a etapa anterior.
 
+## Estudo de Caso S10-B — Pipeline Híbrido Resiliente RPA+ML
+
+Esta versão implementa todas as especificações do **Estudo de Caso S10-B**:
+1. **Orquestração Multi-Bot (3+ Bots)**: Encadear 3 bots no Maestro (`grupo-bot-coletor-v1` -> `grupo-bot-cadastro-v1` -> `grupo-bot-conferencia-v1`) via `src/orchestrator.py` usando `create_task()`.
+2. **Classificador ML Híbrido (`src/classificador_divergencia.py`)**: Analisa o texto livre de `observacao` para sugerir a causa provável de divergência. Respeita a feature flag `ML_ENABLED` (quando `False`, nenhuma chamada de rede é feita) e o limiar `ML_CONFIANCA_MINIMA` (padrão `0.70`). **Garantia de 100% de resiliência**: nenhuma exceção da camada de ML é propagada ao bot.
+3. **Decisão de Negócio Independente**: O status do lote (`VALIDO`, `DIVERGENCIA`, `PENDENTE_REVISAO`) é decidido exclusivamente pelas regras RN01–RN07. O ML apenas enriquece os itens de divergência com `causa_provavel_ml`.
+4. **Relatório Auditável (`src/relatorio.py`)**: Exporta as colunas `origem_decisao` (`ml` vs `fallback`), `confianca_ml` e `causa_provavel_ml` na planilha `.xlsx` e JSON.
+5. **Notificação Multicanal (`src/sistema_alertas.py`)**: Telegram como canal principal, com fallback automático para WhatsApp (Twilio) ou Email (SMTP) em caso de falha. Alerta obrigatório (severidade AVISO) quando 100% dos itens caírem em fallback de ML.
+6. **Dead Letter File**: Persistência de itens irrecuperáveis em `data/output/dead_letter.jsonl`.
+7. **Simulação de Crise (5 Cenários)**: Script `scripts/simular_cenarios_sabotagem.py` para testar e gerar evidências dos 5 cenários de sabotagem ao vivo.
+
+### Configuração no `.env`
+
+```env
+# ML Híbrido
+ML_ENABLED=true
+ML_API_URL=http://127.0.0.1:8000
+ML_TIMEOUT_MS=1000
+ML_CONFIANCA_MINIMA=0.70
+
+# Notificações Multicanal
+TELEGRAM_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+TELEGRAM_CHAT_ID=-100123456789
+WHATSAPP_ENABLED=false
+EMAIL_ENABLED=false
+
+# Dead Letter File
+DEAD_LETTER_FILE=data/output/dead_letter.jsonl
+```
+
+### Executar a Simulação de Crise e Sabotagem
+
+```bash
+python scripts/simular_cenarios_sabotagem.py
+```
+
+O script testa os 5 cenários da Seção 6 e gera o relatório `reports/evidencias_sabotagem/resumo_evidencias_sabotagem.json`.
+
 ## Fluxo
+
 
 ```text
 data/samples/inspecao_lotes_dia.xlsx

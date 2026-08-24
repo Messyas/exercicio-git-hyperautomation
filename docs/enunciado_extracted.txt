@@ -1,0 +1,142 @@
+LG Electronics do Brasil · AX Academy
+Enunciado de Exercício em Grupo — Estudo de Caso S10-B
+Pipeline multi-bot resiliente com decisão híbrida RPA+ML e notificação multicanal
+1. Onde paramos
+Nas Aulas 26 a 29, o pipeline de conferência de lotes evoluiu de um bot único para uma cadeia orquestrada no Maestro: múltiplos bots em sequência e em paralelo, filas com prioridade, dependências com timeout, alertas em três canais (Telegram, WhatsApp e Email) e um conjunto completo de padrões de resiliência — retry com backoff, fallback para processamento degradado e dead letter para itens irrecuperáveis. O pipeline está pronto para operar em produção supervisionada, mas ainda decide tudo por regras explícitas (RN01–RN03).
+O problema é que boa parte das divergências de lote vem acompanhada de um campo de observação em texto livre, digitado pelo operador do centro de distribuição — por exemplo, "digitei errado o codigo", "faltou peça na doca 3", "lançamento duplicado por engano". Hoje um analista lê cada observação manualmente para decidir a causa provável antes de decidir se o lote precisa de reprocessamento ou só de correção de cadastro.
+📌  Sobre este exercício
+Este estudo de caso consolida o conteúdo das Aulas 26–30: orquestrar 3+ bots com dependências no Maestro, integrar um componente de Machine Learning que sugere a causa provável da divergência a partir de texto livre, garantir que esse componente nunca seja uma dependência crítica, e notificar a equipe operacional nos canais corretos quando o pipeline muda de estado — incluindo quando passa a operar sem ML.
+Reaproveitem integralmente o motor de validação (RN01–RN03), o SistemaAlertas com fallback de canal, o padrão de retry/dead letter e a orquestração via Maestro já construídos. O ML entra como uma nova camada de decisão para os casos ambíguos — não substitui nada do que já existe.
+2. Objetivo do exercício
+Projetar e implementar, em grupo, um pipeline de 3 ou mais bots orquestrados no Maestro que processe lotes com divergência usando as regras já existentes, enriqueça cada divergência com uma causa provável sugerida por um componente de ML controlado por feature flag, degrade com elegância quando esse componente falha, e avise a equipe pelo canal certo em cada situação — provando tudo isso ao vivo, sob sabotagem controlada do instrutor.
+🎯  O que muda em relação às Aulas 26–29 — e o que não muda
+Não mudam: as regras RN01–RN03, o orchestrator.py de disparo entre bots, o wait_for_predecessor.py, o SistemaAlertas com Telegram/WhatsApp/Email e os padrões de retry, fallback e dead letter já entregues.
+O que é novo: o componente ClassificadorDivergencia controlado por feature flag, o campo origem_decisao (ml/fallback) rastreado em cada item, o alerta específico de "pipeline operando sem ML" e a 4ª camada de resiliência testada ao vivo: a falha de um componente opcional (ML), separada das falhas de infraestrutura crítica já cobertas.
+3. Especificação técnica
+3.1 Pipeline multi-bot orquestrado
+Mínimo de 3 bots registrados no Maestro, com nomenclatura nome_aluno-nome_bot-versao.
+Pelo menos uma dependência sequencial (Bot A dispara Bot B ao concluir) implementada via create_task(), reaproveitando o orchestrator.py da Aula 26.
+Rastreamento de cadeia completo nos parâmetros de tarefa (quem disparou quem, com que resultado).
+3.2 Decisão híbrida RPA + ML
+Componente de classificação (modelo real, API pública de NLP ou mock controlável) que sugere a causa provável da divergência a partir do campo observacao.
+Uso do ML controlado por variável de ambiente (ML_ENABLED) que liga/desliga sem alterar o restante do código do bot.
+A decisão de negócio (VALIDO / DIVERGENCIA / PENDENTE_REVISAO) nunca pode depender do ML — apenas das regras RN01–RN03.
+Limiar de confiança mínima configurável (ML_CONFIANCA_MINIMA), abaixo do qual a sugestão do modelo é descartada.
+Todo item processado registra, no relatório final, se a causa provável veio do ML ou do fallback (campo origem_decisao).
+3.3 Resiliência
+Retry com backoff linear para operações de infraestrutura crítica (ex.: consulta à base de referência), reaproveitando o padrão da Aula 29.
+Dead letter para itens que falham repetidamente por motivo de dado, não de infraestrutura.
+Fallback específico para o componente de ML: indisponibilidade, timeout e baixa confiança tratados como casos distintos, nenhum deles pode travar o bot.
+Nenhuma exceção do componente de ML pode se propagar até o loop principal do bot.
+3.4 Notificação multicanal
+Telegram como canal principal de alerta, reaproveitando o SistemaAlertas da Aula 28.
+Pelo menos um canal adicional (WhatsApp via Twilio ou Email com anexo) para eventos ERRO/CRÍTICO.
+Fallback de canal: se o canal principal falhar, o alerta chega por outro caminho, ou no mínimo é registrado em log local com destaque.
+Alerta obrigatório de severidade AVISO quando 100% dos itens de divergência caírem em fallback de ML na execução.
+4. O que fazer
+Registrar 3+ bots no Maestro com nomenclatura correta e implementar a dependência sequencial entre eles.
+Implementar o componente ClassificadorDivergencia com feature flag, timeout curto e tratamento de toda exceção como fallback.
+Integrar o classificador ao bot de conferência (Bot B), garantindo que a decisão de status nunca dependa do ML.
+Adicionar o campo origem_decisao e confianca_ml ao relatório final de cada execução.
+Reaproveitar e adaptar o SistemaAlertas para notificar o evento "pipeline operando sem ML".
+Implementar/confirmar retry com backoff e dead letter para as falhas de infraestrutura já mapeadas na Aula 29.
+Simular os cinco cenários de falha da seção 6 e coletar evidência (log, print ou vídeo curto) de cada um.
+Preparar a demonstração ao vivo da Simulação de Crise (seção 6).
+5. Inovação da turma: Simulação de Crise ao Vivo
+A proposta desta edição é sair do modelo de "entrega silenciosa de repositório" e transformar a apresentação da Semana 11 em uma simulação de incidente ao vivo, com métricas reais decididas na hora, na frente da turma.
+🏆  Como funciona
+1) Lote de incidente oculto — no dia da apresentação, a equipe avaliadora entrega a cada grupo um mesmo lote de 30 casos com divergência, incluindo observações em texto livre que nenhum grupo viu antes. O pipeline deve processar esse lote em tempo real.
+2) Sabotagem controlada — em algum momento da demonstração, sem aviso prévio, o instrutor derruba o serviço de ML do grupo e, em outro momento, a base de referência ou o canal principal de alerta. O pipeline precisa continuar processando e notificando, ao vivo, na frente de todos. Grupo que trava perde pontos automaticamente, independente da qualidade das sugestões do ML.
+3) Placar público — um placar único, projetado em tela, soma os quatro eixos de pontuação da seção 5.2 em tempo real, atualizado a cada grupo. O placar fica exposto durante toda a apresentação.
+5.1 Por que este formato
+A apatia costuma vir de exercícios sem risco e sem plateia: o código roda uma vez, no computador do aluno, e ninguém mais vê o resultado. Aqui, o resultado é público, comparável entre grupos e parcialmente imprevisível — o que aproxima o exercício de um incidente real de produção e cobra, na prática, exatamente o que as Aulas 26–30 ensinam: continuidade sob estresse, não só funcionamento em condição ideal.
+5.2 Critérios de pontuação da simulação (100 pts)
+Eixo
+Pontos
+Como é medido
+Continuidade sob sabotagem
+40
+O pipeline continua processando e concluindo o lote após cada componente derrubado (ML, base de referência, canal de alerta), sem travar e sem reinício manual.
+Rastreabilidade da decisão
+20
+O relatório final permite identificar, por item, se a causa provável veio do ML ou do fallback, sem abrir código.
+Notificação correta
+25
+O alerta certo chega no canal certo em cada evento simulado, incluindo o aviso de "pipeline sem ML" e o fallback de canal quando o principal falha.
+Qualidade da orquestração
+15
+Dependências entre bots respeitadas, cadeia de execução rastreável, retry/dead letter funcionando nas falhas de infraestrutura.
+✅  Selo da turma
+O grupo com maior pontuação recebe o selo simbólico "Pipeline Mais Resiliente da Turma" no README do repositório principal da disciplina — sem nota extra na avaliação individual, apenas reconhecimento. O objetivo é o engajamento, não a comparação punitiva: todos os grupos que atingirem os critérios de aceite da seção 8 são aprovados, independentemente da posição no placar.
+6. Cenários de falha testados na apresentação
+O grupo revisor e o instrutor provocam, ao vivo ou via evidência gravada, os cenários abaixo. O pipeline precisa se comportar corretamente em todos.
+Cenário
+Falha simulada
+Comportamento esperado
+Rede instável na base de referência
+Bloquear/renomear temporariamente o acesso à base
+Retry com backoff acionado; se persistir, fallback para PENDENTE_REVISAO; alerta correspondente disparado
+Serviço de ML fora do ar
+Derrubar o serviço/mock de ML ou apontar para endpoint inválido
+Bot não trava; item recebe causa "nao_classificado"/fallback; execução termina normalmente
+ML lento (acima do timeout)
+Forçar delay no serviço/mock de ML
+Timeout respeitado; bot não fica esperando indefinidamente
+ML com baixa confiança
+Forçar resposta do modelo com confiança abaixo do limiar
+Fallback aplicado mesmo com resposta "válida" do modelo
+Canal de alerta principal falha
+Remover/invalidar o token do Telegram
+Alerta chega pelo canal alternativo (WhatsApp/Email) ou é registrado com destaque em log local
+7. Entregáveis
+Código-fonte do pipeline (3+ bots) em repositório, branch feature/S10B-[grupo].
+src/classificador_divergencia.py com feature flag, timeout e fallback implementados.
+PDD atualizado com a arquitetura híbrida (seções 6, 8, 9, 16 e 17).
+Evidências (logs, prints ou vídeo curto) dos cinco cenários de falha da seção 6.
+Relatório final de uma execução de amostra, com a coluna origem_decisao visível.
+README.md com instruções de configuração, incluindo como ligar/desligar o ML e configurar os canais de notificação.
+Apresentação ao vivo de até 8 minutos no formato Simulação de Crise.
+8. Critérios de aceite
+Critério
+Aprovado quando...
+Orquestração multi-bot
+3+ bots com dependência clara e cadeia de execução rastreável nos logs ou no painel do Maestro.
+ML isolado por abstração
+Nenhuma chamada ao serviço de ML acontece fora do componente ClassificadorDivergencia, e o feature flag desativa a chamada de fato.
+Decisão de negócio independente do ML
+O status do item (VALIDO/DIVERGENCIA/PENDENTE_REVISAO) depende só das regras RN01–RN03.
+Nunca lança exceção
+O componente de ML retorna um resultado seguro em qualquer falha de rede, timeout ou resposta malformada — nunca propaga exceção ao bot.
+Bot nunca para
+Durante a sabotagem ao vivo, o processamento do lote continua até o fim, com fallback registrado.
+Rastreabilidade completa
+origem_decisao e confianca_ml aparecem no relatório final para todo item de divergência, sem perda de registros.
+Notificação resiliente
+O alerta certo chega no canal certo; se o canal principal falhar, o fallback de canal funciona.
+9. Checklist final da automação
+Marquem cada item antes de abrir o Pull Request. É o mesmo padrão de checklist das Aulas 26–29 — agora estendido para a camada de ML e a simulação ao vivo.
+9.1 Orquestração
+☐  3+ bots registrados no Maestro com nomenclatura nome_aluno-nome_bot-versao.
+☐  Dependência sequencial implementada via create_task() e cadeia de execução rastreável.
+9.2 Decisão híbrida RPA+ML
+☐  ML_ENABLED desliga a chamada de ML de fato, sem alterar código.
+☐  Decisão de status do item nunca depende do ML.
+☐  Limiar de confiança mínima configurável e respeitado.
+9.3 Resiliência
+☐  Componente de ML nunca lança exceção — testado derrubando o serviço manualmente.
+☐  Retry com backoff e dead letter funcionando nas falhas de infraestrutura.
+☐  Pipeline processa o lote inteiro mesmo com ML, base de referência ou canal de alerta indisponíveis.
+9.4 Auditoria e notificação
+☐  origem_decisao e confianca_ml presentes no relatório final, sem registros faltando.
+☐  Alerta de "pipeline operando sem ML" disparado corretamente em teste.
+☐  Fallback de canal testado invalidando o Telegram.
+9.5 Simulação e entrega
+☐  Grupo já ensaiou a própria simulação de sabotagem antes da apresentação.
+☐  README.md documenta configuração do ML e dos canais de notificação.
+☐  Repositório privado com instrutor e mentor como colaboradores.
+10. Perguntas da banca
+Por que o ML não pode decidir o status do item, mesmo quando a confiança da predição é altíssima? O que isso protege?
+O que acontece com um item se o serviço de ML cair no meio do processamento de um lote de 10 mil registros? Ele fica sem classificação para sempre?
+Qual é a diferença entre o fallback do ML (Aula 30) e o fallback de infraestrutura crítica, como a base de referência (Aula 29)? Por que os dois merecem tratamentos diferentes?
+Se o canal principal de notificação e o componente de ML falharem ao mesmo tempo, o que a equipe operacional ainda consegue saber sobre o estado do pipeline?
+Lembrete final: a Simulação de Crise mede o comportamento sob estresse, não só a qualidade das sugestões em condição perfeita. Um classificador com 95% de acurácia que trava quando o serviço de ML cai vale menos, nesta disciplina, do que um classificador com 80% de acurácia que nunca para o bot.

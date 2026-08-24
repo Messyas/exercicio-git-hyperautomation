@@ -22,7 +22,11 @@ COLUNAS_RELATORIO: tuple[str, ...] = (
     "descricao_do_erro",
     "acao_recomendada",
     "severidade",
+    "origem_decisao",
+    "confianca_ml",
+    "causa_provavel_ml",
 )
+
 
 COLUNAS_ERROS_FLUXO: tuple[str, ...] = (
     "item_id",
@@ -115,7 +119,11 @@ def _linha_relatorio(erro: Mapping[str, Any]) -> dict[str, Any]:
         "descricao_do_erro": _valor_descricao(erro),
         "acao_recomendada": erro.get("acao_recomendada", "Encaminhar ao analista"),
         "severidade": erro.get("severidade", "Média"),
+        "origem_decisao": erro.get("origem_decisao", "fallback"),
+        "confianca_ml": erro.get("confianca_ml", 0.0),
+        "causa_provavel_ml": erro.get("causa_provavel_ml", "nao_classificado"),
     }
+
 
 
 def _caminho_disponivel(caminho_base: Path) -> Path:
