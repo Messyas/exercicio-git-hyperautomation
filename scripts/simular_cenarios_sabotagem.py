@@ -196,13 +196,16 @@ def cenario_4_ml_baixa_confianca(output_dir: Path) -> dict:
 def cenario_5_canal_alerta_falha(output_dir: Path) -> dict:
     """Cenário 5: Canal de Alerta Telegram Inválido -> Fallback de Canal."""
     logger.info("=== EXECUTANDO CENÁRIO 5: Canal Principal de Alerta Inválido ===")
+    fake_credentials = "TOKEN_INVALIDO_12345"
     alertas = SistemaAlertas(
-        telegram_token="TOKEN_INVALIDO_12345",
+        telegram_token=fake_credentials,
         telegram_chat_id="CHAT_INVALIDO",
         whatsapp_enabled=False,
         email_enabled=False,
         logger_instance=logger,
     )
+
+
     res_notificacao = alertas.notificar(
         mensagem="Teste de falha no Telegram e fallback para Log Local",
         nivel="ERRO",
