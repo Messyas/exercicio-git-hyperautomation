@@ -71,6 +71,26 @@ def _env_int(name: str, default: int, *, minimum: int = 0) -> int:
     return convertido
 
 
+def _env_float(name: str, default: float, *, minimum: float = 0.0, maximum: float = 1.0) -> float:
+    """Lê um float do ambiente e valida seu intervalo."""
+    valor = os.getenv(name)
+    if valor is None or not valor.strip():
+        return default
+
+    try:
+        convertido = float(valor.strip())
+    except ValueError as exc:
+        raise ValueError(
+            f"A variável {name} deve conter um número decimal (valor recebido: {valor!r})."
+        ) from exc
+
+    if not (minimum <= convertido <= maximum):
+        raise ValueError(
+            f"A variável {name} deve estar entre {minimum} e {maximum} (valor recebido: {convertido})."
+        )
+    return convertido
+
+
 @dataclass(frozen=True)
 class Settings:
     """Configurações usadas pelas etapas atuais e futuras do bot."""
@@ -107,6 +127,20 @@ class Settings:
     ml_timeout_ms: int
     ml_failure_threshold: int
     ml_model_path: Path
+    ml_confianca_minima: float
+    telegram_token: str | None
+    telegram_chat_id: str | None
+    whatsapp_enabled: bool
+    twilio_account_sid: str | None
+    twilio_auth_token: str | None
+    whatsapp_to: str | None
+    whatsapp_from: str | None
+    email_enabled: bool
+    smtp_server: str | None
+    smtp_port: int
+    email_from: str | None
+    email_to: str | None
+    dead_letter_file: Path
 
 
 
@@ -184,8 +218,23 @@ def get_settings() -> Settings:
         ml_timeout_ms=_env_int("ML_TIMEOUT_MS", 1000, minimum=1),
         ml_failure_threshold=_env_int("ML_FAILURE_THRESHOLD", 5, minimum=1),
         ml_model_path=_env_path("ML_MODEL_PATH", "models/classificador_lotes.pkl"),
+        ml_confianca_minima=_env_float("ML_CONFIANCA_MINIMA", 0.70, minimum=0.0, maximum=1.0),
+        telegram_token=os.getenv("TELEGRAM_TOKEN") or None,
+        telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID") or None,
+        whatsapp_enabled=_env_bool("WHATSAPP_ENABLED", default=False),
+        twilio_account_sid=os.getenv("TWILIO_ACCOUNT_SID") or None,
+        twilio_auth_token=os.getenv("TWILIO_AUTH_TOKEN") or None,
+        whatsapp_to=os.getenv("WHATSAPP_TO") or None,
+        whatsapp_from=os.getenv("WHATSAPP_FROM") or None,
+        email_enabled=_env_bool("EMAIL_ENABLED", default=False),
+        smtp_server=os.getenv("SMTP_SERVER") or None,
+        smtp_port=_env_int("SMTP_PORT", 587),
+        email_from=os.getenv("EMAIL_FROM") or None,
+        email_to=os.getenv("EMAIL_TO") or None,
+        dead_letter_file=_env_path("DEAD_LETTER_FILE", "data/output/dead_letter.jsonl"),
     )
 
 
 
 settings = get_settings()
+

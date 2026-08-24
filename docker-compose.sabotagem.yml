@@ -7,13 +7,11 @@ services:
       context: .
       dockerfile: api_ml/Dockerfile
     ports:
-      - "8001:8000"
+      - "8000:8000"
     environment:
       ML_MODEL_PATH: /service/models/classificador_lotes.pkl
       ML_MAX_CONCURRENCY: "1"
       TZ: America/Manaus
-    mem_limit: 256m
-    cpus: 0.50
     healthcheck:
       test:
         - CMD
@@ -25,3 +23,27 @@ services:
       retries: 10
       start_period: 10s
     restart: "no"
+
+  simulacao-crise:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: producer
+    depends_on:
+      api-ml:
+        condition: service_healthy
+    env_file:
+      - path: ./.env.example
+        required: true
+      - path: ./.env
+        required: false
+    environment:
+      ML_API_URL: http://api-ml:8000
+      APP_TIMEZONE: America/Manaus
+      TZ: America/Manaus
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+    command: ["python", "scripts/simular_cenarios_sabotagem.py"]
+

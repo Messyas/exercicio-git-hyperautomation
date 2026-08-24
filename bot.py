@@ -19,8 +19,11 @@ import pandas as pd
 
 from config import settings
 from src.base_referencia import carregar_base_referencia, verificar_existencia_lote
+from src.classificador_divergencia import ClassificadorDivergencia, ResultadoClassificacao
 from src.regras_negocio import normalizar_status, validar_dominio_status
 from src.relatorio import gerar_relatorio_divergencias
+from src.sistema_alertas import SistemaAlertas
+from src.time_utils import now_local
 from src.validacao import (
     DATA_REFERENCIA_PADRAO,
     ErroEstrutural,
@@ -30,7 +33,7 @@ from src.validacao import (
     validar_data_referencia,
     validar_observacao_reprovado,
 )
-from src.time_utils import now_local
+
 
 
 ARQUIVO_PADRAO = settings.default_input_file
@@ -51,6 +54,10 @@ def _erro(
     descricao: Any,
     acao: str,
     severidade: str,
+    origem_decisao: str = "fallback",
+    confianca_ml: float = 0.0,
+    causa_provavel_ml: str = "nao_classificado",
+    motivo_fallback: str = "",
 ) -> dict[str, Any]:
     """Cria o formato comum consumido pelo relatório e pelo cálculo de válidos."""
     return {
@@ -60,6 +67,10 @@ def _erro(
         "descricao_do_erro": str(descricao),
         "acao_recomendada": acao,
         "severidade": severidade,
+        "origem_decisao": origem_decisao,
+        "confianca_ml": confianca_ml,
+        "causa_provavel_ml": causa_provavel_ml,
+        "motivo_fallback": motivo_fallback,
     }
 
 
@@ -231,6 +242,10 @@ def _consolidar_erros(erros: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "_descricoes": [],
                 "_acoes": [],
                 "_severidades": [],
+                "origem_decisao": erro.get("origem_decisao", "fallback"),
+                "confianca_ml": erro.get("confianca_ml", 0.0),
+                "causa_provavel_ml": erro.get("causa_provavel_ml", "nao_classificado"),
+                "motivo_fallback": erro.get("motivo_fallback", ""),
             },
         )
         if erro["regra_violada"] not in atual["_regras"]:
@@ -238,6 +253,11 @@ def _consolidar_erros(erros: list[dict[str, Any]]) -> list[dict[str, Any]]:
         atual["_descricoes"].append(erro["descricao_do_erro"])
         atual["_acoes"].append(erro["acao_recomendada"])
         atual["_severidades"].append(erro["severidade"])
+        if erro.get("origem_decisao") == "ml":
+            atual["origem_decisao"] = "ml"
+            atual["confianca_ml"] = erro.get("confianca_ml", 0.0)
+            atual["causa_provavel_ml"] = erro.get("causa_provavel_ml", "nao_classificado")
+            atual["motivo_fallback"] = ""
 
     resultado: list[dict[str, Any]] = []
     for atual in agrupados.values():
@@ -251,9 +271,14 @@ def _consolidar_erros(erros: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "severidade": "Alta"
                 if "Alta" in atual["_severidades"]
                 else "Média",
+                "origem_decisao": atual["origem_decisao"],
+                "confianca_ml": atual["confianca_ml"],
+                "causa_provavel_ml": atual["causa_provavel_ml"],
+                "motivo_fallback": atual["motivo_fallback"],
             }
         )
     return resultado
+
 
 
 def _escrever_log(
@@ -307,6 +332,8 @@ def validar_dataframe(
     indices_excluidos: set[int] | None = None,
     rejeicoes_cadastro: list[dict[str, Any]] | None = None,
     falhas_tecnicas: list[dict[str, Any]] | None = None,
+    classificador: ClassificadorDivergencia | None = None,
+    sistema_alertas: SistemaAlertas | None = None,
 ) -> dict[str, Any]:
     """Aplica RN01-RN07 a dados vindos de Excel ou DataPool.
 
@@ -323,6 +350,50 @@ def validar_dataframe(
         data_referencia=data_referencia or DATA_REFERENCIA_PADRAO,
     )
     df_normalizado = normalizar_status(df)
+
+    # Classificação Híbrida RPA+ML para os itens com divergência
+    clf = classificador or ClassificadorDivergencia(
+        api_url=settings.ml_api_url,
+        enabled=settings.ml_enabled,
+        timeout_ms=settings.ml_timeout_ms,
+        confianca_minima=settings.ml_confianca_minima,
+        logger_instance=logger,
+    )
+    alertas = sistema_alertas or SistemaAlertas(
+        telegram_token=settings.telegram_token,
+        telegram_chat_id=settings.telegram_chat_id,
+        whatsapp_enabled=settings.whatsapp_enabled,
+        twilio_account_sid=settings.twilio_account_sid,
+        twilio_auth_token=settings.twilio_auth_token,
+        whatsapp_to=settings.whatsapp_to,
+        whatsapp_from=settings.whatsapp_from,
+        email_enabled=settings.email_enabled,
+        smtp_server=settings.smtp_server,
+        smtp_port=settings.smtp_port,
+        email_from=settings.email_from,
+        email_to=settings.email_to,
+        logger_instance=logger,
+    )
+
+    for erro in erros:
+        idx = int(erro["_indice"])
+        row = df_normalizado.iloc[idx] if idx < len(df_normalizado) else {}
+        lote_id = str(erro.get("lote_id") or "")
+        obs = str(row.get("observacao", "") if hasattr(row, "get") else "")
+        status_raw = str(row.get("status_original", row.get("status", "")) if hasattr(row, "get") else "")
+        turno = str(row.get("turno", "") if hasattr(row, "get") else "")
+
+        res_ml: ResultadoClassificacao = clf.classificar(
+            lote_id=lote_id,
+            observacao=obs,
+            status_raw=status_raw,
+            turno=turno,
+        )
+        erro["origem_decisao"] = res_ml.origem_decisao
+        erro["confianca_ml"] = res_ml.confianca_ml
+        erro["causa_provavel_ml"] = res_ml.causa_provavel_ml
+        erro["motivo_fallback"] = res_ml.motivo_fallback or ""
+
     indices_divergentes = {int(erro["_indice"]) for erro in erros}
     indices_nao_validados = indices_divergentes | set(indices_excluidos or set())
     indices_validos = [
@@ -332,6 +403,23 @@ def validar_dataframe(
     ]
     lotes_validados = df_normalizado.loc[indices_validos].copy()
     erros_consolidados = _consolidar_erros(erros)
+
+    # Dispara alerta se 100% dos itens de divergência operaram em fallback de ML
+    if erros_consolidados and clf.operando_100_percent_fallback:
+        alertas.notificar_pipeline_sem_ml(len(erros_consolidados))
+
+    # Dead Letter file para falhas de dados irrecuperáveis
+    if falhas_tecnicas or rejeicoes_cadastro:
+        dead_letter_path = settings.dead_letter_file
+        try:
+            dead_letter_path.parent.mkdir(parents=True, exist_ok=True)
+            with dead_letter_path.open("a", encoding="utf-8") as f:
+                for item in list(falhas_tecnicas or []) + list(rejeicoes_cadastro or []):
+                    f.write(json.dumps(item, ensure_ascii=False) + "\n")
+        except Exception as exc:
+            if logger:
+                logger.warning(f"Não foi possível gravar no dead letter file {dead_letter_path}: {exc}")
+
     relatorio = gerar_relatorio_divergencias(
         erros_consolidados,
         diretorio_saida,
@@ -349,6 +437,7 @@ def validar_dataframe(
             "total_falhas_tecnicas": len(falhas_tecnicas or []),
         },
     )
+
     return {
         "status_execucao": "SUCESSO",
         "relatorio": relatorio,

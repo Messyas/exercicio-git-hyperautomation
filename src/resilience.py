@@ -44,7 +44,7 @@ def call_with_network_retry(
                 attempts,
                 exc,
             )
-            time.sleep(delay_seconds)
+            time.sleep(delay_seconds * attempt)  # backoff linear
 
     raise RuntimeError("A operação terminou sem resultado.")
 

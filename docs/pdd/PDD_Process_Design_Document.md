@@ -201,50 +201,52 @@ O bot não altera a planilha original e não acessa ERP, MES ou sistemas oficiai
 
 # **7\. Processo TO-BE resumido**
 
-| 🎯  Finalidade da seçãoDescrever o processo futuro com a automação. |
+| 🎯  Finalidade da seção Descrever o processo futuro com a automação. |
 | :---- |
 
 | Perguntas para preencher | Como preencher com qualidade |
 | :---- | :---- |
 | O que o bot fará? O que continua humano? Como as exceções serão tratadas? Quais evidências serão geradas? | Mostre a divisão entre bot e humano. Casos ambíguos devem seguir para revisão. |
 
-| ✅  Exemplo de preenchimentoBot detecta arquivo, valida estrutura, aplica regras, gera relatório e log. Operador revisa casos ambíguos e supervisor valida providências. |
+| ✅  Exemplo de preenchimento Bot detecta arquivo, valida estrutura, aplica regras, gera relatório e log. Operador revisa casos ambíguos e supervisor valida providências. |
 | :---- |
 
 **Campo para preenchimento:**
 
-**Raia do Bot 1 - cadastro web:**
+**Raia do Bot 1 - Coletor / Ingestão (`messyas-bot-coletor-v1`):**
 
-1. **Carregar a entrada**: a execução é iniciada manualmente, pelo Compose, pelo CI ou pelo BotRunner. O produtor lê a planilha e a Base de Referência.
-2. **Validar a estrutura**: exige exatamente as oito colunas previstas. Arquivo ausente ou estrutura inválida encerra a execução antes do navegador.
-3. **Validar o destino**: confirma que o diretório local ou o DataPool BotCity está disponível antes de alterar o frontend.
-4. **Cadastrar no Next.js**: autentica no frontend didático e envia os oito campos com Playwright.
-5. **Confirmar o cadastro**: compara os dados enviados com o último registro salvo no `localStorage` e captura o comprovante.
-6. **Separar falhas de fluxo**: rejeições e falhas técnicas são registradas com evidência no relatório do produtor e não entram no DataPool.
-7. **Publicar o handoff**: somente cadastros concluídos são publicados. No backend BotCity, o produtor cria a tarefa do validador depois de publicar o lote filtrado.
+1. **Carregar a entrada**: a execução é iniciada sob demanda ou via Maestro. Lê a planilha e valida estrutura.
+2. **Validar a estrutura**: exige exatamente as oito colunas previstas.
+3. **Encadear tarefa**: dispara o Bot 2 (`messyas-bot-cadastro-v1`) via `create_task()` no Maestro.
 
-**Raia do Bot 2 - validação:**
+**Raia do Bot 2 - Cadastro Web RPA (`messyas-bot-cadastro-v1`):**
 
-1. **Consumir o DataPool**: recebe somente os itens que concluíram o cadastro web.
-2. **Aplicar RN01-RN07**: valida data, campos obrigatórios, existência, domínio, normalização, ambiguidade e observação.
-3. **Atualizar cada item**: usa `DONE` para itens válidos, `BUSINESS` para divergências e `SYSTEM` para falhas técnicas.
-4. **Gerar evidências**: cria o relatório Excel de validação, o resumo JSON e o log estruturado.
+1. **Cadastrar no Next.js**: autentica no frontend e envia os dados com Playwright.
+2. **Confirmar o cadastro**: captura comprovantes e screenshots.
+3. **Encadear tarefa**: dispara o Bot 3 (`messyas-bot-conferencia-v1`) via `create_task()`.
+
+**Raia do Bot 3 - Conferência Híbrida RPA + ML (`messyas-bot-conferencia-v1`):**
+
+1. **Consumir dados**: recebe o lote processado.
+2. **Aplicar RN01–RN07**: valida data, campos obrigatórios, existência, domínio, normalização, ambiguidade e observação.
+3. **Enriquecimento com ML Híbrido (`ClassificadorDivergencia`)**: para cada item com divergência, consulta o modelo ML para sugerir a `causa_provavel_ml`. O modelo é controlado por `ML_ENABLED` e respeita o limiar `ML_CONFIANCA_MINIMA`. Se houver indisponibilidade, timeout ou baixa confiança, aplica o fallback seguro com `origem_decisao="fallback"`, sem interromper o bot.
+4. **Gerar Evidências e Auditoria**: inclui as colunas `origem_decisao` (`ml` ou `fallback`), `confianca_ml`, `causa_provavel_ml` e `motivo_fallback` na planilha `.xlsx` e salva falhas irrecuperáveis em `data/output/dead_letter.jsonl`.
+5. **Notificação Multicanal (`SistemaAlertas`)**: envia alertas via Telegram (canal principal), com fallback automático para WhatsApp/Email em caso de falha. Dispara alerta de severidade AVISO se 100% dos itens caírem em modo fallback de ML.
 
 **Raia do Analista:**
 
-1. Revisa o relatório do Bot 1, as divergências e a aba `revisao_humana` do Bot 2.
-2. Corrige ou escala os casos fora da automação. A correção e a revalidação automática não estão implementadas nesta versão; um novo processamento precisa ser iniciado quando necessário.
+1. Revisa o relatório final com as colunas de auditoria de ML e atua sobre as divergências.
 
 # **8\. Entradas**
 
-| 🎯  Finalidade da seçãoListar tudo que o processo consome para funcionar. |
+| 🎯  Finalidade da seção Listar tudo que o processo consome para funcionar. |
 | :---- |
 
 | Perguntas para preencher | Como preencher com qualidade |
 | :---- | :---- |
 | Quais arquivos, sistemas, bases ou dados são necessários? Qual origem, formato, horário, frequência e campos críticos? | Preencha em tabela. Inclua origem, formato, disponibilidade, campos obrigatórios e riscos de entrada. |
 
-| ✅  Exemplo de preenchimentoPlanilha solicitacoes\_movimentacao.xlsx; cadastro de materiais; cadastro de linhas ativas; tabela de prioridades; data/hora de execução. |
+| ✅  Exemplo de preenchimento Planilha solicitacoes\_movimentacao.xlsx; cadastro de materiais; cadastro de linhas ativas; tabela de prioridades; data/hora de execução. |
 | :---- |
 
 **Campo para preenchimento:**
@@ -253,41 +255,46 @@ O bot não altera a planilha original e não acessa ERP, MES ou sistemas oficiai
 
 * **Origem**: amostra didática versionada em `data/samples/inspecao_lotes_dia.xlsx`.
 * **Formato**: `.xlsx`; a execução é sob demanda.
-* **Campos críticos**: *lote\_id*, *produto*, *linha*, *turno*, *status*, *responsavel*, *data*, *observacao*.  
-* **Risco de entrada**: arquivo ausente, coluna obrigatória ausente ou coluna extra. A ordem das colunas não altera a validação.
+* **Campos críticos**: *lote\_id*, *produto*, *linha*, *turno*, *status*, *responsavel*, *data*, *observacao* (texto livre consumido pela camada de ML).  
+* **Risco de entrada**: arquivo ausente, coluna obrigatória ausente ou coluna extra.
 
 **Base de referência: aba Base\_Referencia da mesma planilha**
 
 * **Origem**: aba didática da mesma planilha. Contém a lista de `lote_id` válidos para cruzamento (RN03).
-* **Risco**: base desatualizada pode gerar falsos positivos em RN03.
+
+**Microserviço de ML / NLP**:
+* **Origem**: API HTTP `/predict` (ou mock resiliente). Consome o texto do campo `observacao` para predição de causa provável.
 
 # **9\. Saídas**
 
-| 🎯  Finalidade da seçãoDefinir os artefatos produzidos pela execução. |
+| 🎯  Finalidade da seção Definir os artefatos produzidos pela execução. |
 | :---- |
 
 | Perguntas para preencher | Como preencher com qualidade |
 | :---- | :---- |
 | Quais relatórios, logs, alertas, planilhas ou evidências são gerados? Quem recebe? Em que formato? | Toda saída deve ter destinatário, formato e finalidade. Saída sem destinatário claro deve ser questionada. |
 
-| ✅  Exemplo de preenchimentoRelatório de divergências (.xlsx), lista de registros válidos, log\_execucao.json e e-mail de notificação ao supervisor. |
+| ✅  Exemplo de preenchimento Relatório de divergências (.xlsx), lista de registros válidos, log\_execucao.json e e-mail de notificação ao supervisor. |
 | :---- |
 
 **Campo para preenchimento:**
 
-**1\. relatorio\_divergencias\_DDMMAAAA.xlsx**
+**1\. relatorio\_divergencias\_DDMMAAAA.xlsx (Auditável com ML)**
 
-* Destinatário: Analista de Qualidade.   
+* Destinatário: Analista de Qualidade / Operação.   
 * Formato: .xlsx.   
-* Contém as abas `resumo`, `divergencias`, `lotes_validados`, `rejeicoes_cadastro`, `falhas_tecnicas` e `revisao_humana`.
-* Como o Bot 1 filtra falhas antes do handoff, `rejeicoes_cadastro` e `falhas_tecnicas` ficam vazias no fluxo atual e permanecem no arquivo por compatibilidade.
+* Contém as colunas `lote_id`, `regra_violada`, `descricao_do_erro`, `acao_recomendada`, `severidade`, **`origem_decisao`** (`ml` vs `fallback`), **`confianca_ml`** e **`causa_provavel_ml`**.
+* Abas: `resumo`, `divergencias`, `lotes_validados`, `rejeicoes_cadastro`, `falhas_tecnicas` e `revisao_humana`.
 
-**2\. relatorio\_erros\_fluxo\_produtor\_DDMMAAAA.xlsx**
+**2\. Notificações Multicanal (`SistemaAlertas`)**
 
-* Destinatário: Analista de Qualidade e equipe técnica.
-* Contém as abas `resumo` e `erros_fluxo`, com os itens não publicados, motivo, tipo do erro e evidência.
+* Canal Principal: Telegram (mensagens de status, erros e alertas).
+* Canais Secundários: WhatsApp (Twilio) / Email (SMTP) utilizados automaticamente como fallback se o Telegram estiver indisponível.
+* Alerta de Alerta Especial: Aviso `PIPELINE OPERANDO SEM ML` enviado caso 100% dos itens utilizem fallback de ML.
 
-**3\. Logs e resumos de execução**
+**3\. Dead Letter File (`data/output/dead_letter.jsonl`)**
+
+* Registra itens que falharam repetidamente por erro de dados para análise posterior.
 
 * `logs/produtor/execucao.log` e `logs/validador/execucao.log`: JSON Lines com timestamp, nível, IDs de execução e bot, lote, linha de origem e mensagem.
 * `logs/*/resumo_execucao.json`: status, início, fim, contagens, caminhos dos artefatos e erro fatal, quando houver.
