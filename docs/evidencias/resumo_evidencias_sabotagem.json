@@ -1,0 +1,32 @@
+{
+  "titulo": "Relatório de Evidências da Simulação de Crise (S10-B)",
+  "total_cenarios": 5,
+  "sucessos": 5,
+  "cenarios": [
+    {
+      "cenario": "1_base_referencia_instavel",
+      "sucesso": true,
+      "detalhes": "Bot concluiu com status SUCESSO identificando 5 divergências."
+    },
+    {
+      "cenario": "2_servico_ml_fora_do_ar",
+      "sucesso": true,
+      "detalhes": "Bot concluiu normalmente sem travar. 5 itens registraram origem_decisao='fallback'."
+    },
+    {
+      "cenario": "3_ml_lento_timeout",
+      "sucesso": true,
+      "detalhes": "Timeout de 1ms foi respeitado e o bot seguiu com o lote sem pendurar."
+    },
+    {
+      "cenario": "4_ml_baixa_confianca",
+      "sucesso": true,
+      "detalhes": "Limiar de 0.999 descartou predições fracas. 5 itens caíram em fallback."
+    },
+    {
+      "cenario": "5_canal_alerta_falha",
+      "sucesso": true,
+      "detalhes": "Telegram falhou como esperado. Alerta entregue via canal de fallback: LogLocal."
+    }
+  ]
+}

@@ -65,7 +65,8 @@ docker compose -f docker-compose.sabotagem.yml up --build
 
 O script/container testa os 5 cenários da Seção 6 e gera o relatório `reports/evidencias_sabotagem/resumo_evidencias_sabotagem.json`.
 
-As evidências visuais das notificações recebidas no Telegram e o resumo da simulação estão documentados em [docs/EVIDENCIAS_EXERCICIO_S10B.md](docs/EVIDENCIAS_EXERCICIO_S10B.md).
+As evidências visuais das notificações recebidas no Telegram e o resumo da simulação estão consolidados na pasta [`docs/evidencias/`](docs/evidencias/) (ver [docs/evidencias/EVIDENCIAS_EXERCICIO_S10B.md](docs/evidencias/EVIDENCIAS_EXERCICIO_S10B.md)).
+
 
 
 
