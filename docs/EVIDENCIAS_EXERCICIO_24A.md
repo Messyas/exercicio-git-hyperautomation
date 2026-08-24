@@ -79,14 +79,16 @@ expõem `X-Inference-Latency-Ms`, `X-Request-Latency-Ms` e
 - O log JSON Lines tem evento `ML_DECISION` com lote, classe, probabilidade,
   nível, ação, latência e estado do circuito — sem texto livre de observação.
 - O Excel consolidado possui nove abas; a nona, **Decisões de ML**, recebe uma
-  linha por lote classificado.
+  linha para cada registro ambíguo enviado ao classificador. Portanto, o total
+  dessa aba deve ser comparado aos registros enviados ao ML, e não aos 250
+  registros gerais do lote.
 
 ## Testes e resultados observados
 
 A suíte executada nesta revisão retornou:
 
 ```text
-146 passed, 1 skipped, 12 deselected, 1 xfailed, 6 subtests passed
+150 passed, 1 skipped, 12 deselected, 6 subtests passed
 ```
 
 | Tema | Testes | Cobertura |

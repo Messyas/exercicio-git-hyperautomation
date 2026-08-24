@@ -880,9 +880,10 @@ arquivos e screenshots usam `tmp_path`, e timestamps são fixados por
 confere o gabarito de 150 válidos, 50 divergências, 20 ambíguos e 30 erros de
 entrada. Browser, internet, Maestro real e credenciais não são necessários.
 
-Limitações permanecem visíveis no relatório do pytest: a integração real com
-Maestro está marcada como `skip`, e a aceitação de datas impossíveis no nome da
-aba está marcada como `xfail(strict=True)` até a correção da RN12.
+A integração real com Maestro permanece visível no relatório do pytest como
+`skip`, pois depende de credenciais e do ambiente de homologação. A RN12 rejeita
+datas calendáricas impossíveis no nome da aba por meio de um teste automatizado
+normal, sem `xfail`.
 
 A cobertura de `src` e do núcleo de `dashboard` deve permanecer em pelo menos
 80%, bloqueada por `--cov-fail-under=80`. O relatório XML é anexado pelo CI.

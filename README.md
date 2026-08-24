@@ -377,15 +377,15 @@ Os testes legados dos adaptadores Excel ainda usam apenas fixtures versionadas
 em `data/samples`; a lógica de negócio e o E2E da Aula 23 usam dados sintéticos
 e mocks, portanto não dependem de arquivos locais não versionados.
 
-Os motivos de limitações conhecidas aparecem com:
+Os motivos de testes dependentes de ambiente aparecem com:
 
 ```bash
 python -m pytest -q -rsxX
 ```
 
-Atualmente, a integração real com Maestro é `SKIPPED` por exigir credenciais de
-homologação. A aceitação de datas impossíveis em nomes de aba é `XFAIL` estrito
-e documenta um bug conhecido da RN12.
+Atualmente, somente a integração real com Maestro é `SKIPPED`, pois exige
+credenciais de homologação. A RN12 valida tanto o formato quanto a existência
+da data extraída do nome da aba; por exemplo, `Insp_31_02_2026` é rejeitada.
 
 ### Cobertura
 

@@ -34,7 +34,11 @@ def data_da_aba(nome_aba: str) -> str:
     if not correspondencia:
         raise ValueError(f"Nome de aba diária inválido: {nome_aba}")
     dia, mes, ano = correspondencia.groups()
-    return f"{dia}/{mes}/{ano}"
+    data_texto = f"{dia}/{mes}/{ano}"
+    try:
+        return datetime.strptime(data_texto, "%d/%m/%Y").strftime("%d/%m/%Y")
+    except ValueError as exc:
+        raise ValueError(f"Data inválida no nome da aba: {nome_aba}") from exc
 
 
 def _data_valida(valor: Any, referencia: str) -> bool:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from dashboard.servico_validacao import validar_registro
+from dashboard.servico_validacao import data_da_aba, validar_registro
 
 
 pytestmark = pytest.mark.unit
@@ -89,3 +89,8 @@ def test_validar_registro_em_cenarios_distintos(
         assert resultado.regras_aplicadas == []
     else:
         assert regra_esperada in resultado.regras_aplicadas
+
+
+def test_rn12_nome_de_aba_rejeita_data_impossivel() -> None:
+    with pytest.raises(ValueError, match="Data inválida"):
+        data_da_aba("Insp_31_02_2026")
