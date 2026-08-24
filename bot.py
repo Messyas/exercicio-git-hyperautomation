@@ -57,6 +57,7 @@ def _erro(
     origem_decisao: str = "fallback",
     confianca_ml: float = 0.0,
     causa_provavel_ml: str = "nao_classificado",
+    motivo_fallback: str = "",
 ) -> dict[str, Any]:
     """Cria o formato comum consumido pelo relatório e pelo cálculo de válidos."""
     return {
@@ -69,6 +70,7 @@ def _erro(
         "origem_decisao": origem_decisao,
         "confianca_ml": confianca_ml,
         "causa_provavel_ml": causa_provavel_ml,
+        "motivo_fallback": motivo_fallback,
     }
 
 
@@ -243,6 +245,7 @@ def _consolidar_erros(erros: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "origem_decisao": erro.get("origem_decisao", "fallback"),
                 "confianca_ml": erro.get("confianca_ml", 0.0),
                 "causa_provavel_ml": erro.get("causa_provavel_ml", "nao_classificado"),
+                "motivo_fallback": erro.get("motivo_fallback", ""),
             },
         )
         if erro["regra_violada"] not in atual["_regras"]:
@@ -254,6 +257,7 @@ def _consolidar_erros(erros: list[dict[str, Any]]) -> list[dict[str, Any]]:
             atual["origem_decisao"] = "ml"
             atual["confianca_ml"] = erro.get("confianca_ml", 0.0)
             atual["causa_provavel_ml"] = erro.get("causa_provavel_ml", "nao_classificado")
+            atual["motivo_fallback"] = ""
 
     resultado: list[dict[str, Any]] = []
     for atual in agrupados.values():
@@ -270,6 +274,7 @@ def _consolidar_erros(erros: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "origem_decisao": atual["origem_decisao"],
                 "confianca_ml": atual["confianca_ml"],
                 "causa_provavel_ml": atual["causa_provavel_ml"],
+                "motivo_fallback": atual["motivo_fallback"],
             }
         )
     return resultado
@@ -387,6 +392,7 @@ def validar_dataframe(
         erro["origem_decisao"] = res_ml.origem_decisao
         erro["confianca_ml"] = res_ml.confianca_ml
         erro["causa_provavel_ml"] = res_ml.causa_provavel_ml
+        erro["motivo_fallback"] = res_ml.motivo_fallback or ""
 
     indices_divergentes = {int(erro["_indice"]) for erro in erros}
     indices_nao_validados = indices_divergentes | set(indices_excluidos or set())

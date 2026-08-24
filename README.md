@@ -22,7 +22,7 @@ evidência. Assim, o Bot 2 recebe apenas itens que concluíram a etapa anterior.
 ## Estudo de Caso S10-B — Pipeline Híbrido Resiliente RPA+ML
 
 Esta versão implementa todas as especificações do **Estudo de Caso S10-B**:
-1. **Orquestração Multi-Bot (3+ Bots)**: Encadear 3 bots no Maestro (`grupo-bot-coletor-v1` -> `grupo-bot-cadastro-v1` -> `grupo-bot-conferencia-v1`) via `src/orchestrator.py` usando `create_task()`.
+1. **Orquestração Multi-Bot (3+ Bots)**: Encadear 3 bots no Maestro (`messyas-bot-coletor-v1` -> `messyas-bot-cadastro-v1` -> `messyas-bot-conferencia-v1`) via `src/orchestrator.py` usando `create_task()`. Módulo `src/wait_for_predecessor.py` implementa polling com backoff linear para dependências sequenciais.
 2. **Classificador ML Híbrido (`src/classificador_divergencia.py`)**: Analisa o texto livre de `observacao` para sugerir a causa provável de divergência. Respeita a feature flag `ML_ENABLED` (quando `False`, nenhuma chamada de rede é feita) e o limiar `ML_CONFIANCA_MINIMA` (padrão `0.70`). **Garantia de 100% de resiliência**: nenhuma exceção da camada de ML é propagada ao bot.
 3. **Decisão de Negócio Independente**: O status do lote (`VALIDO`, `DIVERGENCIA`, `PENDENTE_REVISAO`) é decidido exclusivamente pelas regras RN01–RN07. O ML apenas enriquece os itens de divergência com `causa_provavel_ml`.
 4. **Relatório Auditável (`src/relatorio.py`)**: Exporta as colunas `origem_decisao` (`ml` vs `fallback`), `confianca_ml` e `causa_provavel_ml` na planilha `.xlsx` e JSON.

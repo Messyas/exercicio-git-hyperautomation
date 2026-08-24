@@ -20,9 +20,9 @@ from src.maestro_client import MaestroClient
 logger = logging.getLogger(__name__)
 
 # Nomenclatura oficial dos 3 bots para o Maestro (nome_aluno-nome_bot-versao)
-BOT_COLETOR_LABEL = "grupo-bot-coletor-v1"
-BOT_CADASTRO_LABEL = "grupo-bot-cadastro-v1"
-BOT_CONFERENCIA_LABEL = "grupo-bot-conferencia-v1"
+BOT_COLETOR_LABEL = "messyas-bot-coletor-v1"
+BOT_CADASTRO_LABEL = "messyas-bot-cadastro-v1"
+BOT_CONFERENCIA_LABEL = "messyas-bot-conferencia-v1"
 
 
 class PipelineOrchestrator:

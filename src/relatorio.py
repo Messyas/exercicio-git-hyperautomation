@@ -25,6 +25,7 @@ COLUNAS_RELATORIO: tuple[str, ...] = (
     "origem_decisao",
     "confianca_ml",
     "causa_provavel_ml",
+    "motivo_fallback",
 )
 
 
@@ -122,6 +123,7 @@ def _linha_relatorio(erro: Mapping[str, Any]) -> dict[str, Any]:
         "origem_decisao": erro.get("origem_decisao", "fallback"),
         "confianca_ml": erro.get("confianca_ml", 0.0),
         "causa_provavel_ml": erro.get("causa_provavel_ml", "nao_classificado"),
+        "motivo_fallback": erro.get("motivo_fallback", ""),
     }
 
 
