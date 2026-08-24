@@ -51,11 +51,20 @@ DEAD_LETTER_FILE=data/output/dead_letter.jsonl
 
 ### Executar a Simulação de Crise e Sabotagem
 
+Você pode executar os 5 cenários de sabotagem de duas maneiras:
+
+**Via Python direto (Local):**
 ```bash
 python scripts/simular_cenarios_sabotagem.py
 ```
 
-O script testa os 5 cenários da Seção 6 e gera o relatório `reports/evidencias_sabotagem/resumo_evidencias_sabotagem.json`.
+**Via Docker Compose (Containerizado):**
+```bash
+docker compose -f docker-compose.sabotagem.yml up --build
+```
+
+O script/container testa os 5 cenários da Seção 6 e gera o relatório `reports/evidencias_sabotagem/resumo_evidencias_sabotagem.json`.
+
 
 ## Fluxo
 
