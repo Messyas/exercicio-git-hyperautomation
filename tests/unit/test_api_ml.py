@@ -154,3 +154,33 @@ def test_predict_payload_valido_retorna_contrato(client):
         assert float(response.headers["X-Queue-Wait-Ms"]) >= 0.0
     finally:
         model_service.predict = original_predict
+
+
+def test_classify_divergence_usa_observacao_livre(client):
+    """O endpoint S10-B deve derivar a causa do texto do operador."""
+    model_service._is_loaded = True
+    response = client.post(
+        "/classify-divergence",
+        json={
+            "lote_id": "LOTE-TEXTO-1",
+            "observacao": "Lançamento duplicado por engano na doca 3",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["causa_provavel"] == "duplicidade_lancamento"
+    assert response.json()["probabilidade"] >= 0.70
+    assert float(response.headers["X-Inference-Latency-Ms"]) >= 0.0
+
+
+def test_classify_divergence_rejeita_campos_nao_documentados(client):
+    model_service._is_loaded = True
+    response = client.post(
+        "/classify-divergence",
+        json={
+            "lote_id": "LOTE-TEXTO-2",
+            "observacao": "Código digitado errado",
+            "campo_extra": "não aceito",
+        },
+    )
+    assert response.status_code == 422

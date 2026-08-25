@@ -140,6 +140,11 @@ class Settings:
     smtp_port: int
     email_from: str | None
     email_to: str | None
+    gmail_enabled: bool
+    gmail_credentials_file: Path
+    gmail_token_file: Path
+    gmail_from: str | None
+    gmail_to: str | None
     dead_letter_file: Path
 
 
@@ -210,7 +215,7 @@ def get_settings() -> Settings:
             "DATAPOOL_LOCAL_DIR", "data/datapool"
         ),
         validator_activity_label=os.getenv(
-            "VALIDATOR_ACTIVITY_LABEL", "bot-lotes-validacao-mk7"
+            "VALIDATOR_ACTIVITY_LABEL", "messyas-bot-conferencia-v1"
         ).strip(),
         timezone=os.getenv("APP_TIMEZONE", "America/Manaus").strip(),
         ml_enabled=_env_bool("ML_ENABLED", default=True),
@@ -231,10 +236,18 @@ def get_settings() -> Settings:
         smtp_port=_env_int("SMTP_PORT", 587),
         email_from=os.getenv("EMAIL_FROM") or None,
         email_to=os.getenv("EMAIL_TO") or None,
+        gmail_enabled=_env_bool("GMAIL_ENABLED", default=False),
+        gmail_credentials_file=_env_path(
+            "GMAIL_CREDENTIALS_FILE", "secrets/gmail_credentials.json"
+        ),
+        gmail_token_file=_env_path(
+            "GMAIL_TOKEN_FILE", "secrets/gmail_token.json"
+        ),
+        gmail_from=os.getenv("GMAIL_FROM") or None,
+        gmail_to=os.getenv("GMAIL_TO") or None,
         dead_letter_file=_env_path("DEAD_LETTER_FILE", "data/output/dead_letter.jsonl"),
     )
 
 
 
 settings = get_settings()
-

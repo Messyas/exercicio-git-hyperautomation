@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 from typing import Any, Optional
+import unicodedata
 import joblib
 import pandas as pd
 
@@ -9,6 +10,8 @@ from api_ml.schemas import (
     AcaoML,
     ClasseML,
     LoteInput,
+    DivergenciaInput,
+    DivergenciaOutput,
     NivelConfianca,
     PredictionOutput,
     determinar_acao,
@@ -110,3 +113,37 @@ class ModelService:
         except Exception as e:
             logger.error(f"Erro durante predição para lote {lote.lote_id}: {e}")
             raise RuntimeError(f"Erro interno no processamento de predição: {e}") from e
+
+    def classify_divergence(self, lote: DivergenciaInput) -> DivergenciaOutput:
+        """Classifica a observação livre com um mock NLP determinístico.
+
+        O enunciado S10-B permite um mock controlável. Esta implementação é
+        intencionalmente pequena e transparente para demonstração: a sugestão
+        é derivada exclusivamente do texto do operador e jamais altera o
+        resultado das RN01--RN03/RN01--RN07.
+        """
+        if not self.is_loaded:
+            raise ModelUnavailableError("Modelo de ML não está carregado ou indisponível")
+
+        texto = unicodedata.normalize("NFKD", lote.observacao)
+        texto = "".join(char for char in texto if not unicodedata.combining(char)).lower()
+        regras = (
+            (("duplic", "repet", "lancamento duplic"), "duplicidade_lancamento", 0.94),
+            (("digita", "codigo incorreto", "codigo errado", "digitei errado"), "erro_digitacao_codigo", 0.92),
+            (("falt", "peca", "doca"), "divergencia_quantidade_pecas", 0.89),
+            (("avaria", "quebrad", "danific"), "avaria_produto", 0.87),
+        )
+        for termos, causa, confianca in regras:
+            if any(termo in texto for termo in termos):
+                return DivergenciaOutput(
+                    lote_id=lote.lote_id,
+                    causa_provavel=causa,
+                    probabilidade=confianca,
+                    modelo_versao="s10b-text-mock-1.0.0",
+                )
+        return DivergenciaOutput(
+            lote_id=lote.lote_id,
+            causa_provavel="nao_classificado",
+            probabilidade=0.45,
+            modelo_versao="s10b-text-mock-1.0.0",
+        )

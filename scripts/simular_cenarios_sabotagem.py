@@ -15,21 +15,41 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
 from pathlib import Path
+import httpx
 import pandas as pd
+from requests.exceptions import ConnectionError as RequestsConnectionError
 
 # Ajusta path para importar módulos da raiz
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from config import get_settings
+from src.base_referencia import consultar_base_referencia_com_retry
 from src.classificador_divergencia import ClassificadorDivergencia
 from src.sistema_alertas import SistemaAlertas
 from bot import validar_dataframe
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("sabotagem")
+
+
+def _api_url() -> str:
+    """Usa o DNS do Compose no container e localhost na execução direta."""
+    return os.getenv("ML_API_URL", "http://127.0.0.1:8000")
+
+
+def _alertas_de_teste() -> SistemaAlertas:
+    """Evita chamadas externas ao Telegram durante uma sabotagem automatizada."""
+    transport = httpx.MockTransport(lambda request: httpx.Response(503))
+    return SistemaAlertas(
+        telegram_token="token-sabotagem",
+        telegram_chat_id="chat-sabotagem",
+        client=httpx.Client(transport=transport),
+        logger_instance=logger,
+    )
 
 
 def criar_dataframe_amostra() -> pd.DataFrame:
@@ -39,7 +59,7 @@ def criar_dataframe_amostra() -> pd.DataFrame:
             "lote_id": "LOTE-SAB-01",
             "produto": "TV 55 OLED",
             "linha": "LINHA_01",
-            "turno": "TURNO_A",
+            "turno": "A",
             "status": "OK",
             "responsavel": "Operador 1",
             "data": "24/08/2026",
@@ -49,7 +69,7 @@ def criar_dataframe_amostra() -> pd.DataFrame:
             "lote_id": "LOTE-SAB-02",
             "produto": "LAVADORA 12KG",
             "linha": "LINHA_02",
-            "turno": "TURNO_B",
+            "turno": "B",
             "status": "NOK",
             "responsavel": "Operador 2",
             "data": "24/08/2026",
@@ -59,7 +79,7 @@ def criar_dataframe_amostra() -> pd.DataFrame:
             "lote_id": "LOTE-SAB-03",
             "produto": "GELADEIRA FROST",
             "linha": "LINHA_01",
-            "turno": "TURNO_A",
+            "turno": "A",
             "status": "INVALIDO_XYZ",
             "responsavel": "Operador 3",
             "data": "24/08/2026",
@@ -69,7 +89,7 @@ def criar_dataframe_amostra() -> pd.DataFrame:
             "lote_id": "LOTE-SAB-04",
             "produto": "AR CONDICIONADO",
             "linha": "LINHA_03",
-            "turno": "TURNO_C",
+            "turno": "C",
             "status": "PENDENTE",
             "responsavel": "Operador 4",
             "data": "24/08/2026",
@@ -79,7 +99,7 @@ def criar_dataframe_amostra() -> pd.DataFrame:
             "lote_id": "LOTE-SAB-05",
             "produto": "MICROONDAS 30L",
             "linha": "LINHA_02",
-            "turno": "TURNO_B",
+            "turno": "B",
             "status": "NOK",
             "responsavel": "Operador 5",
             "data": "24/08/2026",
@@ -92,21 +112,35 @@ def cenario_1_base_referencia_instavel(output_dir: Path) -> dict:
     """Cenário 1: Base de referência indisponível."""
     logger.info("=== EXECUTANDO CENÁRIO 1: Base de Referência Indisponível ===")
     df = criar_dataframe_amostra()
-    # Simula base sem os lotes do lote-sab
-    base_invalida = set()
+    tentativas = 0
+
+    def consulta_instavel() -> set[str]:
+        nonlocal tentativas
+        tentativas += 1
+        if tentativas < 3:
+            raise RequestsConnectionError("base de referência temporariamente indisponível")
+        return {"LOTE-SAB-01", "LOTE-SAB-02", "LOTE-SAB-04"}
+
+    base_recuperada = consultar_base_referencia_com_retry(
+        consulta_instavel,
+        logger_instance=logger,
+        delay_seconds=0,
+    )
 
     res = validar_dataframe(
         df,
-        lotes_validos=base_invalida,
+        lotes_validos=base_recuperada,
         diretorio_saida=output_dir / "cenario_1",
         logger=logger,
+        classificador=ClassificadorDivergencia(enabled=False, logger_instance=logger),
+        sistema_alertas=_alertas_de_teste(),
     )
-    status_ok = res["status_execucao"] == "SUCESSO"
-    logger.info(f"Cenário 1 Concluído | Status: {res['status_execucao']} | Divergências: {res['total_divergencias']}")
+    status_ok = res["status_execucao"] == "SUCESSO" and tentativas == 3
+    logger.info(f"Cenário 1 Concluído | tentativas={tentativas} | Status: {res['status_execucao']}")
     return {
         "cenario": "1_base_referencia_instavel",
         "sucesso": status_ok,
-        "detalhes": f"Bot concluiu com status {res['status_execucao']} identificando {res['total_divergencias']} divergências.",
+        "detalhes": f"Base recuperada na tentativa {tentativas}; bot concluiu com status {res['status_execucao']}.",
     }
 
 
@@ -126,6 +160,7 @@ def cenario_2_servico_ml_fora_do_ar(output_dir: Path) -> dict:
         diretorio_saida=output_dir / "cenario_2",
         logger=logger,
         classificador=clf,
+        sistema_alertas=_alertas_de_teste(),
     )
     # Verifica se todos os itens de divergência receberam origem_decisao = 'fallback'
     divergencias = res["divergencias"]
@@ -144,9 +179,10 @@ def cenario_3_ml_lento_timeout(output_dir: Path) -> dict:
     logger.info("=== EXECUTANDO CENÁRIO 3: ML Lento (Timeout de 1ms) ===")
     df = criar_dataframe_amostra()
     clf = ClassificadorDivergencia(
-        api_url="http://127.0.0.1:8000",
+        api_url=_api_url(),
         enabled=True,
         timeout_ms=1,  # 1ms força timeout
+        simulated_delay_ms=50,
         logger_instance=logger,
     )
     res = validar_dataframe(
@@ -155,8 +191,10 @@ def cenario_3_ml_lento_timeout(output_dir: Path) -> dict:
         diretorio_saida=output_dir / "cenario_3",
         logger=logger,
         classificador=clf,
+        sistema_alertas=_alertas_de_teste(),
     )
-    bot_concluiu = res["status_execucao"] == "SUCESSO"
+    motivos = {d.get("motivo_fallback") for d in res["divergencias"]}
+    bot_concluiu = res["status_execucao"] == "SUCESSO" and motivos == {"timeout"}
     logger.info(f"Cenário 3 Concluído | Timeout respeitado sem travar bot | Status: {res['status_execucao']}")
     return {
         "cenario": "3_ml_lento_timeout",
@@ -170,7 +208,7 @@ def cenario_4_ml_baixa_confianca(output_dir: Path) -> dict:
     logger.info("=== EXECUTANDO CENÁRIO 4: ML com Baixa Confiança (Limiar 0.999) ===")
     df = criar_dataframe_amostra()
     clf = ClassificadorDivergencia(
-        api_url="http://127.0.0.1:8000",
+        api_url=_api_url(),
         enabled=True,
         timeout_ms=1000,
         confianca_minima=0.999,  # Limiar altíssimo força fallback por baixa confiança
@@ -182,13 +220,15 @@ def cenario_4_ml_baixa_confianca(output_dir: Path) -> dict:
         diretorio_saida=output_dir / "cenario_4",
         logger=logger,
         classificador=clf,
+        sistema_alertas=_alertas_de_teste(),
     )
     divergencias = res["divergencias"]
     fallbacks = [d for d in divergencias if d.get("origem_decisao") == "fallback"]
+    baixa_confianca = all(d.get("motivo_fallback") == "baixa_confianca" for d in divergencias)
     logger.info(f"Cenário 4 Concluído | Fallbacks por baixa confiança: {len(fallbacks)}/{len(divergencias)}")
     return {
         "cenario": "4_ml_baixa_confianca",
-        "sucesso": len(fallbacks) == len(divergencias),
+        "sucesso": len(fallbacks) == len(divergencias) and baixa_confianca,
         "detalhes": f"Limiar de 0.999 descartou predições fracas. {len(fallbacks)} itens caíram em fallback.",
     }
 
@@ -197,11 +237,13 @@ def cenario_5_canal_alerta_falha(output_dir: Path) -> dict:
     """Cenário 5: Canal de Alerta Telegram Inválido -> Fallback de Canal."""
     logger.info("=== EXECUTANDO CENÁRIO 5: Canal Principal de Alerta Inválido ===")
     fake_credentials = "TOKEN_INVALIDO_12345"
+    transport = httpx.MockTransport(lambda request: httpx.Response(401))
     alertas = SistemaAlertas(
         telegram_token=fake_credentials,
         telegram_chat_id="CHAT_INVALIDO",
         whatsapp_enabled=False,
         email_enabled=False,
+        client=httpx.Client(transport=transport),
         logger_instance=logger,
     )
 

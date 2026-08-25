@@ -29,6 +29,7 @@ from src.maestro_client import (
 from src.resilience import close_logger
 from src.time_utils import now_local
 from src.validacao import COLUNAS_ESPERADAS
+from src.wait_for_predecessor import TASK_STATUS_COMPLETED, wait_for_predecessor
 
 
 def _consumer(settings, maestro: MaestroClient):
@@ -117,6 +118,31 @@ def _signal_pipeline_finished() -> None:
         )
 
 
+def _wait_for_cadastro_if_needed(maestro: MaestroClient, logger) -> None:
+    """Confere no Maestro a conclusão do Cadastro antes da Conferência."""
+    if not maestro.enabled or maestro.sdk is None or not maestro.task_id:
+        return
+    task = maestro.sdk.get_task(maestro.task_id)
+    parameters = getattr(task, "parameters", None) or {}
+    parent_task_id = str(parameters.get("parent_task_id") or "")
+    if not parent_task_id or parent_task_id == "local":
+        return
+    status = wait_for_predecessor(
+        maestro.sdk,
+        parent_task_id,
+        logger_instance=logger,
+    )
+    if status not in TASK_STATUS_COMPLETED:
+        raise RuntimeError(
+            f"Tarefa predecessora do cadastro terminou em estado inválido: {status}."
+        )
+    logger.info(
+        "CADEIA_S10B_CADASTRO_CONFIRMADO parent_task_id=%s status=%s",
+        parent_task_id,
+        status,
+    )
+
+
 def run_consumer() -> int:
     settings = get_settings()
     log_dir = settings.log_dir / "validador"
@@ -136,6 +162,7 @@ def run_consumer() -> int:
     try:
         maestro.connect()
         maestro.register_start()
+        _wait_for_cadastro_if_needed(maestro, logger)
         datapool_consumer = _consumer(settings, maestro)
         batch = datapool_consumer.consume()
         logger.info(

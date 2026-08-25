@@ -11,16 +11,21 @@ pytestmark = pytest.mark.unit
 
 
 def test_pacotes_possuem_entrypoint_e_dependencias_na_raiz(tmp_path) -> None:
-    cadastro, validacao = build_packages(tmp_path)
+    coletor, cadastro, validacao = build_packages(tmp_path)
 
-    assert cadastro.name == "bot-lotes-cadastro-playwright-mk7.zip"
-    assert validacao.name == "bot-lotes-validacao-mk7.zip"
+    assert coletor.name == "messyas-bot-coletor-v1.zip"
+    assert cadastro.name == "messyas-bot-cadastro-v1.zip"
+    assert validacao.name == "messyas-bot-conferencia-v1.zip"
 
+    with ZipFile(coletor) as archive:
+        coletor_files = set(archive.namelist())
     with ZipFile(cadastro) as archive:
         cadastro_files = set(archive.namelist())
     with ZipFile(validacao) as archive:
         validacao_files = set(archive.namelist())
 
+    assert {"bot.py", "requirements.txt", "coletor.py", "config.py"} <= coletor_files
+    assert "data/samples/inspecao_lotes_dia.xlsx" in coletor_files
     assert {"bot.py", "requirements.txt", "producer.py", "config.py"} <= cadastro_files
     assert "data/samples/inspecao_lotes_dia.xlsx" in cadastro_files
     assert "src/pages/playwright_pages.py" in cadastro_files

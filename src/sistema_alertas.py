@@ -14,9 +14,12 @@ from __future__ import annotations
 import logging
 import smtplib
 from email.mime.text import MIMEText
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any, Iterable, Optional
 
 import httpx
+
+from src.gmail_client import GmailOAuthSender
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +41,12 @@ class SistemaAlertas:
         smtp_port: int = 587,
         email_from: Optional[str] = None,
         email_to: Optional[str] = None,
+        gmail_enabled: bool = False,
+        gmail_credentials_file: Optional[str | Path] = None,
+        gmail_token_file: Optional[str | Path] = None,
+        gmail_from: Optional[str] = None,
+        gmail_to: Optional[str] = None,
+        gmail_sender: Optional[GmailOAuthSender] = None,
         client: Optional[httpx.Client] = None,
         logger_instance: Optional[logging.Logger] = None,
     ):
@@ -53,6 +62,12 @@ class SistemaAlertas:
         self.smtp_port = smtp_port
         self.email_from = email_from
         self.email_to = email_to
+        self.gmail_enabled = gmail_enabled
+        self.gmail_credentials_file = gmail_credentials_file
+        self.gmail_token_file = gmail_token_file
+        self.gmail_from = gmail_from
+        self.gmail_to = gmail_to
+        self._gmail_sender = gmail_sender
         self.logger = logger_instance or logger
 
         if client is not None:
@@ -68,6 +83,7 @@ class SistemaAlertas:
         *,
         nivel: str = "INFO",
         evento: str = "GERAL",
+        anexos: Iterable[str | Path] = (),
     ) -> dict[str, Any]:
         """Dispara uma notificação com fallback de canal de envio."""
         texto_formatado = f"[{nivel}][{evento}] {mensagem}"
@@ -110,7 +126,26 @@ class SistemaAlertas:
                 self.logger.warning(f"[ALERTA_FALHA_CANAL] WhatsApp falhou: {exc}")
                 resultado["tentativas_falhas"].append(f"WhatsApp ({exc})")
 
-        # 3. Fallback para Email
+        # 3. Fallback Gmail para erros que exigem canal secundário e evidências.
+        if self._gmail_aplicavel(nivel):
+            try:
+                if self._enviar_gmail(
+                    assunto=f"Alerta Pipeline: {evento}",
+                    corpo=texto_formatado,
+                    anexos=anexos,
+                ):
+                    resultado["canal_utilizado"] = "Gmail"
+                    resultado["sucesso"] = True
+                    self.logger.warning(
+                        f"[ALERTA_FALLBACK_CANAL] Alerta enviado via Gmail | Evento: {evento}"
+                    )
+                    return resultado
+                resultado["tentativas_falhas"].append("Gmail (API erro)")
+            except Exception as exc:
+                self.logger.warning(f"[ALERTA_FALHA_CANAL] Gmail falhou: {exc}")
+                resultado["tentativas_falhas"].append(f"Gmail ({exc})")
+
+        # 4. Fallback para Email SMTP legado.
         if self.email_enabled and self.smtp_server and self.email_to:
             try:
                 if self._enviar_email(f"Alerta Pipeline: {evento}", texto_formatado):
@@ -126,7 +161,7 @@ class SistemaAlertas:
                 self.logger.warning(f"[ALERTA_FALHA_CANAL] Email falhou: {exc}")
                 resultado["tentativas_falhas"].append(f"Email ({exc})")
 
-        # 4. Fallback final: Log de Emergência Destacado
+        # 5. Fallback final: Log de Emergência Destacado
         resultado["canal_utilizado"] = "LogLocal"
         resultado["sucesso"] = True
         self.logger.error(
@@ -181,6 +216,39 @@ class SistemaAlertas:
         with smtplib.SMTP(self.smtp_server or "localhost", self.smtp_port, timeout=5.0) as server:
             server.send_message(msg)
         return True
+
+    def _gmail_aplicavel(self, nivel: str) -> bool:
+        """Gmail é o canal adicional do enunciado apenas para ERRO/CRÍTICO."""
+        nivel_normalizado = nivel.strip().upper()
+        return (
+            self.gmail_enabled
+            and bool(self.gmail_to)
+            and nivel_normalizado in {"ERRO", "CRITICO", "CRÍTICO"}
+        )
+
+    def _enviar_gmail(
+        self,
+        *,
+        assunto: str,
+        corpo: str,
+        anexos: Iterable[str | Path],
+    ) -> bool:
+        if self._gmail_sender is None:
+            if not self.gmail_token_file:
+                raise ValueError(
+                    "GMAIL_TOKEN_FILE é obrigatório quando GMAIL_ENABLED=true."
+                )
+            self._gmail_sender = GmailOAuthSender(
+                credentials_file=self.gmail_credentials_file,
+                token_file=self.gmail_token_file,
+                email_from=self.gmail_from,
+            )
+        return self._gmail_sender.enviar(
+            destinatario=self.gmail_to or "",
+            assunto=assunto,
+            corpo=corpo,
+            anexos=anexos,
+        )
 
     def close(self) -> None:
         if self._owns_client:

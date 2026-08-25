@@ -1,4 +1,4 @@
-"""Monta os dois pacotes Python aceitos pelo BotCity Runner."""
+"""Monta os três pacotes S10-B aceitos pelo BotCity Runner."""
 
 from __future__ import annotations
 
@@ -32,6 +32,19 @@ def _build_cadastro(destination: Path) -> None:
         _write_tree(archive, ROOT / "src", "src")
 
 
+def _build_coletor(destination: Path) -> None:
+    with ZipFile(destination, "w", compression=ZIP_DEFLATED) as archive:
+        archive.write(ROOT / "bots/coletor/bot.py", "bot.py")
+        archive.write(ROOT / "bots/coletor/requirements.txt", "requirements.txt")
+        archive.write(ROOT / "coletor.py", "coletor.py")
+        archive.write(ROOT / "config.py", "config.py")
+        archive.write(
+            ROOT / "data/samples/inspecao_lotes_dia.xlsx",
+            "data/samples/inspecao_lotes_dia.xlsx",
+        )
+        _write_tree(archive, ROOT / "src", "src")
+
+
 def _build_validacao(destination: Path) -> None:
     with ZipFile(destination, "w", compression=ZIP_DEFLATED) as archive:
         archive.write(ROOT / "bots/validacao/bot.py", "bot.py")
@@ -44,13 +57,15 @@ def _build_validacao(destination: Path) -> None:
         _write_tree(archive, ROOT / "src", "src")
 
 
-def build_packages(output: Path) -> tuple[Path, Path]:
+def build_packages(output: Path) -> tuple[Path, Path, Path]:
     output.mkdir(parents=True, exist_ok=True)
-    cadastro = output / "bot-lotes-cadastro-playwright-mk7.zip"
-    validacao = output / "bot-lotes-validacao-mk7.zip"
+    coletor = output / "messyas-bot-coletor-v1.zip"
+    cadastro = output / "messyas-bot-cadastro-v1.zip"
+    validacao = output / "messyas-bot-conferencia-v1.zip"
+    _build_coletor(coletor)
     _build_cadastro(cadastro)
     _build_validacao(validacao)
-    return cadastro, validacao
+    return coletor, cadastro, validacao
 
 
 def main() -> int:

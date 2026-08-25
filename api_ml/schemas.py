@@ -44,6 +44,31 @@ class LoteInput(BaseModel):
         return turno
 
 
+class DivergenciaInput(BaseModel):
+    """Contrato do classificador S10-B baseado no texto livre do operador.
+
+    Este endpoint é separado de ``/predict`` para não alterar o contrato do
+    classificador da Aula 24-A, que deliberadamente não usa texto livre.
+    """
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    lote_id: str = Field(min_length=1, max_length=80)
+    observacao: str = Field(min_length=1, max_length=2_000)
+    simular_atraso_ms: int = Field(default=0, ge=0, le=10_000)
+
+
+class DivergenciaOutput(BaseModel):
+    """Sugestão não determinística de negócio, auditável pelo bot S10-B."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    lote_id: str
+    causa_provavel: str
+    probabilidade: float = Field(ge=0.0, le=1.0)
+    modelo_versao: str
+
+
 class PredictionOutput(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 

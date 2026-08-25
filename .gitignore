@@ -33,6 +33,11 @@ blob-report/
 .env.*
 !.env.example
 
+# Credenciais OAuth e tokens de integrações externas.
+client_secret*.json
+secrets/
+token_gmail.json
+
 # IDEs e editores
 .vscode/
 .idea/
@@ -48,6 +53,7 @@ data/output/*
 !data/output/ensaio_sabotagem_carga.json
 !data/output/ensaio_sabotagem_carga.md
 data/datapool/
+data/incident/
 logs/
 
 # Evidências geradas pela automação web

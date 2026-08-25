@@ -198,10 +198,12 @@ class BotCityDatapoolPublisher:
         *,
         datapool_label: str,
         validator_activity_label: str,
+        parent_task_id: str | None = None,
     ) -> None:
         self.maestro = maestro
         self.datapool_label = datapool_label
         self.validator_activity_label = validator_activity_label
+        self.parent_task_id = parent_task_id
 
     def _get_datapool(self) -> Any:
         try:
@@ -248,6 +250,8 @@ class BotCityDatapoolPublisher:
             parameters={
                 "batch_id": batch_id,
                 "batch_total": len(records),
+                "triggered_by": "messyas-bot-cadastro-v1",
+                "parent_task_id": self.parent_task_id or "local",
             },
         )
         return self.datapool_label

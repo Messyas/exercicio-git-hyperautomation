@@ -26,6 +26,7 @@ from src.playwright_automation import PlaywrightAutomation
 from src.relatorio import gerar_relatorio_erros_fluxo
 from src.resilience import close_logger
 from src.time_utils import now_local
+from src.wait_for_predecessor import TASK_STATUS_COMPLETED, wait_for_predecessor
 
 
 def _safe_name(value: str) -> str:
@@ -62,9 +63,35 @@ def _publisher(settings, maestro: MaestroClient):
             maestro.sdk,
             datapool_label=settings.datapool_label,
             validator_activity_label=settings.validator_activity_label,
+            parent_task_id=maestro.task_id,
         )
     raise ValueError(
         "DATAPOOL_BACKEND deve ser 'local' ou 'botcity'."
+    )
+
+
+def _wait_for_collector_if_needed(maestro: MaestroClient, logger) -> None:
+    """Garante que Cadastro só prossiga após o Coletor concluir no Maestro."""
+    if not maestro.enabled or maestro.sdk is None or not maestro.task_id:
+        return
+    task = maestro.sdk.get_task(maestro.task_id)
+    parameters = getattr(task, "parameters", None) or {}
+    parent_task_id = str(parameters.get("parent_task_id") or "")
+    if not parent_task_id or parent_task_id == "local":
+        return
+    status = wait_for_predecessor(
+        maestro.sdk,
+        parent_task_id,
+        logger_instance=logger,
+    )
+    if status not in TASK_STATUS_COMPLETED:
+        raise RuntimeError(
+            f"Tarefa predecessora do coletor terminou em estado inválido: {status}."
+        )
+    logger.info(
+        "CADEIA_S10B_COLETOR_CONFIRMADO parent_task_id=%s status=%s",
+        parent_task_id,
+        status,
     )
 
 
@@ -89,6 +116,7 @@ def run_producer() -> int:
     try:
         maestro.connect()
         maestro.register_start()
+        _wait_for_collector_if_needed(maestro, logger)
         batch = load_excel_batch(settings.default_input_file)
         records = batch.records()
         evidence_dir = evidence_root / batch.batch_id / "produtor"

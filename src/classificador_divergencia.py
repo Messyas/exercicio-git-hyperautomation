@@ -52,6 +52,7 @@ class ClassificadorDivergencia:
         enabled: bool = True,
         timeout_ms: int = 1000,
         confianca_minima: float = 0.70,
+        simulated_delay_ms: int = 0,
         client: Optional[httpx.Client] = None,
         logger_instance: Optional[logging.Logger] = None,
     ):
@@ -59,6 +60,7 @@ class ClassificadorDivergencia:
         self.enabled = enabled
         self.timeout_sec = max(0.001, timeout_ms / 1000.0)
         self.confianca_minima = confianca_minima
+        self.simulated_delay_ms = max(0, simulated_delay_ms)
         self.logger = logger_instance or logger
 
         self._stats_total = 0
@@ -105,16 +107,15 @@ class ClassificadorDivergencia:
                 latencia_ms=latencia,
             )
 
-        payload = {
+        payload: dict[str, Any] = {
             "lote_id": lote_id,
             "observacao": observacao,
-            "status_raw": status_raw,
-            "turno": turno,
-            "tem_obs": bool(observacao and observacao.strip()),
         }
+        if self.simulated_delay_ms:
+            payload["simular_atraso_ms"] = self.simulated_delay_ms
 
         try:
-            response = self._client.post("/predict", json=payload)
+            response = self._client.post("/classify-divergence", json=payload)
             latencia = (time.perf_counter() - t0) * 1000.0
 
             if response.status_code != 200:

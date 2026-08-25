@@ -372,6 +372,11 @@ def validar_dataframe(
         smtp_port=settings.smtp_port,
         email_from=settings.email_from,
         email_to=settings.email_to,
+        gmail_enabled=settings.gmail_enabled,
+        gmail_credentials_file=settings.gmail_credentials_file,
+        gmail_token_file=settings.gmail_token_file,
+        gmail_from=settings.gmail_from,
+        gmail_to=settings.gmail_to,
         logger_instance=logger,
     )
 
@@ -411,14 +416,27 @@ def validar_dataframe(
     # Dead Letter file para falhas de dados irrecuperáveis
     if falhas_tecnicas or rejeicoes_cadastro:
         dead_letter_path = settings.dead_letter_file
+        dead_letter_gravado = False
         try:
             dead_letter_path.parent.mkdir(parents=True, exist_ok=True)
             with dead_letter_path.open("a", encoding="utf-8") as f:
                 for item in list(falhas_tecnicas or []) + list(rejeicoes_cadastro or []):
                     f.write(json.dumps(item, ensure_ascii=False) + "\n")
+            dead_letter_gravado = True
         except Exception as exc:
             if logger:
                 logger.warning(f"Não foi possível gravar no dead letter file {dead_letter_path}: {exc}")
+
+        if falhas_tecnicas:
+            alertas.notificar(
+                mensagem=(
+                    f"{len(falhas_tecnicas)} falha(s) técnica(s) ocorreram no "
+                    "cadastro web e foram encaminhadas para análise."
+                ),
+                nivel="ERRO",
+                evento="FALHA_TECNICA_CADASTRO",
+                anexos=[dead_letter_path] if dead_letter_gravado else (),
+            )
 
     relatorio = gerar_relatorio_divergencias(
         erros_consolidados,

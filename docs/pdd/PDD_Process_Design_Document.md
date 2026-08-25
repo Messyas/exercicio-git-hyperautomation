@@ -221,7 +221,7 @@ O bot não altera a planilha original e não acessa ERP, MES ou sistemas oficiai
 
 **Raia do Bot 2 - Cadastro Web RPA (`messyas-bot-cadastro-v1`):**
 
-1. **Cadastrar no Next.js**: autentica no frontend e envia os dados com Playwright.
+1. **Cadastrar na interface web local**: autentica no formulário HTML e envia os dados com Playwright.
 2. **Confirmar o cadastro**: captura comprovantes e screenshots.
 3. **Encadear tarefa**: dispara o Bot 3 (`messyas-bot-conferencia-v1`) via `create_task()`.
 
@@ -289,7 +289,7 @@ O bot não altera a planilha original e não acessa ERP, MES ou sistemas oficiai
 **2\. Notificações Multicanal (`SistemaAlertas`)**
 
 * Canal Principal: Telegram (mensagens de status, erros e alertas).
-* Canais Secundários: WhatsApp (Twilio) / Email (SMTP) utilizados automaticamente como fallback se o Telegram estiver indisponível.
+* Canais Secundários: WhatsApp (Twilio), Gmail API/OAuth (para `ERRO`/`CRÍTICO`, com anexo) ou Email SMTP, utilizados automaticamente como fallback se o Telegram estiver indisponível.
 * Alerta de Alerta Especial: Aviso `PIPELINE OPERANDO SEM ML` enviado caso 100% dos itens utilizem fallback de ML.
 
 **3\. Dead Letter File (`data/output/dead_letter.jsonl`)**

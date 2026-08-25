@@ -2,12 +2,14 @@
 
 [![CI/CD](https://github.com/Messyas/exercicio-git-hyperautomation/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/Messyas/exercicio-git-hyperautomation/actions/workflows/ci-cd.yml)
 
-O projeto contém dois bots independentes, encadeados por um DataPool:
+No modo S10-B, o projeto contém três bots encadeados no Maestro:
 
-1. **Produtor Playwright**: lê a planilha bruta, cadastra cada lote no sistema
+1. **Coletor (`messyas-bot-coletor-v1`)**: lê e valida a planilha de entrada;
+   ao concluir, cria a tarefa do cadastro com a referência da tarefa pai.
+2. **Cadastro (`messyas-bot-cadastro-v1`)**: cadastra cada lote no sistema
    web local, salva evidências e publica no DataPool apenas os cadastros
    concluídos.
-2. **Consumidor compatível com BotCity**: consome o DataPool local ou remoto,
+3. **Conferência (`messyas-bot-conferencia-v1`)**: consome o DataPool local ou remoto,
    executa RN01-RN07, atualiza o estado individual dos itens e gera o relatório
    Excel.
 
@@ -15,7 +17,7 @@ O fuso operacional é sempre `America/Manaus`. Rejeições do formulário,
 divergências de negócio e falhas técnicas são classificadas separadamente;
 nenhuma divergência interrompe o processamento dos itens seguintes.
 
-Rejeições e falhas de cadastro não entram no DataPool. O Bot 1 preserva esses
+Rejeições e falhas de cadastro não entram no DataPool. O bot de cadastro preserva esses
 itens em um relatório próprio, com os dados de origem, o motivo e o caminho da
 evidência. Assim, o Bot 2 recebe apenas itens que concluíram a etapa anterior.
 
@@ -26,7 +28,7 @@ Esta versão implementa todas as especificações do **Estudo de Caso S10-B**:
 2. **Classificador ML Híbrido (`src/classificador_divergencia.py`)**: Analisa o texto livre de `observacao` para sugerir a causa provável de divergência. Respeita a feature flag `ML_ENABLED` (quando `False`, nenhuma chamada de rede é feita) e o limiar `ML_CONFIANCA_MINIMA` (padrão `0.70`). **Garantia de 100% de resiliência**: nenhuma exceção da camada de ML é propagada ao bot.
 3. **Decisão de Negócio Independente**: O status do lote (`VALIDO`, `DIVERGENCIA`, `PENDENTE_REVISAO`) é decidido exclusivamente pelas regras RN01–RN07. O ML apenas enriquece os itens de divergência com `causa_provavel_ml`.
 4. **Relatório Auditável (`src/relatorio.py`)**: Exporta as colunas `origem_decisao` (`ml` vs `fallback`), `confianca_ml` e `causa_provavel_ml` na planilha `.xlsx` e JSON.
-5. **Notificação Multicanal (`src/sistema_alertas.py`)**: Telegram como canal principal, com fallback automático para WhatsApp (Twilio) ou Email (SMTP) em caso de falha. Alerta obrigatório (severidade AVISO) quando 100% dos itens caírem em fallback de ML.
+5. **Notificação Multicanal (`src/sistema_alertas.py`)**: Telegram como canal principal, com fallback automático para WhatsApp (Twilio), Gmail API/OAuth (somente `ERRO`/`CRÍTICO`, com anexos) ou Email SMTP. Alerta obrigatório (severidade AVISO) quando 100% dos itens caírem em fallback de ML.
 6. **Dead Letter File**: Persistência de itens irrecuperáveis em `data/output/dead_letter.jsonl`.
 7. **Simulação de Crise (5 Cenários)**: Script `scripts/simular_cenarios_sabotagem.py` para testar e gerar evidências dos 5 cenários de sabotagem ao vivo.
 
@@ -40,14 +42,111 @@ ML_TIMEOUT_MS=1000
 ML_CONFIANCA_MINIMA=0.70
 
 # Notificações Multicanal
-TELEGRAM_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
-TELEGRAM_CHAT_ID=-100123456789
+TELEGRAM_TOKEN=<token-gerado-pelo-BotFather>
+TELEGRAM_CHAT_ID=<id-do-chat-ou-grupo>
 WHATSAPP_ENABLED=false
 EMAIL_ENABLED=false
+GMAIL_ENABLED=false
 
 # Dead Letter File
 DEAD_LETTER_FILE=data/output/dead_letter.jsonl
 ```
+
+### Gmail para erros técnicos e críticos
+
+O Gmail é um canal secundário: é usado somente quando Telegram e, se habilitado,
+WhatsApp não entregarem um alerta de nível `ERRO` ou `CRÍTICO`. Em uma falha
+técnica de cadastro, o alerta inclui o arquivo `dead_letter.jsonl` como anexo.
+Alertas de nível `AVISO`, incluindo `PIPELINE_SEM_ML`, continuam no Telegram ou
+no log local e não enviam e-mail.
+
+1. Ative a Gmail API e configure a tela de consentimento OAuth no projeto
+   Google da conta que fará os envios.
+2. Mantenha o JSON de credenciais OAuth e o token gerado na pasta local
+   `secrets/` (essa pasta é ignorada pelo Git e pela imagem Docker).
+3. No `.env`, preencha apenas os caminhos e o destinatário:
+
+```env
+GMAIL_ENABLED=true
+GMAIL_CREDENTIALS_FILE=secrets/gmail_credentials.json
+GMAIL_TOKEN_FILE=secrets/gmail_token.json
+GMAIL_FROM=
+GMAIL_TO=operacao@empresa.com
+```
+
+`GMAIL_TO` é obrigatório. Deixe `GMAIL_FROM` vazio para enviar pela mesma
+conta autorizada no OAuth; só o preencha se a conta possuir um alias de envio
+já autorizado pelo Gmail.
+
+4. Para a apresentação, execute um único comando e abra no navegador o link
+   OAuth exibido pelo terminal:
+
+```powershell
+docker compose --profile gmail run --build --rm --service-ports gmail-authorize
+```
+
+   Após aceitar o consentimento, o token é criado em `secrets/gmail_token.json`.
+   Também é possível executar `python scripts/autorizar_gmail.py` fora do Docker.
+
+Se o Google mostrar `Erro 403: access_denied` durante o consentimento, abra o
+mesmo projeto no Google Cloud e vá em **Google Auth Platform → Audience → Test
+users → Add users**. Inclua a conta que fará o envio e tente novamente. Para
+uma conta Gmail pessoal, mantenha o público como **External** e o app em
+**Testing**. Consulte o [guia oficial de consentimento OAuth](https://developers.google.com/workspace/guides/configure-oauth-consent).
+
+No Docker Compose, `./secrets` é montada somente em leitura nos serviços que
+podem enviar alertas; em execução, apenas o token é necessário. Em BotCity,
+forneça o token por um armazenamento de segredos/volume da plataforma; não
+inclua credenciais no `.zip` do bot.
+
+### Demonstração controlada do Gmail
+
+Com o token e `GMAIL_TO` configurados, o comando abaixo envia **um único**
+alerta `ERRO` de demonstração. O Telegram é simulado como indisponível, sem
+chamada externa, e o Gmail recebe o arquivo anexo
+`reports/teste_gmail/alerta_teste_gmail.txt`.
+
+```powershell
+docker compose --profile gmail run --build --rm gmail-test
+```
+
+O comando retorna sucesso somente se o canal utilizado for `Gmail`.
+O resultado esperado no terminal é semelhante a:
+
+```text
+Teste Gmail concluído | canal=Gmail | sucesso=True
+```
+
+Este é o único cenário Docker que envia mensagem real. Os cinco cenários em
+`docker-compose.sabotagem.yml` usam clientes simulados e não enviam Gmail;
+eles validam apenas a resiliência do pipeline e o fallback para log local.
+
+### Simulação de apresentação: lote oculto e placar
+
+Coloque o Excel entregue pela banca em `data/incident/lote_incidente.xlsx`. Ele
+deve conter a aba de inspeção e `Base_Referencia`, com exatamente 30 casos.
+Opcionalmente, para identificar a linha do grupo no placar, defina antes do
+comando (PowerShell):
+
+```powershell
+$env:PRESENTATION_GROUP = "grupo-01"
+```
+
+Execute:
+
+```powershell
+docker compose -f docker-compose.apresentacao.yml up --build
+```
+
+Abra `http://localhost:8090/web/placar_apresentacao.html` no projetor. Durante
+os 15 segundos iniciais, o instrutor pode executar, em outro terminal:
+
+```powershell
+docker compose -f docker-compose.apresentacao.yml kill api-ml
+```
+
+O pipeline deve concluir usando fallback de ML; os logs e o placar em
+`reports/apresentacao/placar.json` permanecem disponíveis para a banca.
 
 ### Executar a Simulação de Crise e Sabotagem
 
@@ -279,10 +378,11 @@ python -m pytest -m "not browser" --cov=src --cov=dashboard \
 
 ## DataPool BotCity
 
-> Não crie o DataPool antes de implantar os dois bots. O produtor só cria a
-> tarefa do validador depois de publicar o lote completo.
+> Não crie o DataPool antes de implantar os três bots. O coletor cria a tarefa
+> de cadastro; o cadastro só cria a tarefa de conferência após publicar o lote
+> completo no DataPool.
 
-Gere os dois pacotes independentes:
+Gere os três pacotes independentes:
 
 ```bash
 python scripts/build_botcity_packages.py
@@ -323,11 +423,14 @@ No BotCity Orchestrator:
    python -m scripts.create_datapool
    ```
 
-4. registre a automação consumidora com o label definido em
-   `VALIDATOR_ACTIVITY_LABEL`;
-5. execute o produtor.
+4. implante os pacotes com os labels `messyas-bot-coletor-v1`,
+   `messyas-bot-cadastro-v1` e `messyas-bot-conferencia-v1`;
+5. registre `messyas-bot-conferencia-v1` em `VALIDATOR_ACTIVITY_LABEL`;
+6. execute o coletor. Ele cria a cadeia Coletor → Cadastro → Conferência,
+   preservando `triggered_by` e `parent_task_id` nos parâmetros de tarefa e
+   nos logs.
 
-O produtor tenta cadastrar todas as entradas e só publica as que concluíram o
+O cadastro tenta cadastrar todas as entradas e só publica as que concluíram o
 cadastro web. Depois de publicar esse lote filtrado, cria a tarefa do
 consumidor. O campo `item_id`, formado pelo hash do arquivo e pela linha de
 origem, fornece idempotência. Um `lote_id` vazio é retido pelo Bot 1; IDs
@@ -353,7 +456,7 @@ Todas as linhas contêm:
 - `source_row`;
 - timestamp, nível, logger e mensagem.
 
-No Compose, os IDs dos bots são:
+No Compose legado (usado apenas para validar o fluxo de dois estágios), os IDs dos bots são:
 
 - `bot-lotes-cadastro-playwright-mk7`;
 - `bot-lotes-validacao-mk7`.

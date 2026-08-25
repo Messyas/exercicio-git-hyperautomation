@@ -10,7 +10,13 @@ from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 
 from api_ml.model_service import ModelService, ModelUnavailableError
-from api_ml.schemas import HealthOutput, LoteInput, PredictionOutput
+from api_ml.schemas import (
+    DivergenciaInput,
+    DivergenciaOutput,
+    HealthOutput,
+    LoteInput,
+    PredictionOutput,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("api_ml")
@@ -45,7 +51,7 @@ async def controlar_concorrencia_e_medir_latencia(request: Request, call_next):
     """Limita inferências CPU-bound e registra latência total e tempo de fila."""
     inicio = time.perf_counter()
     espera_fila_ms = 0.0
-    if request.url.path == "/predict":
+    if request.url.path in {"/predict", "/classify-divergence"}:
         entrou_fila = time.perf_counter()
         async with app.state.inference_semaphore:
             espera_fila_ms = (time.perf_counter() - entrou_fila) * 1000.0
@@ -112,4 +118,46 @@ def predict(lote: LoteInput, response: Response) -> PredictionOutput:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro interno ao processar a requisição de classificação.",
+        )
+
+
+@app.post(
+    "/classify-divergence",
+    response_model=DivergenciaOutput,
+    status_code=status.HTTP_200_OK,
+)
+def classify_divergence(
+    lote: DivergenciaInput,
+    response: Response,
+) -> DivergenciaOutput:
+    """Sugere causa provável a partir da observação livre (contrato S10-B)."""
+    if not model_service.is_loaded:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Modelo de ML indisponível ou não carregado.",
+        )
+    try:
+        if lote.simular_atraso_ms:
+            time.sleep(lote.simular_atraso_ms / 1000)
+        inicio_inferencia = time.perf_counter()
+        prediction = model_service.classify_divergence(lote)
+        response.headers["X-Inference-Latency-Ms"] = (
+            f"{(time.perf_counter() - inicio_inferencia) * 1000:.2f}"
+        )
+        logger.info(
+            "S10B_TEXT_INFERENCE lote_id=%s causa=%s",
+            lote.lote_id,
+            prediction.causa_provavel,
+        )
+        return prediction
+    except ModelUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        )
+    except Exception:
+        logger.exception("Erro inesperado na classificação textual S10-B")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erro interno ao processar a classificação textual.",
         )
