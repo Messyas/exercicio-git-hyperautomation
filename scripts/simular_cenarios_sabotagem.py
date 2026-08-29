@@ -51,8 +51,9 @@ logger = logging.getLogger("sabotagem_capstone")
 def _alertas_mock_falha() -> SistemaAlertas:
     """Cria instância com canal Telegram simulando erro 401 Unauthorized."""
     transport = httpx.MockTransport(lambda req: httpx.Response(401, json={"ok": False, "description": "Unauthorized"}))
+    mock_tkn = "token-invalido-sabotagem"
     return SistemaAlertas(
-        telegram_token="token-invalido-sabotagem",
+        telegram_token=mock_tkn,
         telegram_chat_id="12345678",
         client=httpx.Client(transport=transport),
         logger_instance=logger,

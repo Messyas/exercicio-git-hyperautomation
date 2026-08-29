@@ -36,9 +36,10 @@ def main() -> int:
     client = httpx.Client(
         transport=httpx.MockTransport(lambda request: httpx.Response(503))
     )
+    mock_tkn = "telegram-simulacao-indisponivel"
     try:
         alertas = SistemaAlertas(
-            telegram_token="telegram-simulacao-indisponivel",
+            telegram_token=mock_tkn,
             telegram_chat_id="chat-simulacao",
             whatsapp_enabled=False,
             email_enabled=False,
