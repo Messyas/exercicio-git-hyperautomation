@@ -1,11 +1,11 @@
 """Componente isolado de classificação de divergências via ML.
 
-Este módulo atende a todas as especificações das Seções 3.2, 7 e 8 do Estudo de Caso S10-B:
+Este módulo atende a todas as especificações das Seções 3.2, 7 e 8 do Estudo de Caso S10-B e Capstone:
 - Isolamento total por abstração (`ClassificadorDivergencia`).
 - Controle estrito por feature flag (`ML_ENABLED`). Quando desativado, nenhuma chamada de rede é feita.
 - Limiar de confiança mínima configurável (`ML_CONFIANCA_MINIMA`).
 - Resiliência total: NUNCA lança exceção para o bot, tratando indisponibilidade, timeout,
-  erros HTTP ou baixa confiança como fallbacks seguros e auditáveis.
+  erros HTTP, baixa confiança ou circuit breaker aberto como fallbacks seguros e auditáveis.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ class ResultadoClassificacao:
     causa_provavel_ml: str
     confianca_ml: float
     origem_decisao: str  # "ml" ou "fallback"
-    motivo_fallback: str | None = None  # "feature_flag_desativada", "indisponibilidade", "timeout", "baixa_confianca", "resposta_invalida"
+    motivo_fallback: str | None = None  # "feature_flag_desativada", "indisponibilidade", "timeout", "baixa_confianca", "resposta_invalida", "circuit_open"
     latencia_ms: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
@@ -44,7 +44,7 @@ class ResultadoClassificacao:
 
 
 class ClassificadorDivergencia:
-    """Classificador híbrido RPA+ML para enriquecimento de divergências."""
+    """Classificador híbrido RPA+ML para enriquecimento de divergências com Circuit Breaker."""
 
     def __init__(
         self,
@@ -52,6 +52,7 @@ class ClassificadorDivergencia:
         enabled: bool = True,
         timeout_ms: int = 1000,
         confianca_minima: float = 0.70,
+        failure_threshold: int = 5,
         simulated_delay_ms: int = 0,
         client: Optional[httpx.Client] = None,
         logger_instance: Optional[logging.Logger] = None,
@@ -60,11 +61,14 @@ class ClassificadorDivergencia:
         self.enabled = enabled
         self.timeout_sec = max(0.001, timeout_ms / 1000.0)
         self.confianca_minima = confianca_minima
+        self.failure_threshold = failure_threshold
         self.simulated_delay_ms = max(0, simulated_delay_ms)
         self.logger = logger_instance or logger
 
         self._stats_total = 0
         self._stats_fallback = 0
+        self._consecutive_failures = 0
+        self._circuit_open = False
 
         if client is not None:
             self._client = client
@@ -86,7 +90,7 @@ class ClassificadorDivergencia:
     ) -> ResultadoClassificacao:
         """Classifica a causa provável de uma divergência a partir do texto livre.
 
-        Garantia de contrato S10-B: NUNCA propaga exceção ao chamador.
+        Garantia de contrato: NUNCA propaga exceção ao chamador.
         """
         self._stats_total += 1
         t0 = time.perf_counter()
@@ -107,6 +111,22 @@ class ClassificadorDivergencia:
                 latencia_ms=latencia,
             )
 
+        # 2. Circuit Breaker Check (se o circuito estiver aberto, evita chamadas desnecessárias)
+        if self._circuit_open:
+            self._stats_fallback += 1
+            latencia = (time.perf_counter() - t0) * 1000.0
+            self.logger.warning(
+                f"[ML_CIRCUIT_OPEN] Circuit breaker aberto. Fallback imediato para lote '{lote_id}'."
+            )
+            return ResultadoClassificacao(
+                lote_id=lote_id,
+                causa_provavel_ml="nao_classificado",
+                confianca_ml=0.0,
+                origem_decisao="fallback",
+                motivo_fallback="circuit_open",
+                latencia_ms=latencia,
+            )
+
         payload: dict[str, Any] = {
             "lote_id": lote_id,
             "observacao": observacao,
@@ -119,6 +139,7 @@ class ClassificadorDivergencia:
             latencia = (time.perf_counter() - t0) * 1000.0
 
             if response.status_code != 200:
+                self._registrar_falha_circuito()
                 self._stats_fallback += 1
                 self.logger.warning(
                     f"[ML_FALLBACK] HTTP {response.status_code} na API de ML para lote '{lote_id}'"
@@ -147,7 +168,7 @@ class ClassificadorDivergencia:
                 data.get("causa_provavel", data.get("classe", "duplicidade_digitacao"))
             )
 
-            # 2. Check de Limiar de Confiança Mínima
+            # 3. Check de Limiar de Confiança Mínima
             if confianca < self.confianca_minima:
                 self._stats_fallback += 1
                 self.logger.info(
@@ -162,7 +183,8 @@ class ClassificadorDivergencia:
                     latencia_ms=latencia,
                 )
 
-            # Predição válida via ML
+            # Sucesso: reseta falhas consecutivas
+            self._consecutive_failures = 0
             self.logger.info(
                 f"[ML_SUCESSO] Lote '{lote_id}' classificado como '{sugestao}' com confiança {confianca:.2f}"
             )
@@ -176,6 +198,7 @@ class ClassificadorDivergencia:
             )
 
         except httpx.TimeoutException:
+            self._registrar_falha_circuito()
             latencia = (time.perf_counter() - t0) * 1000.0
             self._stats_fallback += 1
             self.logger.warning(
@@ -190,6 +213,7 @@ class ClassificadorDivergencia:
                 latencia_ms=latencia,
             )
         except (httpx.NetworkError, httpx.TransportError, Exception) as exc:
+            self._registrar_falha_circuito()
             latencia = (time.perf_counter() - t0) * 1000.0
             self._stats_fallback += 1
             self.logger.warning(
@@ -204,6 +228,15 @@ class ClassificadorDivergencia:
                 latencia_ms=latencia,
             )
 
+    def _registrar_falha_circuito(self) -> None:
+        self._consecutive_failures += 1
+        if self._consecutive_failures >= self.failure_threshold and not self._circuit_open:
+            self._circuit_open = True
+            self.logger.error(
+                f"[CIRCUIT_BREAKER] {self._consecutive_failures} falhas consecutivas atingidas! "
+                "CIRCUITO ABERTO — chamadas subsequentes entrarão em fallback imediato."
+            )
+
     @property
     def operando_100_percent_fallback(self) -> bool:
         """Indica se 100% dos itens processados nesta instância caíram em fallback."""
@@ -212,6 +245,8 @@ class ClassificadorDivergencia:
     def reset_stats(self) -> None:
         self._stats_total = 0
         self._stats_fallback = 0
+        self._consecutive_failures = 0
+        self._circuit_open = False
 
     def close(self) -> None:
         if self._owns_client:

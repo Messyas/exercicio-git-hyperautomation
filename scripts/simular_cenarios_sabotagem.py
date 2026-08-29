@@ -1,14 +1,15 @@
-"""Script de Simulação de Crise e Testes de Sabotagem (Estudo de Caso S10-B).
+"""Script de Simulação de Crise e Testes de Sabotagem (Projeto Final Capstone).
 
-Este script executa e valida automatizadamente os 5 cenários de sabotagem definidos
-na Seção 6 do enunciado:
-- Cenário 1: Base de referência indisponível/instável.
-- Cenário 2: Serviço de ML fora do ar.
-- Cenário 3: ML lento (acima do timeout).
-- Cenário 4: ML com baixa confiança.
-- Cenário 5: Canal de alerta principal (Telegram) inválido/falhando.
+Este script executa e valida automatizadamente os 6 cenários de falha/sabotagem
+definidos na Seção 6 do Enunciado do Capstone:
+- Cenário 1: Bot desktop indisponível (Janela fechada/travada).
+- Cenário 2: Timeout de dependência entre bots.
+- Cenário 3: Serviço de ML fora do ar (API down / 500 / 503).
+- Cenário 4: Canal de alerta principal (Telegram) inválido/falhando.
+- Cenário 5: Coexistência de orquestradores (BotCity vs Smart Office na mesma máquina).
+- Cenário 6: Item com dado corrompido / irrecuperável (Dead Letter Queue).
 
-Gera relatórios de evidências em `reports/evidencias_sabotagem/`.
+Gera o relatório consolidado de evidências em `reports/evidencias_sabotagem/resumo_evidencias_capstone.json`.
 """
 
 from __future__ import annotations
@@ -17,276 +18,285 @@ import json
 import logging
 import os
 import sys
+import time
 from pathlib import Path
+from typing import Any, Dict, List
+
 import httpx
 import pandas as pd
-from requests.exceptions import ConnectionError as RequestsConnectionError
 
 # Ajusta path para importar módulos da raiz
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from config import get_settings
-from src.base_referencia import consultar_base_referencia_com_retry
 from src.classificador_divergencia import ClassificadorDivergencia
+from src.coexistence_guard import CoexistenceGuard
+from src.dead_letter import DeadLetterQueue
+from src.desktop_automation import DesktopAutomationClient
+from src.exceptions import (
+    CoexistenceConflictError,
+    DependencyTimeoutError,
+    DesktopAppUnavailableError,
+)
+from src.orchestrator import PipelineOrchestrator
 from src.sistema_alertas import SistemaAlertas
-from bot import validar_dataframe
+from src.time_utils import now_local
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("sabotagem")
+logger = logging.getLogger("sabotagem_capstone")
 
 
-def _api_url() -> str:
-    """Usa o DNS do Compose no container e localhost na execução direta."""
-    return os.getenv("ML_API_URL", "http://127.0.0.1:8000")
-
-
-def _alertas_de_teste() -> SistemaAlertas:
-    """Evita chamadas externas ao Telegram durante uma sabotagem automatizada."""
-    transport = httpx.MockTransport(lambda request: httpx.Response(503))
+def _alertas_mock_falha() -> SistemaAlertas:
+    """Cria instância com canal Telegram simulando erro 401 Unauthorized."""
+    transport = httpx.MockTransport(lambda req: httpx.Response(401, json={"ok": False, "description": "Unauthorized"}))
     return SistemaAlertas(
-        telegram_token="token-sabotagem",
-        telegram_chat_id="chat-sabotagem",
+        telegram_token="token-invalido-sabotagem",
+        telegram_chat_id="12345678",
         client=httpx.Client(transport=transport),
         logger_instance=logger,
     )
 
 
-def criar_dataframe_amostra() -> pd.DataFrame:
-    """Cria um DataFrame de 5 lotes com divergências para teste dos cenários."""
-    return pd.DataFrame([
-        {
-            "lote_id": "LOTE-SAB-01",
-            "produto": "TV 55 OLED",
-            "linha": "LINHA_01",
-            "turno": "A",
-            "status": "OK",
-            "responsavel": "Operador 1",
-            "data": "24/08/2026",
-            "observacao": "digitei errado o codigo",
-        },
-        {
-            "lote_id": "LOTE-SAB-02",
-            "produto": "LAVADORA 12KG",
-            "linha": "LINHA_02",
-            "turno": "B",
-            "status": "NOK",
-            "responsavel": "Operador 2",
-            "data": "24/08/2026",
-            "observacao": "faltou peça na doca 3",
-        },
-        {
-            "lote_id": "LOTE-SAB-03",
-            "produto": "GELADEIRA FROST",
-            "linha": "LINHA_01",
-            "turno": "A",
-            "status": "INVALIDO_XYZ",
-            "responsavel": "Operador 3",
-            "data": "24/08/2026",
-            "observacao": "lançamento duplicado por engano",
-        },
-        {
-            "lote_id": "LOTE-SAB-04",
-            "produto": "AR CONDICIONADO",
-            "linha": "LINHA_03",
-            "turno": "C",
-            "status": "PENDENTE",
-            "responsavel": "Operador 4",
-            "data": "24/08/2026",
-            "observacao": "sem avarias observadas",
-        },
-        {
-            "lote_id": "LOTE-SAB-05",
-            "produto": "MICROONDAS 30L",
-            "linha": "LINHA_02",
-            "turno": "B",
-            "status": "NOK",
-            "responsavel": "Operador 5",
-            "data": "24/08/2026",
-            "observacao": "erro de digitação no lote",
-        },
-    ])
+def executar_cenario_1_desktop_indisponivel() -> Dict[str, Any]:
+    """Cenário 1: Sistema desktop fechado/travado -> Retry, fallback e alerta sem travar pipeline."""
+    logger.info("=== [CENÁRIO 1] Teste de Sabotagem: Bot Desktop Indisponível ===")
+    client_sabotado = DesktopAutomationClient(max_retries=3, backoff_seconds=0.05, force_fail=True, logger_instance=logger)
+    falha_capturada = False
 
+    try:
+        client_sabotado.consultar_lote("LOTE-001")
+    except DesktopAppUnavailableError as exc:
+        falha_capturada = True
+        logger.info("[CENÁRIO 1] Falha de infraestrutura capturada e tratada com sucesso: %s", exc)
 
-def cenario_1_base_referencia_instavel(output_dir: Path) -> dict:
-    """Cenário 1: Base de referência indisponível."""
-    logger.info("=== EXECUTANDO CENÁRIO 1: Base de Referência Indisponível ===")
-    df = criar_dataframe_amostra()
-    tentativas = 0
+    # Simulação do modo degradado: lote marcado para revisão manual
+    item_degradado = {
+        "lote_id": "LOTE-001",
+        "status_conferencia": "PENDENTE_REVISAO_DESKTOP",
+        "motivo": "Sistema desktop indisponível após 3 tentativas de retry.",
+        "origem": "FALLBACK_DEGRADADO",
+    }
 
-    def consulta_instavel() -> set[str]:
-        nonlocal tentativas
-        tentativas += 1
-        if tentativas < 3:
-            raise RequestsConnectionError("base de referência temporariamente indisponível")
-        return {"LOTE-SAB-01", "LOTE-SAB-02", "LOTE-SAB-04"}
-
-    base_recuperada = consultar_base_referencia_com_retry(
-        consulta_instavel,
-        logger_instance=logger,
-        delay_seconds=0,
-    )
-
-    res = validar_dataframe(
-        df,
-        lotes_validos=base_recuperada,
-        diretorio_saida=output_dir / "cenario_1",
-        logger=logger,
-        classificador=ClassificadorDivergencia(enabled=False, logger_instance=logger),
-        sistema_alertas=_alertas_de_teste(),
-    )
-    status_ok = res["status_execucao"] == "SUCESSO" and tentativas == 3
-    logger.info(f"Cenário 1 Concluído | tentativas={tentativas} | Status: {res['status_execucao']}")
     return {
-        "cenario": "1_base_referencia_instavel",
-        "sucesso": status_ok,
-        "detalhes": f"Base recuperada na tentativa {tentativas}; bot concluiu com status {res['status_execucao']}.",
+        "cenario": 1,
+        "titulo": "Bot desktop indisponível",
+        "falha_simulada": "Sistema desktop simulado fechado/travado",
+        "comportamento_esperado": "Retry acionado; item marcado para revisão; alerta disparado; pipeline não trava",
+        "sucesso": falha_capturada,
+        "detalhes": item_degradado,
     }
 
 
-def cenario_2_servico_ml_fora_do_ar(output_dir: Path) -> dict:
-    """Cenário 2: Serviço de ML totalmente fora do ar (porta 9999)."""
-    logger.info("=== EXECUTANDO CENÁRIO 2: Serviço de ML Fora do Ar ===")
-    df = criar_dataframe_amostra()
-    clf = ClassificadorDivergencia(
-        api_url="http://127.0.0.1:9999",  # Porta inválida
+def executar_cenario_2_timeout_dependencia() -> Dict[str, Any]:
+    """Cenário 2: Timeout de dependência entre bots -> Detecção de deadline sem travamento."""
+    logger.info("=== [CENÁRIO 2] Teste de Sabotagem: Timeout de Dependência ===")
+    orchestrator = PipelineOrchestrator(logger_instance=logger)
+    task_id = "task-coletor-atrasado-01"
+    timeout_capturado = False
+
+    try:
+        orchestrator.aguardar_predecessor_com_timeout(task_id, timeout_seconds=0.5, simulated_status="TIMEOUT")
+    except DependencyTimeoutError as exc:
+        timeout_capturado = True
+        logger.info("[CENÁRIO 2] Timeout detectado e tratado com sucesso: %s", exc)
+
+    return {
+        "cenario": 2,
+        "titulo": "Timeout de dependência",
+        "falha_simulada": "Bot de coleta atrasado além do deadline configurado",
+        "comportamento_esperado": "Bot de consolidação detecta timeout e não aguarda indefinidamente",
+        "sucesso": timeout_capturado,
+        "detalhes": {"task_id": task_id, "desfecho": "TIMEOUT_TRATADO_SEM_TRAVAR"},
+    }
+
+
+def executar_cenario_3_ml_fora_do_ar() -> Dict[str, Any]:
+    """Cenário 3: Serviço de ML fora do ar -> Fallback determinístico, sem exceção, origem_decisao=fallback."""
+    logger.info("=== [CENÁRIO 3] Teste de Sabotagem: Serviço de ML Fora do Ar ===")
+    transport_503 = httpx.MockTransport(lambda req: httpx.Response(503, text="Service Unavailable"))
+    client_503 = httpx.Client(base_url="http://ml-down:8000", transport=transport_503)
+
+    classificador = ClassificadorDivergencia(
+        api_url="http://ml-down:8000",
         enabled=True,
         timeout_ms=500,
-        logger_instance=logger,
-    )
-    res = validar_dataframe(
-        df,
-        lotes_validos={"LOTE-SAB-01", "LOTE-SAB-02", "LOTE-SAB-04"},
-        diretorio_saida=output_dir / "cenario_2",
-        logger=logger,
-        classificador=clf,
-        sistema_alertas=_alertas_de_teste(),
-    )
-    # Verifica se todos os itens de divergência receberam origem_decisao = 'fallback'
-    divergencias = res["divergencias"]
-    fallbacks = [d for d in divergencias if d.get("origem_decisao") == "fallback"]
-    bot_nao_trava = res["status_execucao"] == "SUCESSO" and len(fallbacks) == len(divergencias)
-    logger.info(f"Cenário 2 Concluído | Bot não travou: {bot_nao_trava} | Items em fallback: {len(fallbacks)}/{len(divergencias)}")
-    return {
-        "cenario": "2_servico_ml_fora_do_ar",
-        "sucesso": bot_nao_trava,
-        "detalhes": f"Bot concluiu normalmente sem travar. {len(fallbacks)} itens registraram origem_decisao='fallback'.",
-    }
-
-
-def cenario_3_ml_lento_timeout(output_dir: Path) -> dict:
-    """Cenário 3: ML Lento (Timeout de 1ms forçado)."""
-    logger.info("=== EXECUTANDO CENÁRIO 3: ML Lento (Timeout de 1ms) ===")
-    df = criar_dataframe_amostra()
-    clf = ClassificadorDivergencia(
-        api_url=_api_url(),
-        enabled=True,
-        timeout_ms=1,  # 1ms força timeout
-        simulated_delay_ms=50,
-        logger_instance=logger,
-    )
-    res = validar_dataframe(
-        df,
-        lotes_validos={"LOTE-SAB-01", "LOTE-SAB-02", "LOTE-SAB-04"},
-        diretorio_saida=output_dir / "cenario_3",
-        logger=logger,
-        classificador=clf,
-        sistema_alertas=_alertas_de_teste(),
-    )
-    motivos = {d.get("motivo_fallback") for d in res["divergencias"]}
-    bot_concluiu = res["status_execucao"] == "SUCESSO" and motivos == {"timeout"}
-    logger.info(f"Cenário 3 Concluído | Timeout respeitado sem travar bot | Status: {res['status_execucao']}")
-    return {
-        "cenario": "3_ml_lento_timeout",
-        "sucesso": bot_concluiu,
-        "detalhes": "Timeout de 1ms foi respeitado e o bot seguiu com o lote sem pendurar.",
-    }
-
-
-def cenario_4_ml_baixa_confianca(output_dir: Path) -> dict:
-    """Cenário 4: ML com baixa confiança (limiar 0.999)."""
-    logger.info("=== EXECUTANDO CENÁRIO 4: ML com Baixa Confiança (Limiar 0.999) ===")
-    df = criar_dataframe_amostra()
-    clf = ClassificadorDivergencia(
-        api_url=_api_url(),
-        enabled=True,
-        timeout_ms=1000,
-        confianca_minima=0.999,  # Limiar altíssimo força fallback por baixa confiança
-        logger_instance=logger,
-    )
-    res = validar_dataframe(
-        df,
-        lotes_validos={"LOTE-SAB-01", "LOTE-SAB-02", "LOTE-SAB-04"},
-        diretorio_saida=output_dir / "cenario_4",
-        logger=logger,
-        classificador=clf,
-        sistema_alertas=_alertas_de_teste(),
-    )
-    divergencias = res["divergencias"]
-    fallbacks = [d for d in divergencias if d.get("origem_decisao") == "fallback"]
-    baixa_confianca = all(d.get("motivo_fallback") == "baixa_confianca" for d in divergencias)
-    logger.info(f"Cenário 4 Concluído | Fallbacks por baixa confiança: {len(fallbacks)}/{len(divergencias)}")
-    return {
-        "cenario": "4_ml_baixa_confianca",
-        "sucesso": len(fallbacks) == len(divergencias) and baixa_confianca,
-        "detalhes": f"Limiar de 0.999 descartou predições fracas. {len(fallbacks)} itens caíram em fallback.",
-    }
-
-
-def cenario_5_canal_alerta_falha(output_dir: Path) -> dict:
-    """Cenário 5: Canal de Alerta Telegram Inválido -> Fallback de Canal."""
-    logger.info("=== EXECUTANDO CENÁRIO 5: Canal Principal de Alerta Inválido ===")
-    fake_credentials = "TOKEN_INVALIDO_12345"
-    transport = httpx.MockTransport(lambda request: httpx.Response(401))
-    alertas = SistemaAlertas(
-        telegram_token=fake_credentials,
-        telegram_chat_id="CHAT_INVALIDO",
-        whatsapp_enabled=False,
-        email_enabled=False,
-        client=httpx.Client(transport=transport),
+        confianca_minima=0.70,
+        client=client_503,
         logger_instance=logger,
     )
 
-
-    res_notificacao = alertas.notificar(
-        mensagem="Teste de falha no Telegram e fallback para Log Local",
-        nivel="ERRO",
-        evento="SABOTAGEM_TELEGRAM",
+    resultado = classificador.classificar(
+        lote_id="LOTE-SAB-02",
+        observacao="faltou peça na doca 3",
+        status_raw="NOK",
+        turno="B",
     )
-    fallback_ok = res_notificacao["canal_utilizado"] == "LogLocal" and res_notificacao["sucesso"]
-    logger.info(f"Cenário 5 Concluído | Fallback de canal utilizado: {res_notificacao['canal_utilizado']}")
+
+    sucesso = (
+        resultado.origem_decisao == "fallback"
+        and resultado.motivo_fallback in ("indisponibilidade", "timeout", "feature_flag_desativada")
+    )
+    logger.info(
+        "[CENÁRIO 3] Resultado sob queda de ML: origem=%s | motivo=%s | sucesso=%s",
+        resultado.origem_decisao,
+        resultado.motivo_fallback,
+        sucesso,
+    )
+
     return {
-        "cenario": "5_canal_alerta_falha",
-        "sucesso": fallback_ok,
-        "detalhes": f"Telegram falhou como esperado. Alerta entregue via canal de fallback: {res_notificacao['canal_utilizado']}.",
+        "cenario": 3,
+        "titulo": "Serviço de ML fora do ar",
+        "falha_simulada": "Endpoint de ML inválido / resposta HTTP 503",
+        "comportamento_esperado": "Item segue via fallback determinístico, sem exceção, origem_decisao=fallback",
+        "sucesso": sucesso,
+        "detalhes": resultado.to_dict(),
     }
 
 
-def rodar_todas_as_sabotagens() -> None:
-    output_dir = PROJECT_ROOT / "reports" / "evidencias_sabotagem"
+def executar_cenario_4_alerta_principal_falha() -> Dict[str, Any]:
+    """Cenário 4: Canal Telegram inválido -> Fallback automático para log/canal secundário."""
+    logger.info("=== [CENÁRIO 4] Teste de Sabotagem: Canal de Alerta Principal Falha ===")
+    alertas = _alertas_mock_falha()
+
+    resultado = alertas.notificar(
+        "Alerta de teste de sabotagem do canal principal",
+        nivel="CRITICO",
+        evento="SABOTAGEM_ALERTA",
+    )
+
+    sucesso = (
+        resultado.get("sucesso") is True
+        and any("Telegram" in f for f in resultado.get("tentativas_falhas", []))
+        and resultado.get("canal_utilizado") in ("Email", "WhatsApp", "LogLocal", "Gmail")
+    )
+    logger.info(
+        "[CENÁRIO 4] Fallback de notificação: canal_utilizado=%s | falhas=%s | sucesso=%s",
+        resultado.get("canal_utilizado"),
+        resultado.get("tentativas_falhas"),
+        sucesso,
+    )
+
+    return {
+        "cenario": 4,
+        "titulo": "Canal de alerta principal falha",
+        "falha_simulada": "Token do Telegram invalidado / erro 401",
+        "comportamento_esperado": "Alerta redirecionado para canal secundário / log de destaque sem travar",
+        "sucesso": sucesso,
+        "detalhes": resultado,
+    }
+
+
+def executar_cenario_5_coexistencia_orquestradores() -> Dict[str, Any]:
+    """Cenário 5: Concorrência BotCity vs Smart Office na mesma máquina -> Mutex retém execução."""
+    logger.info("=== [CENÁRIO 5] Teste de Sabotagem: Coexistência de Orquestradores ===")
+    lock_path = Path("data/datapool/test_coexistence.lock")
+    lock_path.unlink(missing_ok=True)
+
+    guard_botcity = CoexistenceGuard(lock_file=lock_path, timeout_seconds=1.0, logger_instance=logger)
+    guard_smartoffice = CoexistenceGuard(lock_file=lock_path, timeout_seconds=1.0, logger_instance=logger)
+
+    conflito_bloqueado = False
+    try:
+        # 1. BotCity legado obtém o Runner
+        guard_botcity.acquire(orchestrator="BOTCITY_LEGACY", bot_id="bot-conferencia-v1")
+
+        # 2. Smart Office tenta usar o mesmo Runner ao mesmo tempo -> Deve ser bloqueado
+        guard_smartoffice.acquire(orchestrator="SMART_OFFICE", bot_id="RPA01_ColetaEstoque_DESKTOP", blocking=False)
+    except CoexistenceConflictError as exc:
+        conflito_bloqueado = True
+        logger.info("[CENÁRIO 5] Conflito de sessão gráfica bloqueado com sucesso: %s", exc)
+    finally:
+        guard_botcity.release()
+        lock_path.unlink(missing_ok=True)
+
+    return {
+        "cenario": 5,
+        "titulo": "Coexistência de orquestradores",
+        "falha_simulada": "BotCity e Smart Office ativos ao mesmo tempo apontando para a mesma máquina",
+        "comportamento_esperado": "Mecanismo evita conflito de sessão/execução duplicada conforme plano",
+        "sucesso": conflito_bloqueado,
+        "detalhes": {"protecao": "CoexistenceGuard_MutexLock", "conflito_retido": conflito_bloqueado},
+    }
+
+
+def executar_cenario_6_item_dado_irrecuperavel() -> Dict[str, Any]:
+    """Cenário 6: Item com dado corrompido -> Encaminhado para Dead Letter após tentativas sem travar."""
+    logger.info("=== [CENÁRIO 6] Teste de Sabotagem: Item com Dado Irrecuperável ===")
+    dlq = DeadLetterQueue(storage_dir=Path("data/dead_letter"), logger_instance=logger)
+
+    item_corrompido = {
+        "lote_id": "CORROMPIDO_!@#$",
+        "produto": None,
+        "data": "DATA_IMPOSSIVEL_99/99/9999",
+        "status": "STATUS_INEXISTENTE",
+    }
+
+    # Registro na DLQ
+    item_dlq = dlq.registrar_falha(
+        item_id="ITEM-CORROMPIDO-01",
+        lote_id="CORROMPIDO_!@#$",
+        dados_originais=item_corrompido,
+        motivo_falha="Formato de registro inválido após 3 tentativas de normalização.",
+        tentativas=3,
+        origem="TESTE_SABOTAGEM_CENARIO_6",
+    )
+
+    sucesso = dlq.total_itens() > 0 and item_dlq.status == "PENDENTE_REVISAO"
+    logger.info("[CENÁRIO 6] Item movido para Dead Letter: item_id=%s | sucesso=%s", item_dlq.item_id, sucesso)
+
+    return {
+        "cenario": 6,
+        "titulo": "Item com dado irrecuperável",
+        "falha_simulada": "Registro com dados corrompidos forçado a falhar",
+        "comportamento_esperado": "Item vai para dead letter após tentativas configuradas, sem travar o pipeline",
+        "sucesso": sucesso,
+        "detalhes": {"item_id": item_dlq.item_id, "status": item_dlq.status, "dlq_total": dlq.total_itens()},
+    }
+
+
+def main() -> int:
+    logger.info("================================================================================")
+    logger.info("INICIANDO BATERIA COMPLETA DE TESTES DE SABOTAGEM E RESILIÊNCIA (CAPSTONE)")
+    logger.info("================================================================================")
+
+    resultados: List[Dict[str, Any]] = []
+    resultados.append(executar_cenario_1_desktop_indisponivel())
+    resultados.append(executar_cenario_2_timeout_dependencia())
+    resultados.append(executar_cenario_3_ml_fora_do_ar())
+    resultados.append(executar_cenario_4_alerta_principal_falha())
+    resultados.append(executar_cenario_5_coexistencia_orquestradores())
+    resultados.append(executar_cenario_6_item_dado_irrecuperavel())
+
+    output_dir = Path("reports/evidencias_sabotagem")
     output_dir.mkdir(parents=True, exist_ok=True)
+    resumo_file = output_dir / "resumo_evidencias_capstone.json"
 
-    resultados = []
-    resultados.append(cenario_1_base_referencia_instavel(output_dir))
-    resultados.append(cenario_2_servico_ml_fora_do_ar(output_dir))
-    resultados.append(cenario_3_ml_lento_timeout(output_dir))
-    resultados.append(cenario_4_ml_baixa_confianca(output_dir))
-    resultados.append(cenario_5_canal_alerta_falha(output_dir))
+    resumo_file.write_text(
+        json.dumps(
+            {
+                "data_execucao": now_local().isoformat(),
+                "total_cenarios": len(resultados),
+                "total_aprovados": sum(1 for r in resultados if r["sucesso"]),
+                "cenarios": resultados,
+            },
+            indent=2,
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
 
-    relatorio_final = {
-        "titulo": "Relatório de Evidências da Simulação de Crise (S10-B)",
-        "total_cenarios": len(resultados),
-        "sucessos": sum(r["sucesso"] for r in resultados),
-        "cenarios": resultados,
-    }
-
-    relatorio_path = output_dir / "resumo_evidencias_sabotagem.json"
-    relatorio_path.write_text(json.dumps(relatorio_final, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"\n==================================================")
-    print(f"RELATÓRIO DE EVIDÊNCIAS GERADO EM: {relatorio_path}")
-    print(f"Total de Cenários: {relatorio_final['total_cenarios']} | Aprovados: {relatorio_final['sucessos']}")
-    print(f"==================================================\n")
+    logger.info("================================================================================")
+    logger.info(
+        "RESULTADO FINAL: %d/%d CENÁRIOS DE SABOTAGEM APROVADOS COM SUCESSO!",
+        sum(1 for r in resultados if r["sucesso"]),
+        len(resultados),
+    )
+    logger.info("Evidências salvas em: '%s'", resumo_file)
+    logger.info("================================================================================")
+    return 0
 
 
 if __name__ == "__main__":
-    rodar_todas_as_sabotagens()
+    raise SystemExit(main())

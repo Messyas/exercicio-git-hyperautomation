@@ -1,27 +1,121 @@
-# Pipeline de Cadastro e Validação de Lotes
+# Pipeline Híbrido de Conferência de Estoque e Pedidos (Capstone de Hyperautomation)
 
 [![CI/CD](https://github.com/Messyas/exercicio-git-hyperautomation/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/Messyas/exercicio-git-hyperautomation/actions/workflows/ci-cd.yml)
 
+**Projeto Final de Conclusão de Curso** · *Técnicas de Hyperautomation (240h)*  
+**Parceria:** LG Electronics do Brasil · AX Academy / IFAM / Polo de Inovação (INOVA)  
+**Ambiente Operacional:** Smart Office Orchestrator & Governança The DX Way  
+
+---
+
+## 🚀 Visão Geral da Arquitetura Capstone (Smart Office)
+
+O processo corporativo de **Conferência Diária de Estoque e Pedidos** foi refatorado para operar como um **pipeline multi-bot híbrido e desacoplado** registrado no **Smart Office** (*Manual de Operação, Capítulos 4, 10, 11, 12 e 13*). A solução orquestra 6 robôs modulares com prioridades estritas e dependências sequenciais com deadline de timeout:
+
+```
+                  CADEIA DE ORQUESTRAÇÃO DE 6 BOTS (SMART OFFICE)
+   ┌────────────────────────────────┐                 ┌───────────────────────────────┐
+   │ RPA01_ColetaEstoque_DESKTOP    │                 │ RPA02_ColetaPedidos_WEB       │
+   │ • Automação Windows Desktop    │                 │ • Automação Web (Playwright)  │
+   │ • Prioridade: 1 (Alta/GUI Lock)│                 │ • Prioridade: 2 (Média)       │
+   └───────────────┬────────────────┘                 └───────────────┬───────────────┘
+                   │ [datapool/coleta_desktop.json]                   │ [datapool/coleta_web.json]
+                   └────────────────────────┬─────────────────────────┘
+                                            ▼
+                          ┌───────────────────────────────────┐
+                          │ RPA03_ConsolidacaoRegras_CORE     │
+                          │ • Cruzamento Físico x Pedidos     │
+                          │ • Motor Determinístico RN01-RN12  │
+                          │ • Prioridade: 3 (Timeout Control) │
+                          │ • Falhas de Dado -> Dead Letter Q │
+                          └─────────────────┬─────────────────┘
+                                            │ [datapool/lotes_consolidados.json]
+                                            ▼
+                          ┌───────────────────────────────────┐
+                          │ RPA04_ClassificadorML_HYBRID      │
+                          │ • Triagem de Causa Provável por ML│
+                          │ • Feature Flag & Circuit Breaker  │
+                          │ • Prioridade: 4 (Não Crítico)     │
+                          │ • orig_decisao / confianca_ml     │
+                          └─────────────────┬─────────────────┘
+                                            │ [datapool/lotes_enriquecidos_ml.json]
+                                            ▼
+                          ┌───────────────────────────────────┐
+                          │ RPA05_RelatorioAlertas_NOTIF      │
+                          │ • Relatório Excel de 9 Abas       │
+                          │ • Alertas Multicanal com Fallback │
+                          │ • Prioridade: 5 (Notificação)     │
+                          └───────────────────────────────────┘
+
+                          ┌───────────────────────────────────┐
+                          │ RPA06_ReprocessadorDeadLetter_SCHED│
+                          │ • Auditoria Periódica da DLQ      │
+                          │ • Saneamento e Alertas de Base    │
+                          │ • Prioridade: 5 (Schedule Cron)   │
+                          └───────────────────────────────────┘
+```
+
+---
+
+## 🛠️ Comandos Rápidos do Capstone
+
+### 1. Executar Demonstração Completa ao Vivo (6 Bots)
+```bash
+python scripts/demo_capstone.py
+```
+
+### 2. Executar os 6 Cenários de Sabotagem (Resiliência sob Crise)
+```bash
+python scripts/simular_cenarios_sabotagem.py
+```
+
+### 3. Executar o Smoke Test de Validação de Corte (Smart Office - Capítulo 13)
+```bash
+python scripts/smoke_test_cutover.py
+```
+
+### 4. Gerar Pacotes de Deploy `.zip` para o Smart Office (Capítulos 4 e 10)
+```bash
+python scripts/build_smartoffice_packages.py
+```
+*(Gera os arquivos `.zip` em `dist/smartoffice/` com `bot.py` e `requirements.txt` rigorosamente na raiz).*
+
+### 5. Executar a Suíte Completa de Testes Automatizados
+```bash
+python -m pytest
+```
+
+---
+
+## 📋 Documentação e Entregáveis Oficiais
+
+* 📄 **[Process Design Document (PDD v2.0)](file:///docs/pdd/PDD_Process_Design_Document.md)**: Mapeamento AS-IS/TO-BE, matriz de regras RN01–RN12 e Seção 21 do Capstone.
+* 📄 **[Plano de Migração e Coexistência](file:///docs/PLANO_MIGRACAO_COEXISTENCIA.md)**: Janela de coexistência (Shadow Mode), prevenção de conflito de Runner (`CoexistenceGuard`), critérios de cutover e procedimento de Rollback (RTO < 15 min).
+* 📄 **[Evidências de Conformidade e Sabotagem](file:///docs/evidencias/EVIDENCIAS_CAPSTONE.md)**: Rastreabilidade dos 7 eixos da rubrica e auditoria dos 6 ensaios de crise.
+* 📄 **[Roteiro de Pitch e Defesa Técnica](file:///docs/PITCH_APRESENTACAO_CAPSTONE.md)**: Estrutura da apresentação de 10 min e respostas técnicas para a banca.
+
+---
+
+## 🏛️ Destaques de Engenharia e Padrões The DX Way
+
+1. **Decisão Híbrida RPA + ML Nunca Crítica:**
+   - O status do item é 100% governado pelo motor de regras determinísticas RN01–RN12.
+   - O classificador de ML atua exclusivamente na recomendação da causa provável de divergência.
+   - Isolamento por feature flag (`ML_ENABLED`), limiar de confiança (`ML_CONFIANCA_MINIMA = 0.70`), Circuit Breaker após 5 falhas e rastreabilidade total nas colunas `origem_decisao` e `confianca_ml`.
+2. **Separação Formal de Falhas de Negócio vs Infraestrutura:**
+   - Erros de formato de dado/corrupção são roteados para a `DeadLetterQueue` (`data/dead_letter/dead_letter_items.jsonl`), evitando travamentos no restante da esteira.
+   - Falhas de sistema desktop utilizam retry exponencial com fallback degradado.
+3. **Prevenção de Conflito de Sessão Gráfica no Runner (`CoexistenceGuard`):**
+   - Mutex exclusivo que impede a sobreposição simultânea de execuções entre o BotCity legado e o Smart Office.
+4. **Notificação Multicanal com Fallback:**
+   - Disparo prioritário via Telegram Bot API, com chaveamento automático para Email/Log em caso de instabilidade.
+
+---
+
+## 📦 Histórico e Módulos Anteriores
+
 No modo S10-B, o projeto contém três bots encadeados no Maestro:
 
-1. **Coletor (`messyas-bot-coletor-v1`)**: lê e valida a planilha de entrada;
-   ao concluir, cria a tarefa do cadastro com a referência da tarefa pai.
-2. **Cadastro (`messyas-bot-cadastro-v1`)**: cadastra cada lote no sistema
-   web local, salva evidências e publica no DataPool apenas os cadastros
-   concluídos.
-3. **Conferência (`messyas-bot-conferencia-v1`)**: consome o DataPool local ou remoto,
-   executa RN01-RN07, atualiza o estado individual dos itens e gera o relatório
-   Excel.
-
-O fuso operacional é sempre `America/Manaus`. Rejeições do formulário,
-divergências de negócio e falhas técnicas são classificadas separadamente;
-nenhuma divergência interrompe o processamento dos itens seguintes.
-
-Rejeições e falhas de cadastro não entram no DataPool. O bot de cadastro preserva esses
-itens em um relatório próprio, com os dados de origem, o motivo e o caminho da
-evidência. Assim, o Bot 2 recebe apenas itens que concluíram a etapa anterior.
-
-## Estudo de Caso S10-B — Pipeline Híbrido Resiliente RPA+ML
 
 Esta versão implementa todas as especificações do **Estudo de Caso S10-B**:
 1. **Orquestração Multi-Bot (3+ Bots)**: Encadear 3 bots no Maestro (`messyas-bot-coletor-v1` -> `messyas-bot-cadastro-v1` -> `messyas-bot-conferencia-v1`) via `src/orchestrator.py` usando `create_task()`. Módulo `src/wait_for_predecessor.py` implementa polling com backoff linear para dependências sequenciais.

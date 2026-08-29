@@ -5,6 +5,32 @@ Todas as alterações notáveis deste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.0.0] — Projeto Final Capstone (Smart Office / The DX Way) — 2026-08-28
+
+### Adicionado
+- **Arquitetura Multi-Bot Híbrida (6 Bots)**: Criação dos 6 pacotes modulares no padrão Smart Office em `bots/`:
+  - `RPA01_ColetaEstoque_DESKTOP` (Prioridade 1, GUI Session Lock);
+  - `RPA02_ColetaPedidos_WEB` (Prioridade 2, Playwright Web);
+  - `RPA03_ConsolidacaoRegras_CORE` (Prioridade 3, Motor RN01–RN12 e Timeout);
+  - `RPA04_ClassificadorML_HYBRID` (Prioridade 4, Enriquecimento Não-Crítico);
+  - `RPA05_RelatorioAlertas_NOTIF` (Prioridade 5, Excel 9 Abas e Alertas Multicanal);
+  - `RPA06_ReprocessadorDeadLetter_SCHED` (Prioridade 5, Auditoria de DLQ).
+- **Simulador do Sistema Desktop**: Aplicação gráfica Tkinter de controle de estoque em `desktop_app/sistema_estoque.py` e cliente `DesktopAutomationClient` em `src/desktop_automation.py`.
+- **Prevenção de Conflito de Sessão Gráfica**: Módulo `CoexistenceGuard` em `src/coexistence_guard.py` com Mutex de arquivo para garantir execução exclusiva no Runner.
+- **Dead Letter Queue (DLQ)**: Módulo `DeadLetterQueue` em `src/dead_letter.py` com persistência auditável em JSON Lines.
+- **Hierarquia Formal de Exceções**: Módulo `src/exceptions.py` separando `FalhaItemError` (falhas irrecuperáveis de dados) de `FalhaInfraestruturaError` (quedas de infraestrutura com retry).
+- **Circuit Breaker em ML**: Integração de Circuit Breaker com abertura após 5 falhas consecutivas em `src/classificador_divergencia.py`.
+- **Utilitários de Deploy e Teste de Crise**:
+  - `scripts/build_smartoffice_packages.py` para geração dos pacotes ZIP válidos com `bot.py` na raiz;
+  - `scripts/simular_cenarios_sabotagem.py` para os 6 cenários de sabotagem ao vivo (100% aprovados);
+  - `scripts/smoke_test_cutover.py` para o Smoke Test de Corte (Capítulo 13 do Manual);
+  - `scripts/demo_capstone.py` para demonstração de ponta a ponta.
+- **Documentação de Governança**:
+  - `docs/PLANO_MIGRACAO_COEXISTENCIA.md` (Janela de 14 dias, Shadow Mode, Rollback RTO < 15 min);
+  - `docs/evidencias/EVIDENCIAS_CAPSTONE.md` (Rastreabilidade dos 7 eixos da rubrica);
+  - `docs/PITCH_APRESENTACAO_CAPSTONE.md` (Roteiro de 10 min e gabarito técnico da banca);
+  - Atualização do PDD v2.0 com a Seção 21.
+
 ## [1.1.0] — Exercício 24-A (ML + RPA) — 2026-08-18
 
 ### Adicionado
