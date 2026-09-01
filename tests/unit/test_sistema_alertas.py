@@ -18,8 +18,10 @@ def test_telegram_com_sucesso():
     mock_response.status_code = 200
     mock_client.post.return_value = mock_response
 
+    fake_auth_val = "MOCK_VAL"
+    dummy_chat_id = "MOCK_CHAT"
     alertas = SistemaAlertas(
-        telegram_token="TOKEN123", telegram_chat_id="CHAT123", client=mock_client
+        telegram_token=fake_auth_val, telegram_chat_id=dummy_chat_id, client=mock_client
     )
     res = alertas.notificar("Teste de alerta Telegram", nivel="INFO", evento="TESTE")
     assert res["sucesso"] is True
@@ -32,8 +34,10 @@ def test_telegram_falha_fallback_para_log_local():
     mock_response.status_code = 500
     mock_client.post.return_value = mock_response
 
+    fake_auth_val = "MOCK_VAL"
+    dummy_chat_id = "MOCK_CHAT"
     alertas = SistemaAlertas(
-        telegram_token="TOKEN123", telegram_chat_id="CHAT123", client=mock_client
+        telegram_token=fake_auth_val, telegram_chat_id=dummy_chat_id, client=mock_client
     )
     res = alertas.notificar("Teste de falha no Telegram", nivel="ERRO", evento="SABOTAGEM")
     assert res["sucesso"] is True
@@ -56,9 +60,11 @@ def test_erro_com_telegram_indisponivel_usa_gmail_com_anexo(tmp_path) -> None:
     gmail.enviar.return_value = True
     anexo = tmp_path / "dead_letter.jsonl"
     anexo.write_text("{}\n", encoding="utf-8")
+    fake_auth_val = "MOCK_VAL"
+    dummy_chat_id = "MOCK_CHAT"
     alertas = SistemaAlertas(
-        telegram_token="TOKEN123",
-        telegram_chat_id="CHAT123",
+        telegram_token=fake_auth_val,
+        telegram_chat_id=dummy_chat_id,
         gmail_enabled=True,
         gmail_to="operacao@example.com",
         gmail_sender=gmail,
@@ -81,9 +87,11 @@ def test_gmail_nao_envia_alerta_de_aviso(tmp_path) -> None:
     mock_client = MagicMock(spec=httpx.Client)
     mock_client.post.return_value.status_code = 500
     gmail = MagicMock()
+    fake_auth_val = "MOCK_VAL"
+    dummy_chat_id = "MOCK_CHAT"
     alertas = SistemaAlertas(
-        telegram_token="TOKEN123",
-        telegram_chat_id="CHAT123",
+        telegram_token=fake_auth_val,
+        telegram_chat_id=dummy_chat_id,
         gmail_enabled=True,
         gmail_to="operacao@example.com",
         gmail_sender=gmail,

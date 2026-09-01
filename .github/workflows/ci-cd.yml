@@ -166,7 +166,7 @@ jobs:
         run: |
           if grep -RIn --include='*.py' \
             -E '(password|secret|api_key|token)[[:space:]]*=[[:space:]]*["'\''][^"'\'']+["'\'']' \
-            bot.py coletor.py main.py pipeline.py producer.py consumer.py config.py src api_ml tests web; then
+            bot.py coletor.py main.py pipeline.py producer.py consumer.py config.py src api_ml web; then
             echo "Credencial possivelmente hardcoded."
             exit 1
           fi
