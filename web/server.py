@@ -112,6 +112,52 @@ def load_real_dashboard_metrics() -> Dict[str, Any]:
     }
 
 
+def load_markdown_summary() -> str:
+    """Lê o arquivo resumo_executivo.md gerado pelo robô de relatórios."""
+    md_path = OUTPUT_DIR / "resumo_executivo.md"
+    if md_path.exists():
+        try:
+            return md_path.read_text(encoding="utf-8")
+        except Exception as exc:
+            logger.warning("Falha ao ler resumo_executivo.md: %s", exc)
+    return "# Resumo Executivo — Conferência de Lotes\n\nNenhum relatório foi gerado ainda."
+
+
+def load_excel_preview_data() -> Dict[str, Any]:
+    """Extrai amostras das 9 abas de relatorio_conferencia_lotes.xlsx para visualização imediata."""
+    excel_path = OUTPUT_DIR / "relatorio_conferencia_lotes.xlsx"
+    if not excel_path.exists():
+        return {"sheets": {}, "sheet_names": []}
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(excel_path, data_only=True, read_only=True)
+        sheets_data: Dict[str, Any] = {}
+        for name in wb.sheetnames:
+            ws = wb[name]
+            rows: List[List[str]] = []
+            for r in ws.iter_rows(values_only=True):
+                if any(v is not None for v in r):
+                    rows.append([str(v) if v is not None else "" for v in r])
+                if len(rows) >= 30:
+                    break
+            sheets_data[name] = rows
+        return {"sheets": sheets_data, "sheet_names": wb.sheetnames}
+    except Exception as exc:
+        logger.warning("Falha ao extrair preview do Excel: %s", exc)
+        return {"sheets": {}, "sheet_names": [], "error": str(exc)}
+
+
+def load_traceability_data() -> Dict[str, Any]:
+    """Lê o relatório oficial de rastreabilidade multi-bot em JSON."""
+    trace_path = PROJECT_ROOT / "data" / "reports" / "rastreabilidade_pipeline_capstone.json"
+    if trace_path.exists():
+        try:
+            return json.loads(trace_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            logger.warning("Falha ao ler rastreabilidade: %s", exc)
+    return {}
+
+
 class CapstonePortalHandler(SimpleHTTPRequestHandler):
     """Handler customizado com suporte a rotas estáticas e APIs de simulação."""
 
@@ -136,6 +182,15 @@ class CapstonePortalHandler(SimpleHTTPRequestHandler):
         elif self.path == "/api/dashboard-metrics":
             metrics = load_real_dashboard_metrics()
             self._send_json(metrics)
+            return
+        elif self.path == "/api/reports/markdown":
+            self._send_json({"content": load_markdown_summary()})
+            return
+        elif self.path == "/api/reports/excel-preview":
+            self._send_json(load_excel_preview_data())
+            return
+        elif self.path == "/api/reports/traceability":
+            self._send_json(load_traceability_data())
             return
 
         return super().do_GET()

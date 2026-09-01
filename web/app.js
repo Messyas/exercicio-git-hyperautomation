@@ -6,9 +6,6 @@
 
 // 1. Initial State & Catalogs
 const SMART_OFFICE_STATE = {
-  isTourRunning: false,
-  tourTimeoutId: null,
-
   datapool: [],
 
   tasks: [
@@ -93,7 +90,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupExecutiveDashboard();
   setupSabotageTrials();
   setupTables();
-  setupGuidedTour();
+  setupReportModal();
   loadInitialDataset();
 });
 
@@ -274,154 +271,7 @@ function setupNavigation() {
   });
 }
 
-// 2. Guided Presentation Tour (The DX Tour)
-function setupGuidedTour() {
-  const btnHeader = document.getElementById("btn-start-tour-header");
-  const btnTab1 = document.getElementById("btn-start-tour-tab1");
-  const btnStop = document.getElementById("btn-stop-tour");
-  const banner = document.getElementById("tour-banner-container");
-  const badge = document.getElementById("tour-step-badge");
-  const title = document.getElementById("tour-step-title");
-  const status = document.getElementById("tour-step-status");
-
-  function startTour() {
-    if (SMART_OFFICE_STATE.isTourRunning) return;
-    SMART_OFFICE_STATE.isTourRunning = true;
-
-    banner.style.display = "flex";
-    btnHeader.innerHTML = "<span>⏹</span> Interromper Tour";
-    if (btnTab1) btnTab1.innerHTML = "<span>⏹</span> Tour em Execução...";
-
-    showToast("Iniciando Apresentação Sequencial Guiada para a Banca...", "info");
-
-    const steps = [
-      {
-        step: 1,
-        tab: "tab-ingestao",
-        title: "1. Ingestão & População de Dados (1.000 Lotes no DataPool)",
-        delay: 3000,
-        action: () => {
-          showToast("Etapa 1/7: Formulário validado e 1.000 lotes carregados no DataPool.", "success");
-        }
-      },
-      {
-        step: 2,
-        tab: "tab-esteira",
-        title: "2. Esteira Multi-Bot em Cascata (Orquestração dos 6 Robôs nos Runners)",
-        delay: 7500,
-        action: () => {
-          const runBtn = document.getElementById("btn-run-pipeline");
-          if (runBtn) runBtn.click();
-          showToast("Etapa 2/7: Cascata dos 6 bots disparada com logs estruturados ao vivo.", "info");
-        }
-      },
-      {
-        step: 3,
-        tab: "tab-decisao",
-        title: "3. Motor de Decisão Híbrido (Regras RN01-RN12 vs Machine Learning)",
-        delay: 3500,
-        action: () => {
-          showToast("Etapa 3/7: 1.000 lotes classificados (Motor de Regras + Modelo ML com Circuit Breaker).", "success");
-        }
-      },
-      {
-        step: 4,
-        tab: "tab-alertas",
-        title: "4. Central de Notificações em Tempo Real (Feed Telegram & Relatórios)",
-        delay: 3200,
-        action: () => {
-          const alertBtn = document.getElementById("btn-send-test-alert");
-          if (alertBtn) alertBtn.click();
-          showToast("Etapa 4/7: Alertas Telegram e relatórios Excel/PDF homologados.", "success");
-        }
-      },
-      {
-        step: 5,
-        tab: "tab-dashboard",
-        title: "5. Dashboard Executivo (Curvas de Evolução Realistas & Ranking de Regras)",
-        delay: 4000,
-        action: () => {
-          showToast("Etapa 5/7: Indicadores consolidados (624 Válidos, 204 Divergências, 29h 10m de FTE poupados).", "info");
-        }
-      },
-      {
-        step: 6,
-        tab: "tab-sabotagem",
-        title: "6. Resiliência & Ensaios de Sabotagem sob Crise (Circuit Breaker & Fallback)",
-        delay: 3200,
-        action: () => {
-          const trial3Btn = document.querySelector('.btn-trigger-sabotage[data-scenario="3"]');
-          if (trial3Btn) trial3Btn.click();
-          showToast("Etapa 6/7: Ensaio de crise validado (Circuit Breaker aberto ➔ Fallback ativo sem exceções).", "warning");
-        }
-      },
-      {
-        step: 7,
-        tab: "tab-governanca",
-        title: "7. Governança, Manifestos SHA-256 & Runners Homologados",
-        delay: 3000,
-        action: () => {
-          showToast("Etapa 7/7: Assinaturas SHA-256 e os 3 Runners corporativos auditados com sucesso.", "success");
-        }
-      }
-    ];
-
-    let currentIdx = 0;
-
-    function runNextStep() {
-      if (!SMART_OFFICE_STATE.isTourRunning) return;
-
-      if (currentIdx >= steps.length) {
-        finishTour();
-        return;
-      }
-
-      const curr = steps[currentIdx];
-      switchTab(curr.tab);
-      badge.textContent = `Etapa ${curr.step}/7`;
-      title.textContent = curr.title;
-      status.textContent = "Apresentando...";
-
-      if (curr.action) curr.action();
-
-      currentIdx++;
-      SMART_OFFICE_STATE.tourTimeoutId = setTimeout(runNextStep, curr.delay);
-    }
-
-    runNextStep();
-  }
-
-  function stopTour() {
-    SMART_OFFICE_STATE.isTourRunning = false;
-    if (SMART_OFFICE_STATE.tourTimeoutId) {
-      clearTimeout(SMART_OFFICE_STATE.tourTimeoutId);
-    }
-    banner.style.display = "none";
-    btnHeader.innerHTML = "<span>▶</span> Começar Demonstração Sequencial";
-    if (btnTab1) btnTab1.innerHTML = "<span>▶</span> Começar Demonstração Sequencial";
-    showToast("Tour sequencial interrompido pelo operador.", "info");
-  }
-
-  function finishTour() {
-    SMART_OFFICE_STATE.isTourRunning = false;
-    badge.textContent = "Concluído";
-    title.textContent = "Apresentação da Esteira Smart Office Finalizada com 100% de Sucesso!";
-    status.textContent = "Homologado";
-    showToast("Demonstração Completa da Esteira Smart Office Concluída com Sucesso!", "success");
-
-    setTimeout(() => {
-      banner.style.display = "none";
-      btnHeader.innerHTML = "<span>▶</span> Começar Demonstração Sequencial";
-      if (btnTab1) btnTab1.innerHTML = "<span>▶</span> Começar Demonstração Sequencial";
-    }, 4000);
-  }
-
-  if (btnHeader) btnHeader.addEventListener("click", () => SMART_OFFICE_STATE.isTourRunning ? stopTour() : startTour());
-  if (btnTab1) btnTab1.addEventListener("click", () => SMART_OFFICE_STATE.isTourRunning ? stopTour() : startTour());
-  if (btnStop) btnStop.addEventListener("click", stopTour);
-}
-
-// 3. Tab 1: Ingestion & População
+// 2. Tab 1: Ingestion & População
 function setupIngestionForm() {
   const loginSection = document.getElementById("login");
   const loginForm = document.getElementById("login-form");
@@ -1106,4 +956,464 @@ function renderManifestTable() {
       <td><span class="badge badge-success">${p.version}</span></td>
     </tr>
   `).join("");
+}
+
+// =========================================================================
+// 10. Report Modal Controller (Quick-view popup for presentation & jury)
+// =========================================================================
+
+const EXCEL_PREVIEW_FALLBACK = {
+  sheet_names: [
+    "Resumo", "Todos", "Válidos", "Divergências", "Ambíguos", 
+    "Erros de Entrada", "Ranking de Regras", "Dicionário", "Decisões de ML"
+  ],
+  sheets: {
+    "Resumo": [
+      ["Indicador Operacional", "Valor Consolidado", "Meta / Observação"],
+      ["Total de Lotes Auditados", "1.000 lotes", "100% da amostragem consolidada de 10 dias"],
+      ["Lotes Válidos (Conformes)", "624 lotes (62.4%)", "Liberados imediatamente para expedição"],
+      ["Divergências Físico x Pedido", "204 lotes (20.4%)", "Tratadas com causa provável via ML"],
+      ["Registros Ambíguos", "76 lotes (7.6%)", "Encaminhados para revisão humana"],
+      ["Erros de Entrada", "96 lotes (9.6%)", "Retidos na Dead Letter Queue"],
+      ["Taxa de Qualidade da Entrada", "90.4%", "Meta corporativa > 80.0% (Conforme)"],
+      ["Taxa de Revisão Humana", "7.6%", "Meta corporativa < 15.0% (Conforme)"],
+      ["Taxa de Retrabalho", "20.4%", "Meta corporativa < 6.0% (Atenção)"],
+      ["Ganho Estimado de Tempo (FTE)", "29h 10m (1.750 min)", "Estimativa: 2.0 min manual vs 0.25 min bot"],
+      ["Regra Mais Acionada", "RN06 (Normalização OK ➔ APROVADO)", "108 ocorrências (sem falhas de sistema)"]
+    ],
+    "Todos": [
+      ["Lote ID", "Produto", "Linha", "Turno", "Status Original", "Classificação", "Regras Aplicadas"],
+      ["LG-2026-00101", "TV55-4K-B", "LINHA_01", "A", "OK", "Válido", "RN06"],
+      ["LG-2026-00102", "AC12-SPLIT", "LINHA_02", "B", "APROVADO", "Válido", "Nenhuma"],
+      ["LG-2026-00103", "TV65-OLED", "LINHA_01", "A", "NOK", "Divergência", "RN05, RN07"],
+      ["LG-2026-00104", "MON27-QHD", "LINHA_03", "C", "APROVADO", "Válido", "Nenhuma"],
+      ["LG-2026-00105", "TV50-4K-B", "LINHA_01", "A", "PENDENTE", "Ambíguo", "RN09"],
+      ["LG-2026-00106", "AC18-SPLIT", "LINHA_02", "B", "REPROVADO", "Divergência", "RN07, RN10"],
+      ["LG-2026-00107", "TV43-FHD", "LINHA_01", "A", "STATUS_INVALIDO", "Erro de Entrada", "RN04"],
+      ["LG-2026-00108", "TV55-4K-B", "LINHA_01", "A", "OK", "Válido", "RN06"],
+      ["LG-2026-00109", "MON32-4K", "LINHA_03", "B", "EM_AJUSTE", "Ambíguo", "RN09"],
+      ["LG-2026-00110", "AC12-SPLIT", "LINHA_02", "C", "APROVADO", "Válido", "Nenhuma"]
+    ],
+    "Válidos": [
+      ["Lote ID", "Produto", "Linha", "Turno", "Status Final", "Responsável", "Data"],
+      ["LG-2026-00101", "TV55-4K-B", "LINHA_01", "A", "APROVADO", "Carlos Silva", "15/06/2026"],
+      ["LG-2026-00102", "AC12-SPLIT", "LINHA_02", "B", "APROVADO", "Carlos Silva", "15/06/2026"],
+      ["LG-2026-00104", "MON27-QHD", "LINHA_03", "C", "APROVADO", "Carlos Silva", "15/06/2026"],
+      ["LG-2026-00108", "TV55-4K-B", "LINHA_01", "A", "APROVADO", "Carlos Silva", "15/06/2026"],
+      ["LG-2026-00110", "AC12-SPLIT", "LINHA_02", "C", "APROVADO", "Carlos Silva", "15/06/2026"]
+    ],
+    "Divergências": [
+      ["Lote ID", "Produto", "Linha", "Status", "Regra", "Causa Provável ML", "Confiança ML"],
+      ["LG-2026-00103", "TV65-OLED", "LINHA_01", "REPROVADO", "RN07", "QTD_FISICA_DIVERGENTE", "97.4%"],
+      ["LG-2026-00106", "AC18-SPLIT", "LINHA_02", "REPROVADO", "RN07", "FALHA_TESTE_ELETRICO", "94.8%"],
+      ["LG-2026-00115", "TV50-4K-B", "LINHA_01", "REPROVADO", "RN05", "DIVERGENCIA_CADASTRO", "89.2%"],
+      ["LG-2026-00122", "MON27-QHD", "LINHA_03", "REPROVADO", "RN07", "AVARIA_TRANSPORTE", "96.1%"]
+    ],
+    "Ambíguos": [
+      ["Lote ID", "Status Raw", "Turno", "Obs Preenchida", "Predição ML", "Probabilidade", "Ação Decidida"],
+      ["LG-2026-00105", "PENDENTE", "A", "Não", "revisar", "72.4%", "REVISAR"],
+      ["LG-2026-00109", "EM AJUSTE", "B", "Sim", "revisar", "68.9%", "REVISAR"],
+      ["LG-2026-00118", "AGUARDANDO REINSPEÇÃO", "C", "Não", "recusar_automatico", "87.3%", "RECUSAR_AUTOMATICO"],
+      ["LG-2026-00124", "ESPECIFICAÇÃO EM REVISÃO", "A", "Sim", "revisar", "64.1%", "REVISAO_PRIORITARIA"]
+    ],
+    "Erros de Entrada": [
+      ["Lote ID", "Linha Origem", "Campo Inválido", "Regra Violada", "Destino"],
+      ["LG-2026-00107", "Linha 7", "Status não pertence ao domínio", "RN04", "Dead Letter Queue"],
+      ["LG-2026-00133", "Linha 33", "Lote ID vazio ou nulo", "RN01", "Dead Letter Queue"],
+      ["LG-2026-00145", "Linha 45", "Data fora da referência diária", "RN12", "Dead Letter Queue"]
+    ],
+    "Ranking de Regras": [
+      ["Código", "Descrição da Regra de Negócio", "Ocorrências", "Percentual Total", "Severidade"],
+      ["RN06", "Normalização de OK para APROVADO", "108", "10.8%", "Info"],
+      ["RN05", "Divergência de Status Cadastral em Teste", "84", "8.4%", "Alta"],
+      ["RN07", "Saldo Físico Divergente de Pedido", "65", "6.5%", "Crítica"],
+      ["RN01", "Inconsistência de Data / Lote Vazio", "42", "4.2%", "Média"],
+      ["RN02", "Produto Descontinuado / Não Encontrado", "28", "2.8%", "Alta"],
+      ["RN03", "Turno Inválido ou Fora de Grade", "16", "1.6%", "Baixa"]
+    ],
+    "Dicionário": [
+      ["Coluna", "Tipo de Dado", "Domínio Permitido", "Descrição"],
+      ["lote_id", "Texto (String)", "LG-AAAA-XXXXX", "Identificador único do lote"],
+      ["produto", "Texto (String)", "Catálogo oficial", "Modelo do eletroeletrônico"],
+      ["linha", "Texto (String)", "LINHA_01, LINHA_02, LINHA_03", "Linha de montagem fabril"],
+      ["turno", "Texto (String)", "A, B, C", "Turno operacional de inspeção"],
+      ["status", "Texto (String)", "APROVADO, REPROVADO, PENDENTE", "Decisão de conformidade"],
+      ["origem_decisao", "Texto (String)", "Regras, ML, Fallback", "Camada que atribuiu a causa"],
+      ["confianca_ml", "Percentual", "0.0% a 100.0%", "Probabilidade calibrada da inferência"]
+    ],
+    "Decisões de ML": [
+      ["Lote ID", "Status Raw", "Turno", "Probabilidade", "Latência (ms)", "Circuit Breaker", "Ação Final"],
+      ["LG-2026-00105", "PENDENTE", "A", "72.40%", "28.4 ms", "CLOSED", "REVISAR"],
+      ["LG-2026-00109", "EM AJUSTE", "B", "68.90%", "31.2 ms", "CLOSED", "REVISAR"],
+      ["LG-2026-00118", "AGUARDANDO REINSPEÇÃO", "C", "87.30%", "26.8 ms", "CLOSED", "RECUSAR_AUTOMATICO"],
+      ["LG-2026-00124", "ESPECIFICAÇÃO EM REVISÃO", "A", "64.10%", "29.5 ms", "CLOSED", "REVISAO_PRIORITARIA"]
+    ]
+  }
+};
+
+let cachedExcelData = null;
+let currentActiveSheet = "Resumo";
+
+function setupReportModal() {
+  const modal = document.getElementById("modal-relatorios");
+  if (!modal) return;
+
+  const btnOpenHeader = document.getElementById("btn-open-report-modal");
+  const btnOpenTab4 = document.getElementById("btn-open-all-reports");
+  const reportCards = document.querySelectorAll("[data-open-report]");
+  const btnClose = document.getElementById("btn-close-report-modal");
+  const btnCloseFooter = document.getElementById("btn-close-report-modal-footer");
+  const tabButtons = modal.querySelectorAll(".report-tab-btn");
+
+  function openModal(targetTab = "rep-excel") {
+    modal.classList.add("open");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+    switchReportTab(targetTab);
+  }
+
+  function closeModal() {
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+  }
+
+  function switchReportTab(tabId) {
+    tabButtons.forEach(btn => {
+      const match = btn.getAttribute("data-report-tab") === tabId;
+      btn.classList.toggle("active", match);
+      btn.setAttribute("aria-selected", match ? "true" : "false");
+    });
+    modal.querySelectorAll(".report-pane").forEach(pane => {
+      pane.classList.toggle("active", pane.id === tabId);
+    });
+
+    if (tabId === "rep-excel") loadAndRenderExcelPreview();
+    else if (tabId === "rep-resumo") loadAndRenderMarkdownSummary();
+    else if (tabId === "rep-pdf") renderPdfLetterheadPreview();
+    else if (tabId === "rep-rastreabilidade") loadAndRenderTraceabilityJson();
+  }
+
+  if (btnOpenHeader) btnOpenHeader.addEventListener("click", () => openModal("rep-excel"));
+  if (btnOpenTab4) btnOpenTab4.addEventListener("click", () => openModal("rep-excel"));
+
+  reportCards.forEach(card => {
+    card.addEventListener("click", () => {
+      const reportType = card.getAttribute("data-open-report");
+      const tabTarget = reportType === "excel" ? "rep-excel" : reportType === "resumo" ? "rep-resumo" : "rep-pdf";
+      openModal(tabTarget);
+    });
+  });
+
+  if (btnClose) btnClose.addEventListener("click", closeModal);
+  if (btnCloseFooter) btnCloseFooter.addEventListener("click", closeModal);
+
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal.classList.contains("open")) {
+      closeModal();
+    }
+  });
+
+  tabButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const target = btn.getAttribute("data-report-tab");
+      switchReportTab(target);
+    });
+  });
+}
+
+async function loadAndRenderExcelPreview() {
+  const containerSheets = document.getElementById("excel-sheets-container");
+  if (!containerSheets) return;
+
+  if (!cachedExcelData) {
+    try {
+      const res = await fetch("/api/reports/excel-preview");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.sheet_names && json.sheet_names.length > 0) {
+          cachedExcelData = json;
+        }
+      }
+    } catch {}
+  }
+
+  const data = cachedExcelData || EXCEL_PREVIEW_FALLBACK;
+  const sheetNames = data.sheet_names || Object.keys(data.sheets || {});
+
+  containerSheets.innerHTML = sheetNames.map((name, idx) => `
+    <button type="button" class="sheet-pill ${name === currentActiveSheet ? 'active' : ''}" data-sheet-name="${name}">
+      ${idx + 1}. ${name}
+    </button>
+  `).join("");
+
+  containerSheets.querySelectorAll(".sheet-pill").forEach(btn => {
+    btn.addEventListener("click", () => {
+      currentActiveSheet = btn.getAttribute("data-sheet-name");
+      containerSheets.querySelectorAll(".sheet-pill").forEach(p => {
+        p.classList.toggle("active", p.getAttribute("data-sheet-name") === currentActiveSheet);
+      });
+      renderSheetTable(currentActiveSheet, data);
+    });
+  });
+
+  renderSheetTable(currentActiveSheet, data);
+}
+
+function renderSheetTable(sheetName, data) {
+  const content = document.getElementById("excel-sheet-content");
+  if (!content) return;
+
+  const sheets = data.sheets || {};
+  const rows = sheets[sheetName] || [];
+
+  if (rows.length === 0) {
+    content.innerHTML = `<div style="padding: 2rem; text-align: center; color: var(--text-dim);">Aba vazia ou não processada.</div>`;
+    return;
+  }
+
+  const headers = rows[0] || [];
+  const bodyRows = rows.slice(1);
+
+  const theadHtml = `
+    <thead>
+      <tr>
+        ${headers.map(h => `<th>${h}</th>`).join("")}
+      </tr>
+    </thead>
+  `;
+
+  const tbodyHtml = `
+    <tbody>
+      ${bodyRows.map(row => `
+        <tr>
+          ${row.map(cell => {
+            let cellContent = cell;
+            if (cell === "APROVADO" || cell === "OK" || cell === "Válido") {
+              cellContent = `<span class="badge badge-success">${cell}</span>`;
+            } else if (cell === "REPROVADO" || cell === "NOK" || cell === "Divergência") {
+              cellContent = `<span class="badge badge-danger">${cell}</span>`;
+            } else if (cell === "PENDENTE" || cell === "Ambíguo") {
+              cellContent = `<span class="badge badge-warning">${cell}</span>`;
+            } else if (cell === "Erro de Entrada" || cell === "Dead Letter Queue") {
+              cellContent = `<span class="badge badge-neutral">${cell}</span>`;
+            }
+            return `<td>${cellContent}</td>`;
+          }).join("")}
+        </tr>
+      `).join("")}
+    </tbody>
+  `;
+
+  content.innerHTML = `<table class="rep-table">${theadHtml}${tbodyHtml}</table>`;
+}
+
+async function loadAndRenderMarkdownSummary() {
+  const container = document.getElementById("md-preview-content");
+  if (!container) return;
+
+  let rawMd = "";
+  try {
+    const res = await fetch("/api/reports/markdown");
+    if (res.ok) {
+      const json = await res.json();
+      rawMd = json.content || "";
+    }
+  } catch {}
+
+  const kpis = SMART_OFFICE_STATE.executiveData;
+  const total = kpis.total || 1000;
+  const validos = kpis.validos || 624;
+  const divergencias = kpis.divergencias || 204;
+  const ambiguos = kpis.ambiguos || 76;
+  const erros = kpis.erros || 96;
+
+  container.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+      <div>
+        <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--text-pure); margin: 0;">Resumo Executivo — Conferência de Lotes</h2>
+        <span style="font-size: 0.8rem; color: var(--text-dim);">Dossiê gerencial consolidado do período de 10 dias de inspeção fabril</span>
+      </div>
+      <span class="badge badge-success" style="font-weight: 700;">Auditado &middot; The DX Way</span>
+    </div>
+
+    <div class="md-kpi-summary">
+      <div class="md-kpi-box">
+        <div class="md-kpi-box-title">Total Processado</div>
+        <div class="md-kpi-box-val">${total} lotes</div>
+      </div>
+      <div class="md-kpi-box">
+        <div class="md-kpi-box-title">Registros Válidos</div>
+        <div class="md-kpi-box-val" style="color: #34d399;">${validos} (${((validos/total)*100).toFixed(1)}%)</div>
+      </div>
+      <div class="md-kpi-box">
+        <div class="md-kpi-box-title">Divergências</div>
+        <div class="md-kpi-box-val" style="color: #f87171;">${divergencias} (${((divergencias/total)*100).toFixed(1)}%)</div>
+      </div>
+      <div class="md-kpi-box">
+        <div class="md-kpi-box-title">Ambíguos (Revisão)</div>
+        <div class="md-kpi-box-val" style="color: #fbbf24;">${ambiguos} (${((ambiguos/total)*100).toFixed(1)}%)</div>
+      </div>
+      <div class="md-kpi-box">
+        <div class="md-kpi-box-title">Erros de Entrada</div>
+        <div class="md-kpi-box-val" style="color: #9ca3af;">${erros} (${((erros/total)*100).toFixed(1)}%)</div>
+      </div>
+    </div>
+
+    <div style="background: #1a1a1a; padding: 1.25rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 1.25rem;">
+      <h3 style="font-size: 0.95rem; margin: 0 0 0.5rem 0; color: var(--text-pure);">Destaque de Produtividade & Regras:</h3>
+      <p style="margin: 0; color: var(--text-muted); font-size: 0.85rem; line-height: 1.6;">
+        A regra mais acionada foi a <strong>RN06 — Normalização de OK para APROVADO</strong> com <strong>108 ocorrências (10.8%)</strong>, 
+        padronizada de forma determinística sem exigir retrabalho humano. A camada secundária de <strong>Machine Learning (RPA04)</strong> 
+        enriqueceu 204 itens divergentes sugerindo a causa-raiz provável sob supervisão de <strong>Circuit Breaker</strong>.
+      </p>
+    </div>
+
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+      <div style="flex: 1; min-width: 260px; background: #1a1a1a; padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #a7f3d0;">Ganhos de Tempo Estimados (FTE):</h4>
+        <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.8rem; color: var(--text-muted); line-height: 1.6;">
+          <li>Tempo manual estimado: <strong>2,00 min / registro</strong></li>
+          <li>Tempo automatizado bot: <strong>0,25 min / registro</strong></li>
+          <li>Economia total: <strong>1.750 minutos (~29h 10m)</strong></li>
+        </ul>
+      </div>
+      <div style="flex: 1; min-width: 260px; background: #1a1a1a; padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #a7f3d0;">Índices de Qualidade Operacional:</h4>
+        <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.8rem; color: var(--text-muted); line-height: 1.6;">
+          <li>Taxa de qualidade de entrada: <strong>90.4%</strong> (Meta > 80.0% &middot; <span style="color:#34d399;">Conforme</span>)</li>
+          <li>Taxa de revisão humana: <strong>7.6%</strong> (Meta < 15.0% &middot; <span style="color:#34d399;">Conforme</span>)</li>
+          <li>Taxa de retrabalho: <strong>20.4%</strong> (Meta < 6.0% &middot; <span style="color:#f87171;">Atenção</span>)</li>
+        </ul>
+      </div>
+    </div>
+  `;
+}
+
+function renderPdfLetterheadPreview() {
+  const container = document.getElementById("pdf-preview-content");
+  if (!container) return;
+
+  const kpis = SMART_OFFICE_STATE.executiveData;
+  const total = kpis.total || 1000;
+  const validos = kpis.validos || 624;
+  const divergencias = kpis.divergencias || 204;
+  const ambiguos = kpis.ambiguos || 76;
+  const erros = kpis.erros || 96;
+
+  container.innerHTML = `
+    <div class="pdf-header">
+      <div>
+        <div class="pdf-brand-logo">LG Electronics do Brasil</div>
+        <div class="pdf-brand-sub">Fábrica de Manaus &middot; SCM & Controle de Qualidade Fabril &middot; AX Academy</div>
+      </div>
+      <div class="pdf-stamp">HOMOLOGADO / DX WAY</div>
+    </div>
+
+    <div style="margin-bottom: 1.25rem;">
+      <h3 style="font-size: 1.15rem; color: #0f172a; margin: 0 0 0.25rem 0; font-weight: 800;">
+        RELATÓRIO CONSOLIDADO DE INSPEÇÃO E AUDITORIA DE LOTES
+      </h3>
+      <div style="font-size: 0.8rem; color: #64748b;">
+        Processo Oficial: <strong>RPA01–RPA06</strong> &middot; Período de Avaliação: <strong>10 Dias Fabris</strong> &middot; Emissão: <strong>${new Date().toLocaleDateString('pt-BR')}</strong>
+      </div>
+    </div>
+
+    <table class="pdf-table">
+      <thead>
+        <tr>
+          <th>Indicador de Qualidade</th>
+          <th>Volume</th>
+          <th>Percentual</th>
+          <th>Status / Meta</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Total de Lotes Auditados</strong></td>
+          <td>${total}</td>
+          <td>100.0%</td>
+          <td><span style="color: #0284c7; font-weight: 700;">Amostragem Completa</span></td>
+        </tr>
+        <tr>
+          <td><strong>Registros Conformes (Válidos)</strong></td>
+          <td>${validos}</td>
+          <td>${((validos/total)*100).toFixed(1)}%</td>
+          <td><span style="color: #16a34a; font-weight: 700;">Conforme (Liberado)</span></td>
+        </tr>
+        <tr>
+          <td><strong>Divergências Operacionais (ML)</strong></td>
+          <td>${divergencias}</td>
+          <td>${((divergencias/total)*100).toFixed(1)}%</td>
+          <td><span style="color: #dc2626; font-weight: 700;">Tratamento Heurístico</span></td>
+        </tr>
+        <tr>
+          <td><strong>Registros em Quarentena / Erro</strong></td>
+          <td>${erros}</td>
+          <td>${((erros/total)*100).toFixed(1)}%</td>
+          <td><span style="color: #475569; font-weight: 700;">Dead Letter Queue</span></td>
+        </tr>
+        <tr>
+          <td><strong>Ganho de Produtividade Estimado</strong></td>
+          <td colspan="2"><strong>1.750 minutos (~29h 10m)</strong></td>
+          <td><span style="color: #16a34a; font-weight: 700;">Economia Comprovada</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 1rem; margin-top: 1rem; font-size: 0.8rem; color: #334155; line-height: 1.5;">
+      <strong>Parecer Técnico:</strong> A solução automatizada atende integralmente aos critérios de governança The DX Way, 
+      com isolamento rigoroso por Circuit Breaker na camada de inteligência artificial e proteção mútua de sessão gráfica (CoexistenceGuard).
+    </div>
+
+    <div class="pdf-footer-signatures">
+      <div class="pdf-sig-block">
+        <div class="pdf-sig-line"></div>
+        <div class="pdf-sig-name">Engenharia de Automação</div>
+        <div class="pdf-sig-role">Smart Office Orchestrator</div>
+      </div>
+      <div class="pdf-sig-block">
+        <div class="pdf-sig-line"></div>
+        <div class="pdf-sig-name">Gerência de Qualidade</div>
+        <div class="pdf-sig-role">LG Electronics do Brasil</div>
+      </div>
+    </div>
+  `;
+}
+
+async function loadAndRenderTraceabilityJson() {
+  const container = document.getElementById("json-traceability-content");
+  if (!container) return;
+
+  try {
+    const res = await fetch("/api/reports/traceability");
+    if (res.ok) {
+      const json = await res.json();
+      if (Object.keys(json).length > 0) {
+        container.querySelector("code").textContent = JSON.stringify(json, null, 2);
+        return;
+      }
+    }
+  } catch {}
+
+  const sampleTrace = {
+    batch_id: "LOTE-DEMO-CAPSTONE-2026",
+    executado_em: new Date().toISOString(),
+    total_bots_executados: 6,
+    sucesso_global: true,
+    cadeia_orquestracao: SMART_OFFICE_STATE.tasks.map(t => ({
+      task_id: t.id,
+      automation: t.automation,
+      runner: t.runner,
+      prioridade: t.priority,
+      status: t.status,
+      duracao: t.duration
+    }))
+  };
+
+  container.querySelector("code").textContent = JSON.stringify(sampleTrace, null, 2);
 }

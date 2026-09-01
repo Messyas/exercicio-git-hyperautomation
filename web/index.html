@@ -32,25 +32,6 @@
             <p>Plataforma Corporativa de Orquestração RPA · The DX Way · SCM & Qualidade</p>
           </div>
         </div>
-        <div class="status-pills">
-          <button id="btn-start-tour-header" class="btn btn-primary" style="font-size: 0.825rem; padding: 0.45rem 1rem;">
-            <span>▶</span> Começar Demonstração Sequencial
-          </button>
-          <span class="pill pill-online">Control Tower Online</span>
-          <span class="pill pill-tag">Smart Office v2.4.0</span>
-        </div>
-      </div>
-
-      <!-- Guided Tour Floating Progress Bar -->
-      <div id="tour-banner-container" class="tour-banner" style="display: none;">
-        <div class="tour-progress-text">
-          <span id="tour-step-badge" class="tour-step-badge">Etapa 1/7</span>
-          <span id="tour-step-title">Ingestão & População de Dados no DataPool</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 0.75rem;">
-          <span id="tour-step-status" style="font-size: 0.75rem; color: #a7f3d0;">Executando...</span>
-          <button id="btn-stop-tour" class="btn" style="background: #242424; font-size: 0.75rem; padding: 0.25rem 0.65rem;">Interromper Tour</button>
-        </div>
       </div>
 
       <!-- Navigation Tabs (Sequential Presentation Flow) -->
@@ -86,19 +67,6 @@
            TAB 1: INGESTÃO & POPULAÇÃO (PLAYWRIGHT WEB & DESKTOP GUI)
            ========================================================================= -->
       <section id="tab-ingestao" class="tab-content active">
-        <!-- Presentation Tour Launch Card -->
-        <div class="glass-card" style="margin-bottom: 1.5rem; border-color: rgba(165, 0, 52, 0.4); background: #181818;">
-          <div class="section-header" style="margin-bottom: 0.5rem;">
-            <div>
-              <h2 class="section-title" style="color: #fff; font-size: 1.25rem;">Apresentação Sequencial Guiada para a Banca</h2>
-              <p class="section-subtitle">Dispare a demonstração ao vivo completa: cadastra os dados no DataPool e avança automaticamente pelas 7 etapas com delays visuais para a banca.</p>
-            </div>
-            <button id="btn-start-tour-tab1" class="btn btn-primary" style="font-size: 0.95rem; padding: 0.75rem 1.5rem;">
-              <span>▶</span> Começar Demonstração Sequencial
-            </button>
-          </div>
-        </div>
-
         <div class="glass-card" style="margin-bottom: 1.5rem;">
           <div class="section-header">
             <div>
@@ -495,19 +463,39 @@
 
         <!-- Generated Output Artifacts -->
         <div class="glass-card">
-          <h3 class="section-title" style="margin-bottom: 1rem;">Artefatos Gerados pelo RPA05 em Produção</h3>
+          <div class="section-header">
+            <div>
+              <h3 class="section-title">Artefatos & Relatórios Gerados pelo RPA05</h3>
+              <p class="section-subtitle">Clique em qualquer artefato para abrir a visualização rápida e interativa para a banca.</p>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" id="btn-open-all-reports" style="display: inline-flex; align-items: center; gap: 0.35rem;">
+              <span>📄</span> Abrir Central de Relatórios
+            </button>
+          </div>
           <div class="doc-card-grid">
-            <div class="doc-card">
-              <strong>relatorio_conferencia_lotes.xlsx</strong>
-              <p>Planilha consolidada de 9 abas (Resumo, Todos, Válidos, Divergências, Ambíguos, Erros, Ranking).</p>
+            <div class="doc-card report-card-clickable" data-open-report="excel" style="cursor: pointer;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                <span class="badge badge-success" style="font-size: 0.7rem; font-weight: 700;">PLANILHA .XLSX</span>
+                <span style="font-size: 0.75rem; color: var(--lg-active-red); font-weight: 600;">Ver 9 Abas &rarr;</span>
+              </div>
+              <strong style="color: var(--text-pure);">relatorio_conferencia_lotes.xlsx</strong>
+              <p>Planilha consolidada de 9 abas (Resumo, Todos, Válidos, Divergências, Ambíguos, Erros, Ranking, Dicionário, ML).</p>
             </div>
-            <div class="doc-card">
-              <strong>resumo_executivo.md</strong>
-              <p>Dossiê executivo em Markdown com métricas de FTE, qualidade de entrada e taxa de retrabalho.</p>
+            <div class="doc-card report-card-clickable" data-open-report="resumo" style="cursor: pointer;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                <span class="badge badge-info" style="font-size: 0.7rem; font-weight: 700;">DOSSIÊ .MD</span>
+                <span style="font-size: 0.75rem; color: var(--lg-active-red); font-weight: 600;">Ver Resumo &rarr;</span>
+              </div>
+              <strong style="color: var(--text-pure);">resumo_executivo.md</strong>
+              <p>Dossiê executivo em Markdown com métricas de FTE, qualidade de entrada, taxa de retrabalho e destaques.</p>
             </div>
-            <div class="doc-card">
-              <strong>resumo_conferencia_lotes.pdf</strong>
-              <p>Relatório gerencial oficial formatado em PDF para auditoria.</p>
+            <div class="doc-card report-card-clickable" data-open-report="pdf" style="cursor: pointer;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                <span class="badge badge-warning" style="font-size: 0.7rem; font-weight: 700;">DOCUMENTO .PDF</span>
+                <span style="font-size: 0.75rem; color: var(--lg-active-red); font-weight: 600;">Ver Impresso &rarr;</span>
+              </div>
+              <strong style="color: var(--text-pure);">resumo_conferencia_lotes.pdf</strong>
+              <p>Relatório gerencial oficial formatado em PDF para auditoria da banca e diretoria.</p>
             </div>
           </div>
         </div>
@@ -846,7 +834,84 @@
         </div>
       </section>
 
-    </main>
+    <!-- =========================================================================
+         MODAL DE RELATÓRIOS OFICIAIS (VISUALIZAÇÃO RÁPIDA PARA A BANCA)
+         ========================================================================= -->
+    <div id="modal-relatorios" class="report-modal-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modal-relatorios-title">
+      <div class="report-modal-dialog">
+        <div class="report-modal-header">
+          <div class="report-modal-title-wrap">
+            <span class="badge badge-error" style="font-weight: 700; font-size: 0.7rem;">RPA05 &middot; ARTEFATOS</span>
+            <h2 id="modal-relatorios-title" class="report-modal-title">Central de Relatórios & Artefatos de Produção</h2>
+          </div>
+          <div class="report-modal-actions">
+            <span class="modal-esc-hint">Pressione <code>ESC</code> para fechar</span>
+            <button type="button" class="report-modal-close" id="btn-close-report-modal" aria-label="Fechar modal">&times;</button>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs inside Modal -->
+        <div class="report-tab-selector" role="tablist">
+          <button type="button" class="report-tab-btn active" data-report-tab="rep-excel" role="tab">
+            <span class="rep-icon">📊</span> Planilha Excel (9 Abas)
+          </button>
+          <button type="button" class="report-tab-btn" data-report-tab="rep-resumo" role="tab">
+            <span class="rep-icon">📝</span> Resumo Executivo (.MD)
+          </button>
+          <button type="button" class="report-tab-btn" data-report-tab="rep-pdf" role="tab">
+            <span class="rep-icon">📑</span> Relatório PDF Oficial
+          </button>
+          <button type="button" class="report-tab-btn" data-report-tab="rep-rastreabilidade" role="tab">
+            <span class="rep-icon">🔍</span> Rastreabilidade (JSON)
+          </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="report-modal-body">
+          <!-- 1. EXCEL TAB -->
+          <div id="rep-excel" class="report-pane active">
+            <div class="excel-sheets-nav" id="excel-sheets-container">
+              <!-- Dynamically or statically rendered 9 sheet buttons -->
+            </div>
+            <div class="excel-table-scroll" id="excel-sheet-content">
+              <!-- Active Sheet table -->
+            </div>
+          </div>
+
+          <!-- 2. RESUMO EXECUTIVO (.MD) TAB -->
+          <div id="rep-resumo" class="report-pane">
+            <div class="md-preview-container" id="md-preview-content">
+              <!-- Rendered markdown report -->
+            </div>
+          </div>
+
+          <!-- 3. PDF OFICIAL TAB -->
+          <div id="rep-pdf" class="report-pane">
+            <div class="pdf-document-container" id="pdf-preview-content">
+              <!-- Formatted printable PDF letterhead preview -->
+            </div>
+          </div>
+
+          <!-- 4. RASTREABILIDADE JSON TAB -->
+          <div id="rep-rastreabilidade" class="report-pane">
+            <div class="json-code-container">
+              <pre id="json-traceability-content"><code></code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="report-modal-footer">
+          <div class="report-footer-info">
+            <span class="pulse-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #34d399; margin-right: 6px;"></span>
+            Artefatos físicos persistidos em <code>data/output/</code> pelo robô RPA05
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-close-report-modal-footer">
+            Fechar Visualização [ESC]
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- Global Toast Notifications Container -->
     <div id="toast-container"></div>
