@@ -13,7 +13,7 @@ from src.pages import PlaywrightFormPage, PlaywrightLoginPage
 from src.automation.web_automation import iniciar_browser
 
 
-ALLOWED_HOSTS = {"frontend", "localhost", "127.0.0.1"}
+ALLOWED_HOSTS = {"frontend", "localhost", "127.0.0.1", "portal"}
 
 
 class PlaywrightAutomation:

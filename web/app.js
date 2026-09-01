@@ -370,7 +370,6 @@ function setupIngestionForm() {
       if (sucessoMsg) {
         sucessoMsg.textContent = `Lote ${loteId} processado com sucesso.`;
         sucessoMsg.hidden = false;
-        setTimeout(() => sucessoMsg.hidden = true, 5000);
       }
 
       showToast(`Lote ${loteId} processado com sucesso.`, "success");

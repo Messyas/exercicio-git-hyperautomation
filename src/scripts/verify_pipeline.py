@@ -27,10 +27,10 @@ def _read_json(path: Path) -> dict:
 
 
 def _get_log_file(relative_path: str) -> Path:
-    p = ROOT / "data" / relative_path
+    p = ROOT / relative_path
     if p.is_file():
         return p
-    return ROOT / relative_path
+    return ROOT / "data" / relative_path
 
 
 def _execution_records(path: Path, started_at: str) -> list[dict]:

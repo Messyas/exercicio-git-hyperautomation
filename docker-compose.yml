@@ -76,7 +76,7 @@ services:
         required: false
     environment:
       BOT_ID: bot-lotes-cadastro-playwright-mk7
-      BOT_URL: http://portal:8080/
+      BOT_URL: file:///app/web/index.html
       BOT_HEADLESS: "true"
       BOT_LOG_DIR: /app/logs
       DATAPOOL_BACKEND: local
@@ -190,7 +190,7 @@ services:
       - path: ./.env
         required: false
     environment:
-      BOT_URL: http://portal:8080/
+      BOT_URL: file:///app/web/index.html
       BOT_HEADLESS: "true"
       BOT_LOG_DIR: /app/logs
       BOT_OUTPUT_DIR: /app/data/output
