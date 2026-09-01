@@ -130,7 +130,7 @@ jobs:
         env:
           MAESTRO_ENABLED: "false"
           ENVIRONMENT: container
-        run: docker compose run --rm bot-conferencia
+        run: docker compose --profile avaliacao run --rm bot-conferencia
       - name: Verificar evidencias geradas
         shell: bash
         run: |
@@ -138,7 +138,7 @@ jobs:
           test -n "$(find data/output -type f -print -quit)" || (echo "data/output/ vazio" && exit 1)
           test -n "$(find screenshots -type f -name '*.png' -print -quit)" || (echo "screenshots/ vazio" && exit 1)
           grep -q '"event": "ML_DECISION"' data/output/execucao_dashboard.log
-          docker compose run --rm --no-deps --entrypoint python \
+          docker compose --profile avaliacao run --rm --no-deps --entrypoint python \
             bot-conferencia src/scripts/verify_pipeline.py
       - name: Salvar evidencias como artefato
         uses: actions/upload-artifact@v4

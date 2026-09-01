@@ -120,10 +120,12 @@
             <h2 class="section-title" style="margin-bottom: 1rem; font-size: 1.25rem;">Acesso ao cadastro</h2>
             <form id="login-form">
               <div class="form-group" style="margin-bottom: 0.75rem;">
-                <label>Usuário <input name="usuario" value="operador.qualidade" required /></label>
+                <label for="login-usuario">Usuário</label>
+                <input id="login-usuario" name="usuario" value="operador.qualidade" required />
               </div>
               <div class="form-group" style="margin-bottom: 1.25rem;">
-                <label>Senha <input name="senha" type="password" value="********" required /></label>
+                <label for="login-senha">Senha</label>
+                <input id="login-senha" name="senha" type="password" value="********" required />
               </div>
               <button type="submit" class="btn btn-primary" style="width: 100%;">Entrar</button>
             </form>
@@ -137,13 +139,14 @@
             <form id="lote-form" aria-label="Formulário de cadastro de lote" novalidate>
               <div class="form-grid">
                 <div class="form-group">
-                  <label>Número do lote <input id="lote_id" placeholder="Ex: LG-2026-00101" /></label>
+                  <label for="lote_id">Número do lote</label>
+                  <input id="lote_id" name="lote_id" placeholder="Ex: LG-2026-00101" />
                   <p id="lote-id-erro" role="alert" hidden style="color: var(--lg-active-red); font-size: 0.75rem;">Informe o número do lote.</p>
                 </div>
 
                 <div class="form-group">
                   <label for="produto">Produto</label>
-                  <select id="produto">
+                  <select id="produto" name="produto">
                     <option value="">Selecione um produto</option>
                     <option>AC12-SPLIT</option><option>AC18-SPLIT</option>
                     <option>AC9-WINDOW</option><option>MON24-FHD</option>
@@ -155,16 +158,18 @@
                 </div>
 
                 <div class="form-group">
-                  <label>Linha <input id="linha" value="LINHA_01" /></label>
+                  <label for="linha">Linha</label>
+                  <input id="linha" name="linha" value="LINHA_01" />
                 </div>
 
                 <div class="form-group">
-                  <label>Turno <input id="turno" value="A" /></label>
+                  <label for="turno">Turno</label>
+                  <input id="turno" name="turno" value="A" />
                 </div>
 
                 <div class="form-group full-width">
                   <fieldset style="border: 0; padding: 0; margin: 0;">
-                    <legend style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.25rem;">Status</legend>
+                    <legend style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.4rem;">Status</legend>
                     <div class="radios radio-group">
                       <label class="radio-label"><input type="radio" name="status" value="APROVADO" checked /> APROVADO</label>
                       <label class="radio-label"><input type="radio" name="status" value="REPROVADO" /> REPROVADO</label>
@@ -177,16 +182,24 @@
                   </fieldset>
                 </div>
 
-                <div class="form-group">
-                  <label>Responsável <input id="responsavel" value="Carlos Silva" /></label>
+                <div class="form-group col-span-2">
+                  <label for="responsavel">Responsável</label>
+                  <input id="responsavel" name="responsavel" value="Carlos Silva" />
                 </div>
 
-                <div class="form-group">
-                  <label>Data <input id="data" value="31/08/2026" placeholder="DD/MM/AAAA" /></label>
+                <div class="form-group col-span-2">
+                  <label for="data">Data</label>
+                  <input id="data" name="data" value="31/08/2026" placeholder="DD/MM/AAAA" />
                 </div>
 
-                <div class="form-group full-width">
-                  <label>Observação <textarea id="observacao" rows="2" placeholder="Observações de conferência física ou parâmetros..."></textarea></label>
+                <div class="form-group full-width observacao-group">
+                  <div class="observacao-header">
+                    <label for="observacao">Observação</label>
+                    <span class="observacao-hint">
+                      <span class="observacao-hint-dot"></span> Consumido pela camada de Machine Learning (RPA04) para predição de causa-raiz
+                    </span>
+                  </div>
+                  <textarea id="observacao" name="observacao" rows="3" placeholder="Observações de conferência física, motivos de reprovação ou parâmetros do lote..."></textarea>
                 </div>
               </div>
 

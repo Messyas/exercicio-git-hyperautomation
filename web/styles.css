@@ -348,27 +348,63 @@ body {
 /* Form Styles */
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem 1rem;
+}
+
+@media (max-width: 992px) {
+  .form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.form-group.col-span-2 {
+  grid-column: span 2;
+}
+
+@media (max-width: 992px) {
+  .form-group.col-span-2 {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 600px) {
+  .form-group.col-span-2 {
+    grid-column: 1 / -1;
+  }
 }
 
 .form-group.full-width {
   grid-column: 1 / -1;
 }
 
-label {
+label,
+.form-label {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-muted);
+  display: block;
 }
 
-input, select, textarea {
+/* Ensure inputs and selects have unified height, padding and box-sizing */
+input:not([type="radio"]):not([type="checkbox"]),
+select {
+  width: 100%;
+  height: 42px;
+  box-sizing: border-box;
   background: #181818;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
@@ -380,36 +416,108 @@ input, select, textarea {
   transition: var(--transition);
 }
 
-input:focus, select:focus, textarea:focus {
+input:not([type="radio"]):not([type="checkbox"]):focus,
+select:focus,
+textarea:focus {
   border-color: var(--border-focus);
   box-shadow: 0 0 0 2px var(--lg-active-red-muted);
+  background: #1c1c1c;
+}
+
+/* Radio buttons & Checkboxes — vibrant LG red dot / check mark */
+input[type="radio"],
+input[type="checkbox"] {
+  accent-color: var(--lg-active-red);
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex-shrink: 0;
 }
 
 .radio-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.6rem;
-  margin-top: 0.25rem;
+  gap: 0.65rem;
+  margin-top: 0.15rem;
 }
 
 .radio-label {
   background: #181818;
   border: 1px solid var(--border-color);
-  padding: 0.45rem 0.85rem;
+  padding: 0.5rem 0.85rem;
   border-radius: var(--radius-sm);
-  font-size: 0.8rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-muted);
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.45rem;
   transition: var(--transition);
+  user-select: none;
+}
+
+.radio-label:hover {
+  background: #222222;
+  border-color: #555555;
+  color: var(--text-pure);
 }
 
 .radio-label:has(input:checked) {
   border-color: var(--lg-active-red);
   background: var(--lg-active-red-muted);
-  color: var(--text-pure);
+  color: #ffffff;
   font-weight: 600;
+  box-shadow: 0 0 0 1px rgba(253, 49, 46, 0.35);
+}
+
+/* Textarea / Observação aesthetic */
+.observacao-group {
+  margin-top: 0.25rem;
+}
+
+.observacao-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.15rem;
+}
+
+.observacao-hint {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.observacao-hint-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--lg-active-red);
+  display: inline-block;
+  box-shadow: 0 0 6px var(--lg-active-red);
+}
+
+textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 84px;
+  background: #181818;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-pure);
+  font-family: inherit;
+  font-size: 0.875rem;
+  padding: 0.75rem 0.85rem;
+  outline: none;
+  resize: vertical;
+  line-height: 1.5;
+  transition: var(--transition);
 }
 
 /* Buttons */
