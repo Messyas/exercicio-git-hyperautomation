@@ -2,8 +2,8 @@
 
 import pytest
 
-from scripts.demo_capstone import executar_pipeline_completo
-from scripts.simular_cenarios_sabotagem import (
+from src.scripts.demo_capstone import executar_pipeline_completo
+from src.scripts.simular_cenarios_sabotagem import (
     executar_cenario_1_desktop_indisponivel,
     executar_cenario_2_timeout_dependencia,
     executar_cenario_3_ml_fora_do_ar,

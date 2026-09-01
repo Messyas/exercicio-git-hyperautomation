@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from dashboard.gerar_relatorio import (
+from src.relatorio_executivo import (
     carregar_inspecoes,
     preparar_dados_relatorio,
     validar_registros,

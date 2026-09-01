@@ -1,0 +1,850 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Smart Office Orchestrator · LG Control Tower</title>
+    
+    <!-- Favicon Oficial LG -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- Custom Unified Styles -->
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a href="#main-content" class="skip-link">Pular para o conteúdo principal</a>
+
+    <!-- Top Header & Navigation -->
+    <header class="top-header">
+      <div class="header-container">
+        <div class="brand">
+          <div class="brand-icon">LG</div>
+          <div class="brand-text">
+            <h1>Smart Office Orchestrator · Control Tower</h1>
+            <p>Plataforma Corporativa de Orquestração RPA · The DX Way · SCM & Qualidade</p>
+          </div>
+        </div>
+        <div class="status-pills">
+          <button id="btn-start-tour-header" class="btn btn-primary" style="font-size: 0.825rem; padding: 0.45rem 1rem;">
+            <span>▶</span> Começar Demonstração Sequencial
+          </button>
+          <span class="pill pill-online">Control Tower Online</span>
+          <span class="pill pill-tag">Smart Office v2.4.0</span>
+        </div>
+      </div>
+
+      <!-- Guided Tour Floating Progress Bar -->
+      <div id="tour-banner-container" class="tour-banner" style="display: none;">
+        <div class="tour-progress-text">
+          <span id="tour-step-badge" class="tour-step-badge">Etapa 1/7</span>
+          <span id="tour-step-title">Ingestão & População de Dados no DataPool</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <span id="tour-step-status" style="font-size: 0.75rem; color: #a7f3d0;">Executando...</span>
+          <button id="btn-stop-tour" class="btn" style="background: #242424; font-size: 0.75rem; padding: 0.25rem 0.65rem;">Interromper Tour</button>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs (Sequential Presentation Flow) -->
+      <nav class="nav-tabs" aria-label="Navegação Sequencial da Apresentação">
+        <button class="nav-tab-btn active" data-tab="tab-ingestao">
+          1. Ingestão & População
+        </button>
+        <button class="nav-tab-btn" data-tab="tab-esteira">
+          2. Esteira Multi-Bot
+        </button>
+        <button class="nav-tab-btn" data-tab="tab-decisao">
+          3. Motor de Decisão (Regras vs ML)
+        </button>
+        <button class="nav-tab-btn" data-tab="tab-alertas">
+          4. Alertas & Relatórios
+        </button>
+        <button class="nav-tab-btn" data-tab="tab-dashboard">
+          5. Dashboard Executivo
+        </button>
+        <button class="nav-tab-btn" data-tab="tab-sabotagem">
+          6. Resiliência & Sabotagem
+        </button>
+        <button class="nav-tab-btn" data-tab="tab-governanca">
+          7. Governança & Hashes
+        </button>
+      </nav>
+    </header>
+
+    <!-- Main Container -->
+    <main id="main-content" class="main-container">
+      
+      <!-- =========================================================================
+           TAB 1: INGESTÃO & POPULAÇÃO (PLAYWRIGHT WEB & DESKTOP GUI)
+           ========================================================================= -->
+      <section id="tab-ingestao" class="tab-content active">
+        <!-- Presentation Tour Launch Card -->
+        <div class="glass-card" style="margin-bottom: 1.5rem; border-color: rgba(165, 0, 52, 0.4); background: #181818;">
+          <div class="section-header" style="margin-bottom: 0.5rem;">
+            <div>
+              <h2 class="section-title" style="color: #fff; font-size: 1.25rem;">Apresentação Sequencial Guiada para a Banca</h2>
+              <p class="section-subtitle">Dispare a demonstração ao vivo completa: cadastra os dados no DataPool e avança automaticamente pelas 7 etapas com delays visuais para a banca.</p>
+            </div>
+            <button id="btn-start-tour-tab1" class="btn btn-primary" style="font-size: 0.95rem; padding: 0.75rem 1.5rem;">
+              <span>▶</span> Começar Demonstração Sequencial
+            </button>
+          </div>
+        </div>
+
+        <div class="glass-card" style="margin-bottom: 1.5rem;">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">1. Portal de Entrada de Pedidos e População (DataPool)</h2>
+              <p class="section-subtitle">Ponto de partida da automação: entrada de novos lotes via operador ou robô Playwright (RPA02) para alimentar a fila.</p>
+            </div>
+            <div class="btn-group">
+              <button id="btn-auto-playwright" class="btn btn-primary">
+                Executar Ingestão Automática (Playwright)
+              </button>
+              <button id="btn-random-batch" class="btn">
+                Gerar Lote de Teste
+              </button>
+            </div>
+          </div>
+
+          <!-- Section Login (Playwright E2E Compatible) -->
+          <section id="login" class="auth-box">
+            <h2 class="section-title" style="margin-bottom: 1rem; font-size: 1.25rem;">Acesso ao cadastro</h2>
+            <form id="login-form">
+              <div class="form-group" style="margin-bottom: 0.75rem;">
+                <label>Usuário <input name="usuario" value="operador.qualidade" required /></label>
+              </div>
+              <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label>Senha <input name="senha" type="password" value="********" required /></label>
+              </div>
+              <button type="submit" class="btn btn-primary" style="width: 100%;">Entrar</button>
+            </form>
+          </section>
+
+          <!-- Section Cadastro (Playwright E2E Compatible) -->
+          <section id="cadastro" hidden>
+            <h2 class="section-title" style="margin-bottom: 1rem; font-size: 1.25rem;">Cadastro de Lotes</h2>
+            <div id="sucesso" role="status" hidden style="background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #34d399; padding: 0.85rem; border-radius: var(--radius-sm); margin-bottom: 1rem;"></div>
+            
+            <form id="lote-form" aria-label="Formulário de cadastro de lote" novalidate>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Número do lote <input id="lote_id" placeholder="Ex: LG-2026-00101" /></label>
+                  <p id="lote-id-erro" role="alert" hidden style="color: var(--lg-active-red); font-size: 0.75rem;">Informe o número do lote.</p>
+                </div>
+
+                <div class="form-group">
+                  <label for="produto">Produto</label>
+                  <select id="produto">
+                    <option value="">Selecione um produto</option>
+                    <option>AC12-SPLIT</option><option>AC18-SPLIT</option>
+                    <option>AC9-WINDOW</option><option>MON24-FHD</option>
+                    <option>MON27-QHD</option><option>MON32-4K</option>
+                    <option>TV43-FHD</option><option>TV50-4K-B</option>
+                    <option>TV55-4K-B</option><option>TV65-OLED</option>
+                  </select>
+                  <p id="produto-erro" role="alert" hidden style="color: var(--lg-active-red); font-size: 0.75rem;">Selecione um produto.</p>
+                </div>
+
+                <div class="form-group">
+                  <label>Linha <input id="linha" value="LINHA_01" /></label>
+                </div>
+
+                <div class="form-group">
+                  <label>Turno <input id="turno" value="A" /></label>
+                </div>
+
+                <div class="form-group full-width">
+                  <fieldset style="border: 0; padding: 0; margin: 0;">
+                    <legend style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.25rem;">Status</legend>
+                    <div class="radios radio-group">
+                      <label class="radio-label"><input type="radio" name="status" value="APROVADO" checked /> APROVADO</label>
+                      <label class="radio-label"><input type="radio" name="status" value="REPROVADO" /> REPROVADO</label>
+                      <label class="radio-label"><input type="radio" name="status" value="NOK" /> NOK</label>
+                      <label class="radio-label"><input type="radio" name="status" value="PENDENTE" /> PENDENTE</label>
+                      <label class="radio-label"><input type="radio" name="status" value="OK" /> OK</label>
+                      <label class="radio-label"><input type="radio" name="status" value="REPROV." /> REPROV.</label>
+                      <label class="radio-label"><input type="radio" name="status" value="APROVADO PARCIAL" /> APROVADO PARCIAL</label>
+                    </div>
+                  </fieldset>
+                </div>
+
+                <div class="form-group">
+                  <label>Responsável <input id="responsavel" value="Carlos Silva" /></label>
+                </div>
+
+                <div class="form-group">
+                  <label>Data <input id="data" value="31/08/2026" placeholder="DD/MM/AAAA" /></label>
+                </div>
+
+                <div class="form-group full-width">
+                  <label>Observação <textarea id="observacao" rows="2" placeholder="Observações de conferência física ou parâmetros..."></textarea></label>
+                </div>
+              </div>
+
+              <div style="margin-top: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <button type="submit" class="btn btn-primary">Processar lote</button>
+                <button type="button" class="btn btn-success" data-navigate="tab-esteira">Avançar para Etapa 2: Esteira Multi-Bot &rarr;</button>
+              </div>
+            </form>
+          </section>
+        </div>
+
+        <!-- DataPool Local Queue Table -->
+        <div class="glass-card">
+          <div class="section-header">
+            <div>
+              <h3 class="section-title">Fila de Entrada do DataPool (250 Lotes Oficiais da Esteira)</h3>
+              <p class="section-subtitle">Base única consolidada de inspeção da fábrica que alimenta e engatilha a esteira multi-bot em cascata.</p>
+            </div>
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+              <select id="filter-datapool-origem" style="width: auto;">
+                <option value="Todos">Todos os Dias (10 Dias)</option>
+                <option value="15/06/2026">Dia 15/06/2026</option>
+                <option value="16/06/2026">Dia 16/06/2026</option>
+                <option value="17/06/2026">Dia 17/06/2026</option>
+                <option value="18/06/2026">Dia 18/06/2026</option>
+                <option value="19/06/2026">Dia 19/06/2026</option>
+                <option value="22/06/2026">Dia 22/06/2026</option>
+                <option value="23/06/2026">Dia 23/06/2026</option>
+                <option value="24/06/2026">Dia 24/06/2026</option>
+                <option value="25/06/2026">Dia 25/06/2026</option>
+                <option value="26/06/2026">Dia 26/06/2026</option>
+              </select>
+              <input id="search-datapool" placeholder="Buscar por Lote ID, produto..." style="width: 220px;" />
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Lote ID</th>
+                  <th>Produto</th>
+                  <th>Linha</th>
+                  <th>Turno</th>
+                  <th>Status Declarado</th>
+                  <th>Responsável</th>
+                  <th>Data Inspeção</th>
+                  <th>Classificação Esperada</th>
+                </tr>
+              </thead>
+              <tbody id="table-cadastrados-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           TAB 2: ESTEIRA MULTI-BOT & ORQUESTRADOR
+           ========================================================================= -->
+      <section id="tab-esteira" class="tab-content">
+        <div class="glass-card" style="margin-bottom: 1.5rem;">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">2. Orquestração em Cascata dos 6 Bots (Smart Office)</h2>
+              <p class="section-subtitle">Os robôs são engatilhados em sequência: cada bot processa a base e ativa o próximo, enquanto os outros aguardam a conclusão do predecessor.</p>
+            </div>
+            <div class="btn-group">
+              <button id="btn-run-pipeline" class="btn btn-primary">
+                Disparar Pipeline Completo (6 Bots)
+              </button>
+              <button id="btn-run-smoke" class="btn">
+                Executar Smoke Test Pós-Deploy
+              </button>
+            </div>
+          </div>
+
+          <!-- Pipeline Visualizer Nodes -->
+          <div class="pipeline-track">
+            <!-- Node 1: Desktop -->
+            <div id="node-rpa01" class="pipeline-node">
+              <div>
+                <div class="node-header">
+                  <span class="node-priority" style="color: #f43f5e;">P1 • INÍCIO</span>
+                </div>
+                <div class="node-title">SCM_ColetaEstoque_BOT</div>
+                <div class="node-runner">RUNNER_WIN_GUI_01<br><small style="color: #a7f3d0;">Mutex de Sessão Gráfica</small></div>
+              </div>
+              <div class="node-status-badge">READY (P1)</div>
+            </div>
+
+            <!-- Node 2: Web -->
+            <div id="node-rpa02" class="pipeline-node">
+              <div>
+                <div class="node-header">
+                  <span class="node-priority" style="color: #60a5fa;">P2 • ESPERANDO</span>
+                </div>
+                <div class="node-title">SCM_ColetaPedidos_BOT</div>
+                <div class="node-runner">RUNNER_SRV_BG_01<br><small style="color: #93c5fd;">Playwright Headless</small></div>
+              </div>
+              <div class="node-status-badge">WAITING PREDECESSOR</div>
+            </div>
+
+            <!-- Node 3: Core -->
+            <div id="node-rpa03" class="pipeline-node">
+              <div>
+                <div class="node-header">
+                  <span class="node-priority" style="color: #fbbf24;">P3 • ESPERANDO</span>
+                </div>
+                <div class="node-title">SCM_Consolidacao_BOT</div>
+                <div class="node-runner">RUNNER_SRV_BG_01<br><small style="color: #fde68a;">Motor RN01–RN12</small></div>
+              </div>
+              <div class="node-status-badge">WAITING PREDECESSOR</div>
+            </div>
+
+            <!-- Node 4: ML -->
+            <div id="node-rpa04" class="pipeline-node">
+              <div>
+                <div class="node-header">
+                  <span class="node-priority" style="color: #c084fc;">P4 • ESPERANDO</span>
+                </div>
+                <div class="node-title">SCM_ClassificadorML_BOT</div>
+                <div class="node-runner">RUNNER_SRV_BG_01<br><small style="color: #e9d5ff;">Circuit Breaker Ativo</small></div>
+              </div>
+              <div class="node-status-badge">WAITING PREDECESSOR</div>
+            </div>
+
+            <!-- Node 5: Notif -->
+            <div id="node-rpa05" class="pipeline-node">
+              <div>
+                <div class="node-header">
+                  <span class="node-priority" style="color: #34d399;">P5 • ESPERANDO</span>
+                </div>
+                <div class="node-title">SCM_RelatorioAlertas_BOT</div>
+                <div class="node-runner">RUNNER_SRV_BG_01<br><small style="color: #a7f3d0;">Relatórios & Alertas</small></div>
+              </div>
+              <div class="node-status-badge">WAITING PREDECESSOR</div>
+            </div>
+
+            <!-- Node 6: Dead Letter -->
+            <div id="node-rpa06" class="pipeline-node">
+              <div>
+                <div class="node-header">
+                  <span class="node-priority" style="color: #9ca3af;">P5 • CRON</span>
+                </div>
+                <div class="node-title">SCM_DeadLetter_BOT</div>
+                <div class="node-runner">RUNNER_CRON_SCHED_01<br><small style="color: #d1d5db;">Auditoria Recorrente</small></div>
+              </div>
+              <div class="node-status-badge">WAITING PREDECESSOR</div>
+            </div>
+          </div>
+
+          <!-- Terminal Console Output (Structured Logs) -->
+          <div class="terminal-card">
+            <div class="terminal-header">
+              <div class="terminal-dots">
+                <span class="terminal-dot dot-red"></span>
+                <span class="terminal-dot dot-yellow"></span>
+                <span class="terminal-dot dot-green"></span>
+              </div>
+              <div>Smart Office Live Telemetry Console (Structured Logs)</div>
+              <div style="font-size: 0.75rem; color: #34d399;">Live Stream</div>
+            </div>
+            <div id="pipeline-terminal" class="terminal-body">
+              <div class="log-line log-info">2026-08-31 21:00:00 | INFO | Smart Office Control Tower inicializado.</div>
+              <div class="log-line log-info">2026-08-31 21:00:01 | INFO | 3 Runners conectados: RUNNER_WIN_GUI_01, RUNNER_SRV_BG_01, RUNNER_CRON_SCHED_01.</div>
+            </div>
+          </div>
+
+          <div style="margin-top: 1rem; text-align: right;">
+            <button type="button" class="btn btn-success" data-navigate="tab-decisao">Avançar para Etapa 3: Motor de Decisão (Regras vs ML) &rarr;</button>
+          </div>
+        </div>
+
+        <!-- Tasks Execution History Table -->
+        <div class="glass-card">
+          <div class="section-header">
+            <div>
+              <h3 class="section-title">Histórico de Tasks Disparadas (Smart Office Logs)</h3>
+              <p class="section-subtitle">Registro de auditoria de cada task executada pelos Runners.</p>
+            </div>
+            <input id="search-task-log" placeholder="Buscar por Task ID, Bot ou Runner..." style="width: 260px;" />
+          </div>
+
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Task ID</th>
+                  <th>Automation</th>
+                  <th>Runner</th>
+                  <th>Prioridade</th>
+                  <th>Início</th>
+                  <th>Duração</th>
+                  <th>Status</th>
+                  <th>Event / Mensagem</th>
+                </tr>
+              </thead>
+              <tbody id="table-tasks-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           TAB 3: MOTOR DE DECISÃO (REGRAS VS ML)
+           ========================================================================= -->
+      <section id="tab-decisao" class="tab-content">
+        <div class="glass-card" style="margin-bottom: 1.5rem;">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">3. Motor de Decisão & Inteligência Híbrida (Regras vs ML)</h2>
+              <p class="section-subtitle">Acompanhamento da fila de classificação: roteamento entre regras determinísticas (RN01–RN12) e Machine Learning com Circuit Breaker.</p>
+            </div>
+            <div class="btn-group">
+              <select id="filter-decision-type" style="width: auto;">
+                <option value="Todos">Todas as Origens de Decisão</option>
+                <option value="Regras">Regras de Negócio (RN01–RN12)</option>
+                <option value="ML">Machine Learning (RandomForest)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Decision Pipeline KPI Summary -->
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-title">Classificados por Regras</div>
+              <div id="kpi-count-rules" class="kpi-value">180</div>
+              <div class="kpi-subtext">Motor determinístico rápido (RN01–RN12)</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-title">Encaminhados para ML</div>
+              <div id="kpi-count-ml" class="kpi-value">70</div>
+              <div class="kpi-subtext">Inferência de causa provável</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-title">Acurácia Média do ML</div>
+              <div class="kpi-value">96.4%</div>
+              <div class="kpi-subtext">Modelo treinado no dataset histórico</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-title">Status Circuit Breaker</div>
+              <div class="kpi-value" style="color: #34d399;">CLOSED</div>
+              <div class="kpi-subtext">0 falhas consecutivas (Operação Normal)</div>
+            </div>
+          </div>
+
+          <!-- Classified Items Stream Table -->
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Lote ID</th>
+                  <th>Produto</th>
+                  <th>Status Inicial</th>
+                  <th>Origem da Decisão</th>
+                  <th>Regra / Causa Provável</th>
+                  <th>Confiança / Prob.</th>
+                  <th>Classificação Final</th>
+                  <th>Ação Sugerida</th>
+                </tr>
+              </thead>
+              <tbody id="table-decision-body"></tbody>
+            </table>
+          </div>
+
+          <div style="margin-top: 1rem; text-align: right;">
+            <button type="button" class="btn btn-success" data-navigate="tab-alertas">Avançar para Etapa 4: Alertas & Notificações &rarr;</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           TAB 4: CENTRAL DE ALERTAS & NOTIFICAÇÕES (TELEGRAM / EMAIL)
+           ========================================================================= -->
+      <section id="tab-alertas" class="tab-content">
+        <div class="glass-card" style="margin-bottom: 1.5rem;">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">4. Central de Notificações e Alertas em Tempo Real (Telegram & Email)</h2>
+              <p class="section-subtitle">Feed ao vivo das mensagens disparadas pelo robô RPA05 para os canais remotos e gestores de qualidade.</p>
+            </div>
+            <button id="btn-send-test-alert" class="btn btn-primary">Simular Envio de Alerta</button>
+          </div>
+
+          <!-- Telegram Feed Grid -->
+          <div class="telegram-feed-grid" id="telegram-feed-container">
+            <!-- Dynamically populated Telegram message cards -->
+          </div>
+
+          <div style="margin-top: 1.5rem; text-align: right;">
+            <button type="button" class="btn btn-success" data-navigate="tab-dashboard">Avançar para Etapa 5: Dashboard Executivo &rarr;</button>
+          </div>
+        </div>
+
+        <!-- Generated Output Artifacts -->
+        <div class="glass-card">
+          <h3 class="section-title" style="margin-bottom: 1rem;">Artefatos Gerados pelo RPA05 em Produção</h3>
+          <div class="doc-card-grid">
+            <div class="doc-card">
+              <strong>relatorio_conferencia_lotes.xlsx</strong>
+              <p>Planilha consolidada de 9 abas (Resumo, Todos, Válidos, Divergências, Ambíguos, Erros, Ranking).</p>
+            </div>
+            <div class="doc-card">
+              <strong>resumo_executivo.md</strong>
+              <p>Dossiê executivo em Markdown com métricas de FTE, qualidade de entrada e taxa de retrabalho.</p>
+            </div>
+            <div class="doc-card">
+              <strong>resumo_conferencia_lotes.pdf</strong>
+              <p>Relatório gerencial oficial formatado em PDF para auditoria.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           TAB 5: DASHBOARD EXECUTIVO CONSOLIDADO
+           ========================================================================= -->
+      <section id="tab-dashboard" class="tab-content">
+        <!-- KPI Metric Cards (Percentage Focus) -->
+        <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+          <div class="kpi-card">
+            <div class="kpi-title">Total Auditado</div>
+            <div id="kpi-total-val" class="kpi-value">1.000</div>
+            <div class="kpi-subtext">100.0% do período de 10 dias</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Registros Válidos</div>
+            <div id="kpi-validos-val" class="kpi-value" style="color: #34d399;">62.4%</div>
+            <div class="kpi-subtext">624 lotes em conformidade</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Divergências (ML)</div>
+            <div id="kpi-div-val" class="kpi-value" style="color: #f87171;">20.4%</div>
+            <div class="kpi-subtext">204 lotes tratados por ML/Regras</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Erros de Entrada</div>
+            <div id="kpi-erros-val" class="kpi-value" style="color: #9ca3af;">9.6%</div>
+            <div class="kpi-subtext">96 lotes retidos em quarentena</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Ambíguos (Revisão)</div>
+            <div id="kpi-amb-val" class="kpi-value" style="color: #fbbf24;">7.6%</div>
+            <div class="kpi-subtext">76 lotes (meta &lt; 15.0%)</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Economia FTE</div>
+            <div id="kpi-fte-val" class="kpi-value">29h 10m</div>
+            <div class="kpi-subtext">1.750 minutos poupados</div>
+          </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="charts-grid">
+          <div class="glass-card">
+            <h3 class="section-title" style="margin-bottom: 1rem;">Distribuição das Classificações</h3>
+            <div class="chart-wrapper">
+              <canvas id="chart-classificacoes"></canvas>
+            </div>
+          </div>
+
+          <div class="glass-card">
+            <h3 class="section-title" style="margin-bottom: 1rem;">Evolução Temporal dos 10 Dias</h3>
+            <div class="chart-wrapper">
+              <canvas id="chart-evolucao"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rules Ranking Card (Bar Chart) -->
+        <div class="glass-card" style="margin-bottom: 1.5rem;">
+          <div class="section-header">
+            <div>
+              <h3 class="section-title">Ranking de Regras de Negócio Acionadas (Top Ocorrências)</h3>
+              <p class="section-subtitle">Distribuição comparativa por volume de regras aplicadas no lote de 1.000 itens da fábrica.</p>
+            </div>
+            <span class="badge badge-info" style="font-weight: 700;">6 Regras Principais</span>
+          </div>
+          <div class="chart-wrapper" style="height: 280px; position: relative;">
+            <canvas id="chart-regras"></canvas>
+          </div>
+        </div>
+
+        <!-- Filterable Processed Records Table -->
+        <div class="glass-card">
+          <div class="section-header">
+            <h3 class="section-title">Tabela Geral de Registros Processados</h3>
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+              <select id="filter-classificacao" style="width: auto;">
+                <option value="Todos">Todas as Classificações</option>
+                <option value="Válido">Válido</option>
+                <option value="Divergência">Divergência</option>
+                <option value="Ambíguo">Ambíguo</option>
+                <option value="Erro de Entrada">Erro de Entrada</option>
+              </select>
+              <input id="search-lote" placeholder="Buscar por Lote ID, produto..." style="width: 220px;" />
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Lote</th>
+                  <th>Produto</th>
+                  <th>Linha</th>
+                  <th>Turno</th>
+                  <th>Status</th>
+                  <th>Data</th>
+                  <th>Classificação</th>
+                  <th>Orientação / Regra</th>
+                </tr>
+              </thead>
+              <tbody id="table-records-body"></tbody>
+            </table>
+          </div>
+
+          <div style="margin-top: 1.25rem; text-align: right;">
+            <button type="button" class="btn btn-success" data-navigate="tab-sabotagem">Avançar para Etapa 6: Resiliência & Sabotagem &rarr;</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           TAB 6: RESILIÊNCIA & SABOTAGEM AO VIVO (6 CENÁRIOS)
+           ========================================================================= -->
+      <section id="tab-sabotagem" class="tab-content">
+        <div class="glass-card" style="margin-bottom: 1.5rem;">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">6. Matriz de Resiliência sob Crise (Ensaios de Sabotagem)</h2>
+              <p class="section-subtitle">Validação ao vivo dos mecanismos de defesa do Smart Office conforme a Seção 6 do manual corporativo.</p>
+            </div>
+          </div>
+
+          <div class="sabotage-grid">
+            <!-- Scenario 1 -->
+            <div class="sabotage-card">
+              <div>
+                <div class="sabotage-header">
+                  <div class="sabotage-title">1. Bot Desktop Indisponível</div>
+                  <span class="badge badge-danger">Crise GUI</span>
+                </div>
+                <p class="sabotage-desc">Queda forçada da janela gráfica legada no Windows durante a consulta de estoque.</p>
+              </div>
+              <div class="sabotage-defense">
+                <strong>Defesa:</strong> 3 retries com backoff linear &rarr; marcação para revisão &rarr; liberação de Mutex sem travar o pipeline.
+              </div>
+              <button class="btn btn-primary btn-trigger-sabotage" data-scenario="1">Testar Sabotagem 1</button>
+              <div id="sabotage-result-1" class="sabotage-defense" style="display: none; border-color: #38bdf8;"></div>
+            </div>
+
+            <!-- Scenario 2 -->
+            <div class="sabotage-card">
+              <div>
+                <div class="sabotage-header">
+                  <div class="sabotage-title">2. Timeout de Dependência</div>
+                  <span class="badge badge-warning">Timeout</span>
+                </div>
+                <p class="sabotage-desc">Atraso intencional superior a 10 segundos na entrega da coleta web.</p>
+              </div>
+              <div class="sabotage-defense">
+                <strong>Defesa:</strong> Controle estrito de deadline &rarr; Bot de consolidação prossegue com dados disponíveis sem lock indefinido.
+              </div>
+              <button class="btn btn-primary btn-trigger-sabotage" data-scenario="2">Testar Sabotagem 2</button>
+              <div id="sabotage-result-2" class="sabotage-defense" style="display: none; border-color: #38bdf8;"></div>
+            </div>
+
+            <!-- Scenario 3 -->
+            <div class="sabotage-card">
+              <div>
+                <div class="sabotage-header">
+                  <div class="sabotage-title">3. Serviço de ML Fora do Ar (503)</div>
+                  <span class="badge badge-success">Circuit Breaker</span>
+                </div>
+                <p class="sabotage-desc">Queda total da API do classificador de causa provável durante o lote.</p>
+              </div>
+              <div class="sabotage-defense">
+                <strong>Defesa:</strong> Circuit Breaker abre após 5 falhas &rarr; fallback imediato determinístico sem lançar exceções.
+              </div>
+              <button class="btn btn-primary btn-trigger-sabotage" data-scenario="3">Testar Sabotagem 3</button>
+              <div id="sabotage-result-3" class="sabotage-defense" style="display: none; border-color: #38bdf8;"></div>
+            </div>
+
+            <!-- Scenario 4 -->
+            <div class="sabotage-card">
+              <div>
+                <div class="sabotage-header">
+                  <div class="sabotage-title">4. Falha no Telegram Principal</div>
+                  <span class="badge badge-danger">Fallback Alertas</span>
+                </div>
+                <p class="sabotage-desc">Token de bot do Telegram revogado propositalmente (HTTP 401).</p>
+              </div>
+              <div class="sabotage-defense">
+                <strong>Defesa:</strong> Roteamento instantâneo para canal secundário (Email) e log de emergência em arquivo local.
+              </div>
+              <button class="btn btn-primary btn-trigger-sabotage" data-scenario="4">Testar Sabotagem 4</button>
+              <div id="sabotage-result-4" class="sabotage-defense" style="display: none; border-color: #38bdf8;"></div>
+            </div>
+
+            <!-- Scenario 5 -->
+            <div class="sabotage-card">
+              <div>
+                <div class="sabotage-header">
+                  <div class="sabotage-title">5. Concorrência de Orquestradores</div>
+                  <span class="badge badge-warning">Mutex Lock</span>
+                </div>
+                <p class="sabotage-desc">Disparo simultâneo no mesmo segundo do BotCity e do Smart Office no mesmo Runner.</p>
+              </div>
+              <div class="sabotage-defense">
+                <strong>Defesa:</strong> CoexistenceGuard bloqueia o segundo executor via arquivo de lock atômico, prevenindo roubo de foco.
+              </div>
+              <button class="btn btn-primary btn-trigger-sabotage" data-scenario="5">Testar Sabotagem 5</button>
+              <div id="sabotage-result-5" class="sabotage-defense" style="display: none; border-color: #38bdf8;"></div>
+            </div>
+
+            <!-- Scenario 6 -->
+            <div class="sabotage-card">
+              <div>
+                <div class="sabotage-header">
+                  <div class="sabotage-title">6. Registro Corrompido</div>
+                  <span class="badge badge-neutral">Dead Letter</span>
+                </div>
+                <p class="sabotage-desc">Injeção de linha na planilha sem lote_id e com caracteres binários corrompidos.</p>
+              </div>
+              <div class="sabotage-defense">
+                <strong>Defesa:</strong> Isolamento imediato na Dead Letter Queue, permitindo que os outros lotes concluam normalmente.
+              </div>
+              <button class="btn btn-primary btn-trigger-sabotage" data-scenario="6">Testar Sabotagem 6</button>
+              <div id="sabotage-result-6" class="sabotage-defense" style="display: none; border-color: #38bdf8;"></div>
+            </div>
+          </div>
+
+          <div style="margin-top: 1.25rem; text-align: right;">
+            <button type="button" class="btn btn-success" data-navigate="tab-governanca">Avançar para Etapa 7: Governança & Hashes &rarr;</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           TAB 7: GOVERNANÇA, MANIFESTOS SHA-256 & RUNNERS
+           ========================================================================= -->
+      <section id="tab-governanca" class="tab-content">
+        <!-- Runners Management Section -->
+        <div class="glass-card" style="margin-bottom: 1.5rem;">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">7. Inventário de Runners Conectados (Runners Management)</h2>
+              <p class="section-subtitle">Monitoramento de capacidade, status operacional e compatibilidade de ambiente dos Runners.</p>
+            </div>
+          </div>
+
+          <div class="runner-grid">
+            <div class="runner-card">
+              <div class="runner-header">
+                <div class="runner-name">RUNNER_WIN_GUI_01</div>
+                <span class="badge badge-success">Available</span>
+              </div>
+              <div class="runner-specs">
+                <div><strong>Ambiente:</strong> Windows 11 Pro</div>
+                <div><strong>Sessão:</strong> Gráfica Interativa</div>
+                <div><strong>CPU / RAM:</strong> 8 Cores / 16 GB</div>
+                <div><strong>Python:</strong> v3.13.14 (venv)</div>
+              </div>
+              <p style="font-size: 0.75rem; color: var(--text-dim);">Alocado para automações Desktop com bloqueio de Mutex.</p>
+            </div>
+
+            <div class="runner-card">
+              <div class="runner-header">
+                <div class="runner-name">RUNNER_SRV_BG_01</div>
+                <span class="badge badge-success">Available</span>
+              </div>
+              <div class="runner-specs">
+                <div><strong>Ambiente:</strong> Linux Ubuntu Srv</div>
+                <div><strong>Sessão:</strong> Headless Background</div>
+                <div><strong>CPU / RAM:</strong> 16 Cores / 32 GB</div>
+                <div><strong>Python:</strong> v3.13.14 + Playwright</div>
+              </div>
+              <p style="font-size: 0.75rem; color: var(--text-dim);">Alocado para processamento Web, Regras de Negócio e ML.</p>
+            </div>
+
+            <div class="runner-card">
+              <div class="runner-header">
+                <div class="runner-name">RUNNER_CRON_SCHED_01</div>
+                <span class="badge badge-success">Available</span>
+              </div>
+              <div class="runner-specs">
+                <div><strong>Ambiente:</strong> Linux Ubuntu Srv</div>
+                <div><strong>Sessão:</strong> Cron Daemon</div>
+                <div><strong>CPU / RAM:</strong> 4 Cores / 8 GB</div>
+                <div><strong>Cron:</strong> 0 */2 * * * (Ativo)</div>
+              </div>
+              <p style="font-size: 0.75rem; color: var(--text-dim);">Alocado para reprocessamento periódico e Dead Letter.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- RPA Database (DX Lake Integration) -->
+        <div class="glass-card" style="margin-bottom: 1.5rem;">
+          <div class="section-header">
+            <div>
+              <h3 class="section-title">RPA Database & Assinaturas SHA-256 (DX Lake)</h3>
+              <p class="section-subtitle">Repositório de pacotes .zip publicados no Smart Office com integridade criptográfica auditável.</p>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome do Bot</th>
+                  <th>Pacote .ZIP</th>
+                  <th>Tamanho</th>
+                  <th>Assinatura SHA-256</th>
+                  <th>Runner Alvo</th>
+                  <th>Versão Ativa</th>
+                </tr>
+              </thead>
+              <tbody id="manifest-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Technical Documents -->
+        <div class="glass-card">
+          <h3 class="section-title" style="margin-bottom: 1rem;">Documentação Técnica & Governança The DX Way</h3>
+          <div class="doc-card-grid">
+            <div class="doc-card">
+              <strong>Manual de Operação Smart Office</strong>
+              <p>Guia oficial de operação do orquestrador interno da LG Electronics.</p>
+            </div>
+            <div class="doc-card">
+              <strong>Process Design Document (PDD v2.0)</strong>
+              <p>Mapeamento AS-IS/TO-BE, matriz de regras RN01–RN12 e arquitetura.</p>
+            </div>
+            <div class="doc-card">
+              <strong>Plano de Migração e Coexistência</strong>
+              <p>Shadow Mode (14 dias), CoexistenceGuard e Rollback RTO &lt; 15 min.</p>
+            </div>
+            <div class="doc-card">
+              <strong>Relatório de Auditoria e Entregáveis</strong>
+              <p>Varredura completa de conformidade do projeto e checklist de entrega.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Global Toast Notifications Container -->
+    <div id="toast-container"></div>
+
+    <!-- Footer -->
+    <footer>
+      <p>LG Electronics do Brasil · AX Academy / IFAM / INOVA · Projeto Final Capstone de Hyperautomation (240h)</p>
+      <p style="margin-top: 0.25rem; color: var(--text-dim);">Smart Office Orchestrator & Multi-Bot Architecture · The DX Way</p>
+    </footer>
+
+    <!-- App Logic -->
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from scripts.verify_pipeline import _execution_records
+from src.scripts.verify_pipeline import _execution_records
 
 
 pytestmark = pytest.mark.integration

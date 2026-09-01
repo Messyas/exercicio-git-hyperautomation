@@ -3,7 +3,7 @@
 from pathlib import Path
 from zipfile import ZipFile
 
-from scripts.build_smartoffice_packages import build_all_packages
+from src.scripts.build_smartoffice_packages import build_all_packages
 
 
 def test_smartoffice_packages_arquivos_obrigatorios_na_raiz(tmp_path: Path):

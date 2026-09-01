@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from dashboard.servico_validacao import data_da_aba, validar_registro
+from src.servico_validacao import data_da_aba, validar_registro
 
 
 pytestmark = pytest.mark.unit

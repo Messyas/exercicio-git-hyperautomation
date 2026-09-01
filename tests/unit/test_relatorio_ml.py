@@ -2,8 +2,8 @@ from pathlib import Path
 import openpyxl
 import pytest
 
-from dashboard.main import gerar_excel_consolidado
-from dashboard.servico_validacao import RegistroValidado
+from src.relatorio_executivo import gerar_excel_consolidado
+from src.servico_validacao import RegistroValidado
 from src.item_processor import MLDecision
 from src.operational_indicators import calcular_indicadores
 

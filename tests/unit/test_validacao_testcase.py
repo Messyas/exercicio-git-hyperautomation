@@ -6,7 +6,7 @@ import unittest
 
 import pytest
 
-from dashboard.servico_validacao import validar_registro
+from src.servico_validacao import validar_registro
 
 
 def _criar_registro_base() -> dict[str, str]:

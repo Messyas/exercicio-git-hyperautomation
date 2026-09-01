@@ -3,7 +3,7 @@ import json
 import openpyxl
 import pytest
 
-from dashboard.main import executar_pipeline_dashboard
+from src.relatorio_executivo import executar_pipeline_dashboard
 
 
 @pytest.mark.integration

@@ -4,7 +4,7 @@ from zipfile import ZipFile
 
 import pytest
 
-from scripts.build_botcity_packages import build_packages
+from src.scripts.build_botcity_packages import build_packages
 
 
 pytestmark = pytest.mark.unit

@@ -1,14 +1,31 @@
 from __future__ import annotations
 
 import os
+import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock
+
+PROJECT_ROOT = Path(__file__).parents[1]
+if str(PROJECT_ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "src"))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 import pandas as pd
 import pytest
 
 from src.pages import PlaywrightFormularioLotesPage
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Garante registro de todos os markers mesmo sem o pytest.ini na raiz."""
+    config.addinivalue_line("markers", "unit: testes rapidos e isolados")
+    config.addinivalue_line("markers", "integration: testes de integracao entre modulos")
+    config.addinivalue_line("markers", "regression: testes que protegem contra regressao")
+    config.addinivalue_line("markers", "e2e: testes do fluxo ponta a ponta")
+    config.addinivalue_line("markers", "browser: testes com Chromium e interface web")
+    config.addinivalue_line("markers", "slow: testes de execucao mais demorada")
 
 
 @pytest.fixture
@@ -119,14 +136,14 @@ def pagina_web() -> str:
     """Retorna a URL usada nos testes E2E."""
     return os.getenv(
         "E2E_BASE_URL",
-        (Path(__file__).parents[1] / "web" / "lote-teste.html").as_uri(),
+        (Path(__file__).parents[1] / "web" / "index.html").as_uri(),
     )
 
 
 @pytest.fixture
 def pagina_html() -> str:
     """Mantém o nome de fixture usado no exercício 19-X."""
-    return (Path(__file__).parents[1] / "web" / "lote-teste.html").as_uri()
+    return (Path(__file__).parents[1] / "web" / "index.html").as_uri()
 
 
 @pytest.fixture

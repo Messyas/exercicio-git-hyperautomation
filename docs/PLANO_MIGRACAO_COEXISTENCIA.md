@@ -144,3 +144,10 @@ sequenceDiagram
 | Decisão e Acionamento de Rollback | **C** | **A** | **R** | **I** |
 
 *Legenda: **R** = Responsável pela execução; **A** = Aprovador final; **C** = Consultado; **I** = Informado.*
+
+---
+
+## 7. Referências e Diretrizes de Engenharia
+
+Para aprofundamento nos critérios de aceite, auditoria cruzada, estruturação do pacote `.zip`, diagnóstico de `Waiting Runner`, idempotência de fila e governança técnica completa, consulte o **[Guia Completo de Boas Práticas e Governança de Automação (Slides da Aula)](file:///c:/Users/User/Documents/projects/hyperauto/exercicio-git-hyperautomation/docs/GUIA_AULA_DOCUMENTACAO_E_BOAS_PRATICAS.md)**.
+

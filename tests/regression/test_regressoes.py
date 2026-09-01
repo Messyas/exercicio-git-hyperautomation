@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from dashboard.servico_validacao import validar_registro
+from src.servico_validacao import validar_registro
 from src.regras_negocio import normalizar_status
 
 

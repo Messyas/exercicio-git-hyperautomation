@@ -91,8 +91,12 @@ python -m pytest
 
 * 📄 **[Process Design Document (PDD v2.0)](file:///docs/pdd/PDD_Process_Design_Document.md)**: Mapeamento AS-IS/TO-BE, matriz de regras RN01–RN12 e Seção 21 do Capstone.
 * 📄 **[Plano de Migração e Coexistência](file:///docs/PLANO_MIGRACAO_COEXISTENCIA.md)**: Janela de coexistência (Shadow Mode), prevenção de conflito de Runner (`CoexistenceGuard`), critérios de cutover e procedimento de Rollback (RTO < 15 min).
+* 📄 **[Guia de Boas Práticas e Governança (Slides da Aula)](file:///docs/GUIA_AULA_DOCUMENTACAO_E_BOAS_PRATICAS.md)**: Transcrição, diagramas e análise prática de todos os 29 slides sobre esteira Smart Office, idempotência, integridade de pacotes e governança.
+* 📄 **[Relatório de Auditoria de Conformidade e Entregáveis](file:///docs/RELATORIO_AUDITORIA_CONFORMIDADE_E_ENTREGAVEIS.md)**: Varredura completa de conformidade do projeto contra o guia de aula e checklist prático dos entregáveis.
 * 📄 **[Evidências de Conformidade e Sabotagem](file:///docs/evidencias/EVIDENCIAS_CAPSTONE.md)**: Rastreabilidade dos 7 eixos da rubrica e auditoria dos 6 ensaios de crise.
 * 📄 **[Roteiro de Pitch e Defesa Técnica](file:///docs/PITCH_APRESENTACAO_CAPSTONE.md)**: Estrutura da apresentação de 10 min e respostas técnicas para a banca.
+
+
 
 ---
 

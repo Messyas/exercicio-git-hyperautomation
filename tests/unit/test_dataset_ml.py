@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from api_ml.features import FEATURE_ORDER
-from scripts.train_model import (
+from src.scripts.train_model import (
     gerar_dataset,
     validar_dataset,
 )

@@ -7,7 +7,7 @@ import openpyxl
 import pytest
 from openpyxl.chart import DoughnutChart, LineChart
 
-from dashboard.main import executar_pipeline_dashboard
+from src.relatorio_executivo import executar_pipeline_dashboard
 import src.operational_indicators as op_ind_module
 
 
@@ -30,7 +30,7 @@ def test_relatorio_consolidado_8_abas_e_markdown(tmp_path: Path):
         return orig_calcular(*args, **kwargs)
 
     monkeypatch = pytest.MonkeyPatch()
-    monkeypatch.setattr("dashboard.main.calcular_indicadores", spy_calcular)
+    monkeypatch.setattr("src.relatorio_executivo.calcular_indicadores", spy_calcular)
 
     try:
         resultados = executar_pipeline_dashboard(caminho_entrada, tmp_path)

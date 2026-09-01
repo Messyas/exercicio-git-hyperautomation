@@ -154,7 +154,7 @@ def get_settings() -> Settings:
     return Settings(
         project_root=PROJECT_ROOT,
         output_dir=_env_path("BOT_OUTPUT_DIR", "data/output"),
-        log_dir=_env_path("BOT_LOG_DIR", "logs"),
+        log_dir=_env_path("BOT_LOG_DIR", "data/logs"),
         default_input_file=_env_path(
             "BOT_INPUT_FILE", "data/samples/inspecao_lotes_dia.xlsx"
         ),
@@ -171,7 +171,7 @@ def get_settings() -> Settings:
             "MAESTRO_ACTIVITY_LABEL", "auditoria-acessos"
         ).strip(),
         execution_report_file=_env_path(
-            "BOT_EXECUTION_REPORT_FILE", "logs/resumo_execucao.json"
+            "BOT_EXECUTION_REPORT_FILE", "data/logs/resumo_execucao.json"
         ),
         execution_id=(
             os.getenv("EXECUTION_ID")
@@ -183,12 +183,10 @@ def get_settings() -> Settings:
             os.getenv("BOT_ID") or "bot-conferencia-lotes"
         ).strip(),
         playwright_enabled=_env_bool("PLAYWRIGHT_ENABLED"),
-        playwright_url=os.getenv(
-            "BOT_URL",
-            os.getenv(
-                "PLAYWRIGHT_URL",
-                (PROJECT_ROOT / "web" / "lote-teste.html").as_uri(),
-            ),
+        playwright_url=(
+            os.getenv("BOT_URL")
+            or os.getenv("PLAYWRIGHT_URL")
+            or (PROJECT_ROOT / "web" / "index.html").as_uri()
         ).strip(),
         playwright_headless=_env_bool(
             "BOT_HEADLESS",

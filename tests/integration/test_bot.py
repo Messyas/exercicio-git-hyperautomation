@@ -5,7 +5,7 @@ import json
 import pandas as pd
 import pytest
 
-from bot import executar_bot
+from src.runners.bot import carregar_planilha, executar_bot
 
 
 pytestmark = pytest.mark.integration
@@ -78,7 +78,7 @@ def test_estrutura_invalida_gera_log_de_erro(tmp_path, monkeypatch) -> None:
     entrada = pd.DataFrame({"status": ["APROVADO"]})
     caminho_entrada = tmp_path / "entrada.xlsx"
     caminho_entrada.touch()
-    monkeypatch.setattr("bot.carregar_planilha", lambda _: entrada)
+    monkeypatch.setattr("src.runners.bot.carregar_planilha", lambda _: entrada)
 
     resultado = executar_bot(caminho_entrada, tmp_path / "saida")
 

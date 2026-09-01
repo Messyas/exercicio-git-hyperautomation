@@ -6,8 +6,8 @@ import pandas as pd
 import pytest
 from openpyxl.chart import DoughnutChart, LineChart
 
-from dashboard.gerar_relatorio import gerar_relatorio, validar_registros
-from dashboard.servico_validacao import RegistroValidado, validar_registro
+from src.relatorio_executivo import gerar_relatorio, validar_registros
+from src.servico_validacao import RegistroValidado, validar_registro
 
 
 pytestmark = pytest.mark.integration
@@ -22,7 +22,7 @@ def test_relatorio_dashboard_tem_totais_e_abas_isoladas(
     instante_fixo_manaus,
 ) -> None:
     monkeypatch.setattr(
-        "dashboard.main._agora_manaus",
+        "src.relatorio_executivo._agora_manaus",
         lambda: instante_fixo_manaus,
     )
     destino = gerar_relatorio(ENTRADA, tmp_path)

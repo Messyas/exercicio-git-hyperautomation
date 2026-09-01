@@ -8,14 +8,16 @@ from email.header import decode_header, make_header
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from src.gmail_client import GmailOAuthSender, autorizar_gmail
+import src.reporting.gmail_client as gmail_module
+from src.reporting.gmail_client import GmailOAuthSender, autorizar_gmail
 
 
 def test_gmail_sender_codifica_mensagem_com_anexo(tmp_path: Path) -> None:
     anexo = tmp_path / "dead_letter.jsonl"
     anexo.write_text('{"lote_id":"L-1"}\n', encoding="utf-8")
     service = MagicMock()
-    service.users().messages().send().execute.return_value = {"id": "gmail-123"}
+    send_mock = service.users.return_value.messages.return_value.send
+    send_mock.return_value.execute.return_value = {"id": "gmail-123"}
     sender = GmailOAuthSender(
         credentials_file=tmp_path / "credentials.json",
         token_file=tmp_path / "token.json",
@@ -31,7 +33,9 @@ def test_gmail_sender_codifica_mensagem_com_anexo(tmp_path: Path) -> None:
     )
 
     assert enviado is True
-    payload = service.users().messages().send.call_args.kwargs["body"]
+    assert send_mock.call_count == 1
+    chamadas = send_mock.call_args_list
+    payload = chamadas[0].kwargs["body"]
     mensagem = message_from_bytes(base64.urlsafe_b64decode(payload["raw"]))
     assert mensagem["To"] == "operacao@example.com"
     assert str(make_header(decode_header(mensagem["Subject"]))) == "Falha técnica"
@@ -51,7 +55,8 @@ def test_autorizacao_oauth_no_container_escuta_todas_as_interfaces(
     flow_factory = MagicMock()
     flow_factory.from_client_secrets_file.return_value = flow
     monkeypatch.setattr(
-        "src.gmail_client._google_dependencies",
+        gmail_module,
+        "_google_dependencies",
         lambda: (None, None, flow_factory, None),
     )
 
@@ -65,12 +70,13 @@ def test_autorizacao_oauth_no_container_escuta_todas_as_interfaces(
     )
 
     assert resultado == token_file
+    assert token_file.is_file()
     assert token_file.read_text(encoding="utf-8") == '{"token":"ok"}'
-    assert flow.run_local_server.call_args.kwargs == {
-        "host": "localhost",
-        "bind_addr": "0.0.0.0",
-        "port": 8080,
-        "open_browser": False,
-        "access_type": "offline",
-        "prompt": "consent",
-    }
+    flow.run_local_server.assert_called_once_with(
+        host="localhost",
+        bind_addr="0.0.0.0",
+        port=8080,
+        open_browser=False,
+        access_type="offline",
+        prompt="consent",
+    )

@@ -8,8 +8,8 @@ from unittest.mock import MagicMock
 import httpx
 import pandas as pd
 
-import bot as validation_core
-from src.sistema_alertas import SistemaAlertas
+import src.runners.bot as validation_core
+from src.reporting.sistema_alertas import SistemaAlertas
 
 
 def test_telegram_com_sucesso():

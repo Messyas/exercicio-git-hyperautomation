@@ -4,7 +4,7 @@ import subprocess
 
 import httpx
 
-from scripts.demo_torneio import (
+from src.scripts.demo_torneio import (
     construir_payloads,
     derrubar_api_docker,
     executar_fila,
@@ -60,7 +60,7 @@ def test_sabotagem_usa_compose_isolado_quando_informado(monkeypatch, tmp_path: P
         comandos.append(comando)
         return subprocess.CompletedProcess(comando, returncode=0)
 
-    monkeypatch.setattr("scripts.demo_torneio.subprocess.run", fake_run)
+    monkeypatch.setattr("src.scripts.demo_torneio.subprocess.run", fake_run)
 
     derrubar_api_docker(
         compose_file=compose_file,

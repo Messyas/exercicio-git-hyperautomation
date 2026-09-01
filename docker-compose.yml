@@ -1,7 +1,32 @@
 services:
+  # ===========================================================================
+  # PORTAL WEB & CONTROL TOWER (Serviço Principal do Docker Compose)
+  # Disponibilizado em http://localhost:8080 ao rodar `docker compose up`
+  # ===========================================================================
+  portal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: portal
+    ports:
+      - "8080:8080"
+    environment:
+      APP_TIMEZONE: America/Manaus
+      TZ: America/Manaus
+      ML_API_URL: http://api-ml:8000
+    volumes:
+      - ./data:/app/data
+      - ./web:/app/web
+      - ./reports:/app/reports
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+  # ===========================================================================
+  # SERVIÇOS SOB DEMANDA / PROFILES ESPECÍFICOS (Invocados pelo portal ou CLI)
+  # Não iniciam automaticamente no `docker compose up` padrão
+  # ===========================================================================
   run-status-init:
-    # Volumes nomeados são criados como root. Este init libera apenas o volume
-    # de sinalização para o usuário não-root (UID 1000) dos bots.
+    profiles: ["bots", "pipeline", "cli"]
     image: busybox:1.36.1
     user: "0:0"
     volumes:
@@ -13,7 +38,7 @@ services:
     restart: "no"
 
   api-ml:
-    profiles: ["ml"]
+    profiles: ["ml", "full"]
     build:
       context: .
       dockerfile: api_ml/Dockerfile
@@ -35,52 +60,8 @@ services:
       start_period: 10s
     restart: "no"
 
-  gmail-authorize:
-    # Perfil opt-in: abre o fluxo OAuth no navegador do host e grava somente o token.
-    profiles: ["gmail"]
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: consumer
-    env_file:
-      - path: ./.env.example
-        required: true
-      - path: ./.env
-        required: false
-    environment:
-      GMAIL_OAUTH_PORT: "8080"
-      GMAIL_OAUTH_BIND_ADDRESS: "0.0.0.0"
-      GMAIL_OAUTH_REDIRECT_HOST: "localhost"
-      GMAIL_OAUTH_OPEN_BROWSER: "false"
-      TZ: America/Manaus
-    ports:
-      - "127.0.0.1:8080:8080"
-    volumes:
-      - ./secrets:/app/secrets
-    command: ["python", "scripts/autorizar_gmail.py"]
-    restart: "no"
-
-  gmail-test:
-    # Envia um único alerta de demonstração após simular falha do Telegram.
-    profiles: ["gmail"]
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: consumer
-    env_file:
-      - path: ./.env.example
-        required: true
-      - path: ./.env
-        required: false
-    environment:
-      TZ: America/Manaus
-    volumes:
-      - ./secrets:/app/secrets:ro
-      - ./reports:/app/reports
-    command: ["python", "scripts/testar_gmail.py"]
-    restart: "no"
-
   producer:
+    profiles: ["bots", "pipeline", "cli"]
     build:
       context: .
       dockerfile: Dockerfile
@@ -95,7 +76,7 @@ services:
         required: false
     environment:
       BOT_ID: bot-lotes-cadastro-playwright-mk7
-      BOT_URL: file:///app/web/lote-teste.html
+      BOT_URL: http://portal:8080/
       BOT_HEADLESS: "true"
       BOT_LOG_DIR: /app/logs
       DATAPOOL_BACKEND: local
@@ -116,6 +97,7 @@ services:
     restart: "no"
 
   consumer:
+    profiles: ["bots", "pipeline", "cli"]
     build:
       context: .
       dockerfile: Dockerfile
@@ -150,6 +132,49 @@ services:
       - run-status:/run-status
     restart: "no"
 
+  gmail-authorize:
+    profiles: ["gmail"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: consumer
+    env_file:
+      - path: ./.env.example
+        required: true
+      - path: ./.env
+        required: false
+    environment:
+      GMAIL_OAUTH_PORT: "8080"
+      GMAIL_OAUTH_BIND_ADDRESS: "0.0.0.0"
+      GMAIL_OAUTH_REDIRECT_HOST: "localhost"
+      GMAIL_OAUTH_OPEN_BROWSER: "false"
+      TZ: America/Manaus
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./secrets:/app/secrets
+    command: ["python", "scripts/autorizar_gmail.py"]
+    restart: "no"
+
+  gmail-test:
+    profiles: ["gmail"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: consumer
+    env_file:
+      - path: ./.env.example
+        required: true
+      - path: ./.env
+        required: false
+    environment:
+      TZ: America/Manaus
+    volumes:
+      - ./secrets:/app/secrets:ro
+      - ./reports:/app/reports
+    command: ["python", "scripts/testar_gmail.py"]
+    restart: "no"
+
   bot-conferencia:
     profiles: ["avaliacao"]
     build:
@@ -165,7 +190,7 @@ services:
       - path: ./.env
         required: false
     environment:
-      BOT_URL: file:///app/web/lote-teste.html
+      BOT_URL: http://portal:8080/
       BOT_HEADLESS: "true"
       BOT_LOG_DIR: /app/logs
       BOT_OUTPUT_DIR: /app/data/output
@@ -211,7 +236,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
-    command: ["python", "dashboard/main.py"]
+    command: ["python", "src/scripts/gerar_relatorio_executivo.py"]
 
   simulacao-crise:
     profiles: ["sabotagem", "simulacao"]
@@ -235,8 +260,7 @@ services:
       - ./data:/app/data
       - ./logs:/app/logs
       - ./reports:/app/reports
-    command: ["python", "scripts/simular_cenarios_sabotagem.py"]
-
+    command: ["python", "src/scripts/simular_cenarios_sabotagem.py"]
 
 volumes:
   run-status:

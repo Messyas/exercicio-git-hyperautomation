@@ -2,7 +2,7 @@ import logging
 import httpx
 import pytest
 
-from dashboard.servico_validacao import RegistroValidado
+from src.servico_validacao import RegistroValidado
 from src.item_processor import ItemProcessor
 from src.ml_client import MLClient
 

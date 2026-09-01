@@ -9,7 +9,7 @@ import openpyxl
 import pandas as pd
 import pytest
 
-from dashboard.gerar_relatorio import gerar_relatorio
+from src.relatorio_executivo import gerar_relatorio
 
 
 pytestmark = [pytest.mark.e2e, pytest.mark.slow]
@@ -27,11 +27,11 @@ def test_pipeline_completo_bate_com_o_gabarito_sem_dependencia_externa(
     mock_base_referencia.return_value = referencias
 
     monkeypatch.setattr(
-        "dashboard.main.carregar_base_referencia",
+        "src.relatorio_executivo.carregar_base_referencia",
         mock_base_referencia,
     )
     monkeypatch.setattr(
-        "dashboard.main._agora_manaus",
+        "src.relatorio_executivo._agora_manaus",
         lambda: instante_fixo_manaus,
     )
     saida = tmp_path / "saida"

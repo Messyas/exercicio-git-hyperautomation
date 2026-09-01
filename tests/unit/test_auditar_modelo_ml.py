@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from scripts.auditar_modelo_ml import executar_auditoria, renderizar_markdown
+from src.scripts.auditar_modelo_ml import executar_auditoria, renderizar_markdown
 
 
 def test_auditoria_detecta_integridade_calibracao_e_ood_sem_automacao():

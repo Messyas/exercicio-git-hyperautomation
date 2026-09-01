@@ -1,7 +1,7 @@
 """Testes unitários para a camada pura de indicadores operacionais (Aula 24)."""
 
 import pytest
-from dashboard.servico_validacao import RegistroValidado
+from src.servico_validacao import RegistroValidado
 from src.operational_indicators import (
     CATALOGO_REGRAS,
     OperationalIndicators,
