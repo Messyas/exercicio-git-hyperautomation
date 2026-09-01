@@ -41,7 +41,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-        run: pip install -r requirements-dev.txt -r api_ml/requirements.txt
+      - run: pip install -r requirements-dev.txt -r api_ml/requirements.txt
       - name: Executar suite local e validar cobertura
         shell: bash
         env:
