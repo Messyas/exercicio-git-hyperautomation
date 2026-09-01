@@ -80,6 +80,59 @@ let chartPieInstance = null;
 let chartLineInstance = null;
 let chartRulesInstance = null;
 
+// Pagination State (Frontend 10-item paging for all tables)
+const TABLE_PAGINATION = {
+  datapool: { page: 1, pageSize: 10 },
+  tasks: { page: 1, pageSize: 10 },
+  decision: { page: 1, pageSize: 10 },
+  records: { page: 1, pageSize: 10 },
+  excel: { page: 1, pageSize: 10 }
+};
+
+function renderPaginationBar(containerId, totalItems, currentPage, pageSize, onPageChange) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  if (!totalItems || totalItems === 0) {
+    container.style.display = "none";
+    return;
+  }
+  container.style.display = "flex";
+
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  const validPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const start = (validPage - 1) * pageSize + 1;
+  const end = Math.min(validPage * pageSize, totalItems);
+
+  container.innerHTML = `
+    <div class="pagination-info">
+      Exibindo <strong>${start.toLocaleString("pt-BR")}</strong>–<strong>${end.toLocaleString("pt-BR")}</strong> de <strong>${totalItems.toLocaleString("pt-BR")}</strong> itens
+    </div>
+    <div class="pagination-controls">
+      <button type="button" class="pagination-btn btn-prev" ${validPage <= 1 ? "disabled" : ""}>Anterior</button>
+      <span class="pagination-page-indicator">Página ${validPage} de ${totalPages}</span>
+      <button type="button" class="pagination-btn btn-next" ${validPage >= totalPages ? "disabled" : ""}>Próxima</button>
+    </div>
+  `;
+
+  const btnPrev = container.querySelector(".btn-prev");
+  const btnNext = container.querySelector(".btn-next");
+
+  if (btnPrev && validPage > 1) {
+    btnPrev.addEventListener("click", (e) => {
+      e.preventDefault();
+      onPageChange(validPage - 1);
+    });
+  }
+  if (btnNext && validPage < totalPages) {
+    btnNext.addEventListener("click", (e) => {
+      e.preventDefault();
+      onPageChange(validPage + 1);
+    });
+  }
+}
+
 // Initialize Application
 document.addEventListener("DOMContentLoaded", () => {
   setupNavigation();
@@ -102,6 +155,7 @@ async function loadInitialDataset() {
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
         SMART_OFFICE_STATE.datapool = data;
+        SMART_OFFICE_STATE.officialDatapool = [...data];
         SMART_OFFICE_STATE.executiveData.sampleRecords = data;
         renderDataPoolTable();
         renderDecisionTable(data);
@@ -199,6 +253,7 @@ async function loadInitialDataset() {
     });
 
     SMART_OFFICE_STATE.datapool = fallbackList;
+    SMART_OFFICE_STATE.officialDatapool = [...fallbackList];
     SMART_OFFICE_STATE.executiveData.sampleRecords = fallbackList;
     renderDataPoolTable();
     renderDecisionTable(fallbackList);
@@ -272,17 +327,326 @@ function setupNavigation() {
 }
 
 // 2. Tab 1: Ingestion & População
+// 2. Tab 1: Ingestion & População (Playwright Live Simulator & DataPool)
+let isBotIngesting = false;
+
+async function simulateRobotIngestionStepByStep() {
+  if (isBotIngesting) {
+    showToast("Robô Playwright já está executando a ingestão!", "warning");
+    return;
+  }
+  isBotIngesting = true;
+
+  const botPanel = document.getElementById("bot-sim-panel");
+  const botBadge = document.getElementById("bot-status-badge");
+  const btnAuto = document.getElementById("btn-auto-playwright");
+  const btnAutoInner = document.getElementById("btn-auto-playwright-inner");
+  const loginSection = document.getElementById("login");
+  const cadastroSection = document.getElementById("cadastro");
+
+  if (btnAuto) btnAuto.disabled = true;
+  if (btnAutoInner) btnAutoInner.disabled = true;
+
+  if (botPanel) botPanel.classList.add("bot-active");
+  if (botBadge) {
+    botBadge.className = "badge bot-badge-running";
+    botBadge.textContent = "AUTENTICANDO...";
+  }
+
+  const terminal = document.getElementById("pipeline-terminal");
+  function appendTerminalLog(msg, type = "info") {
+    if (!terminal) return;
+    const line = document.createElement("div");
+    line.className = `log-line log-${type}`;
+    const now = new Date().toLocaleTimeString("pt-BR");
+    line.textContent = `${now} | ${type.toUpperCase()} | ${msg}`;
+    terminal.appendChild(line);
+    terminal.scrollTop = terminal.scrollHeight;
+  }
+
+  // Auto login if on login screen
+  if (loginSection && !loginSection.hidden) {
+    appendTerminalLog("[RPA02 · Playwright] Navegando para tela de login e inserindo credenciais...", "info");
+    const userInp = document.getElementById("login-usuario");
+    const passInp = document.getElementById("login-senha");
+    if (userInp) {
+      userInp.classList.add("bot-typing-focus");
+      await new Promise(r => setTimeout(r, 120));
+      userInp.classList.remove("bot-typing-focus");
+    }
+    if (passInp) {
+      passInp.classList.add("bot-typing-focus");
+      await new Promise(r => setTimeout(r, 120));
+      passInp.classList.remove("bot-typing-focus");
+    }
+    loginSection.hidden = true;
+    if (cadastroSection) cadastroSection.hidden = false;
+    appendTerminalLog("[RPA02 · Playwright] Login realizado com sucesso como operador.qualidade.", "success");
+  }
+
+  const randomSuffix = Math.floor(600 + Math.random() * 300);
+  const botBatches = [
+    {
+      lote_id: `LG-AUTO-${randomSuffix}`,
+      produto: "TV65-OLED",
+      linha: "LINHA_01",
+      turno: "A",
+      status: "APROVADO",
+      responsavel: "Robô Playwright (RPA02)",
+      data: "15/06/2026",
+      observacao: "Inspeção óptica de painel OLED 4K concluída sem anomalias pelo robô.",
+      origem: "Regras",
+      classificacao: "Válido",
+      orientacao: "Playwright Web",
+      confianca: "100.0%",
+      _isNew: true
+    },
+    {
+      lote_id: `LG-AUTO-${randomSuffix + 1}`,
+      produto: "AC18-SPLIT",
+      linha: "LINHA_02",
+      turno: "B",
+      status: "REPROVADO",
+      responsavel: "Robô Playwright (RPA02)",
+      data: "15/06/2026",
+      observacao: "Pressão de ciclo térmico fora de conformidade nominal (Divergência detectada).",
+      origem: "ML",
+      classificacao: "Divergência",
+      orientacao: "Playwright Web",
+      confianca: "97.2%",
+      _isNew: true
+    },
+    {
+      lote_id: `LG-AUTO-${randomSuffix + 2}`,
+      produto: "MON27-QHD",
+      linha: "LINHA_03",
+      turno: "A",
+      status: "APROVADO",
+      responsavel: "Robô Playwright (RPA02)",
+      data: "15/06/2026",
+      observacao: "Calibração de gama DCI-P3 e taxa de atualização de 144Hz validadas com sucesso.",
+      origem: "Regras",
+      classificacao: "Válido",
+      orientacao: "Playwright Web",
+      confianca: "100.0%",
+      _isNew: true
+    },
+    {
+      lote_id: `LG-AUTO-${randomSuffix + 3}`,
+      produto: "TV55-4K-B",
+      linha: "LINHA_01",
+      turno: "C",
+      status: "PENDENTE",
+      responsavel: "Robô Playwright (RPA02)",
+      data: "15/06/2026",
+      observacao: "Inspeção de retroiluminação LED com variação luminosa marginal sob análise.",
+      origem: "ML",
+      classificacao: "Ambíguo",
+      orientacao: "Playwright Web",
+      confianca: "88.4%",
+      _isNew: true
+    },
+    {
+      lote_id: `LG-AUTO-${randomSuffix + 4}`,
+      produto: "AC12-SPLIT",
+      linha: "LINHA_02",
+      turno: "A",
+      status: "APROVADO",
+      responsavel: "Robô Playwright (RPA02)",
+      data: "15/06/2026",
+      observacao: "Teste de estanqueidade gás R32 e isolamento elétrico validados com êxito.",
+      origem: "Regras",
+      classificacao: "Válido",
+      orientacao: "Playwright Web",
+      confianca: "100.0%",
+      _isNew: true
+    },
+    {
+      lote_id: `LG-AUTO-${randomSuffix + 5}`,
+      produto: "MON32-4K",
+      linha: "LINHA_03",
+      turno: "B",
+      status: "REPROVADO",
+      responsavel: "Robô Playwright (RPA02)",
+      data: "15/06/2026",
+      observacao: "Detecção de pixel inoperante no quadrante B3 por visão computacional.",
+      origem: "ML",
+      classificacao: "Divergência",
+      orientacao: "Playwright Web",
+      confianca: "98.1%",
+      _isNew: true
+    },
+    {
+      lote_id: `LG-AUTO-${randomSuffix + 6}`,
+      produto: "TV43-FHD",
+      linha: "LINHA_01",
+      turno: "B",
+      status: "APROVADO",
+      responsavel: "Robô Playwright (RPA02)",
+      data: "15/06/2026",
+      observacao: "Conexão de chicote elétrico e placa T-Con conferida conforme diagrama industrial.",
+      origem: "Regras",
+      classificacao: "Válido",
+      orientacao: "Playwright Web",
+      confianca: "100.0%",
+      _isNew: true
+    },
+    {
+      lote_id: `LG-AUTO-${randomSuffix + 7}`,
+      produto: "TV50-4K-B",
+      linha: "LINHA_01",
+      turno: "A",
+      status: "APROVADO",
+      responsavel: "Robô Playwright (RPA02)",
+      data: "15/06/2026",
+      observacao: "Gravação de firmware LG webOS 2026 e teste acústico dos alto-falantes concluídos.",
+      origem: "Regras",
+      classificacao: "Válido",
+      orientacao: "Playwright Web",
+      confianca: "100.0%",
+      _isNew: true
+    }
+  ];
+
+  appendTerminalLog(`[RPA02 · Playwright] Iniciando preenchimento sequencial de ${botBatches.length} lotes de inspeção na interface Web...`, "info");
+
+  for (let i = 0; i < botBatches.length; i++) {
+    const b = botBatches[i];
+    if (botBadge) {
+      botBadge.className = "badge bot-badge-running";
+      botBadge.textContent = `DIGITANDO LOTE (${i + 1}/${botBatches.length})`;
+    }
+
+    const inpLote = document.getElementById("lote_id");
+    const selProd = document.getElementById("produto");
+    const inpLinha = document.getElementById("linha");
+    const inpTurno = document.getElementById("turno");
+    const inpResp = document.getElementById("responsavel");
+    const inpData = document.getElementById("data");
+    const txtObs = document.getElementById("observacao");
+    const submitBtn = document.getElementById("btn-processar-lote");
+
+    if (inpLote) {
+      inpLote.classList.add("bot-typing-focus");
+      inpLote.value = b.lote_id;
+      await new Promise(r => setTimeout(r, 60));
+      inpLote.classList.remove("bot-typing-focus");
+    }
+
+    if (selProd) {
+      selProd.classList.add("bot-typing-focus");
+      selProd.value = b.produto;
+      await new Promise(r => setTimeout(r, 50));
+      selProd.classList.remove("bot-typing-focus");
+    }
+
+    if (inpLinha) inpLinha.value = b.linha;
+    if (inpTurno) inpTurno.value = b.turno;
+
+    const radio = document.querySelector(`input[name="status"][value="${b.status}"]`);
+    if (radio) {
+      radio.checked = true;
+      radio.parentElement.classList.add("bot-typing-focus");
+      await new Promise(r => setTimeout(r, 40));
+      radio.parentElement.classList.remove("bot-typing-focus");
+    }
+
+    if (inpResp) inpResp.value = b.responsavel;
+    if (inpData) inpData.value = b.data;
+
+    if (txtObs) {
+      txtObs.classList.add("bot-typing-focus");
+      txtObs.value = b.observacao;
+      await new Promise(r => setTimeout(r, 60));
+      txtObs.classList.remove("bot-typing-focus");
+    }
+
+    // Submit button pulse
+    if (submitBtn) {
+      submitBtn.classList.add("bot-submit-pulse");
+      await new Promise(r => setTimeout(r, 90));
+      submitBtn.classList.remove("bot-submit-pulse");
+    }
+
+    // Insert into state
+    SMART_OFFICE_STATE.datapool.unshift(b);
+    SMART_OFFICE_STATE.executiveData.sampleRecords.unshift(b);
+
+    // Re-render DataPool table & downstream pipeline tables
+    renderDataPoolTable();
+    renderDecisionTable(SMART_OFFICE_STATE.datapool);
+    renderSampleRecordsTable(SMART_OFFICE_STATE.datapool);
+
+    appendTerminalLog(`[RPA02 · Playwright] Lote ${b.lote_id} (${b.produto}) cadastrado! Fila atualizada para ${SMART_OFFICE_STATE.datapool.length} lotes.`, "success");
+    showToast(`Lote ${b.lote_id} cadastrado e disponível no DataPool!`, "success");
+
+    await new Promise(r => setTimeout(r, 80));
+  }
+
+  // Carga massiva do robô: garante que os 1.000 lotes oficiais estejam integrados no DataPool
+  if (SMART_OFFICE_STATE.datapool.length < 1000) {
+    if (botBadge) {
+      botBadge.className = "badge bot-badge-running";
+      botBadge.textContent = "INGESTÃO EM LOTE (1.000 LOTES)...";
+    }
+    appendTerminalLog("[RPA02 · Playwright] Carga massiva ativada: sincronizando os 1.000 lotes oficiais da fábrica no DataPool...", "info");
+    await new Promise(r => setTimeout(r, 400));
+
+    if (SMART_OFFICE_STATE.officialDatapool && SMART_OFFICE_STATE.officialDatapool.length > 0) {
+      SMART_OFFICE_STATE.datapool = [...SMART_OFFICE_STATE.officialDatapool];
+    } else {
+      await loadInitialDataset();
+    }
+
+    // Mantém os lotes recém-digitados no topo para demonstração visual
+    botBatches.forEach(b => {
+      if (!SMART_OFFICE_STATE.datapool.some(d => d.lote_id === b.lote_id)) {
+        SMART_OFFICE_STATE.datapool.unshift(b);
+      }
+    });
+
+    renderDataPoolTable();
+    renderDecisionTable(SMART_OFFICE_STATE.datapool);
+    renderSampleRecordsTable(SMART_OFFICE_STATE.datapool);
+    appendTerminalLog(`[RPA02 · Playwright] Ingestão concluída com sucesso: ${SMART_OFFICE_STATE.datapool.length.toLocaleString("pt-BR")} lotes prontos para a esteira multi-bot.`, "success");
+  }
+
+  if (botBadge) {
+    botBadge.className = "badge badge-success";
+    botBadge.textContent = `CONCLUÍDO (${SMART_OFFICE_STATE.datapool.length.toLocaleString("pt-BR")} LOTES)`;
+  }
+  if (botPanel) botPanel.classList.remove("bot-active");
+  if (btnAuto) btnAuto.disabled = false;
+  if (btnAutoInner) btnAutoInner.disabled = false;
+
+  const btnClear = document.getElementById("btn-clear-datapool");
+  const btnRestore = document.getElementById("btn-restore-datapool");
+  if (btnClear) btnClear.style.display = "inline-flex";
+  if (btnRestore) btnRestore.style.display = "none";
+
+  const sucessoDiv = document.getElementById("sucesso");
+  if (sucessoDiv) {
+    sucessoDiv.textContent = `${SMART_OFFICE_STATE.datapool.length.toLocaleString("pt-BR")} lotes processados e disponíveis no DataPool para as próximas etapas.`;
+    sucessoDiv.hidden = false;
+  }
+
+  showToast(`${SMART_OFFICE_STATE.datapool.length.toLocaleString("pt-BR")} lotes integrados no DataPool pelo robô Playwright!`, "success");
+  isBotIngesting = false;
+}
+
 function setupIngestionForm() {
   const loginSection = document.getElementById("login");
   const loginForm = document.getElementById("login-form");
   const cadastroSection = document.getElementById("cadastro");
   const loteForm = document.getElementById("lote-form");
   const btnAuto = document.getElementById("btn-auto-playwright");
+  const btnAutoInner = document.getElementById("btn-auto-playwright-inner");
   const btnRandom = document.getElementById("btn-random-batch");
   const filterDate = document.getElementById("filter-datapool-origem");
   const searchInput = document.getElementById("search-datapool");
 
   function filterDataPool() {
+    TABLE_PAGINATION.datapool.page = 1;
     const selectedDate = filterDate ? filterDate.value : "Todos";
     const query = searchInput ? searchInput.value.toLowerCase().trim() : "";
 
@@ -345,7 +709,8 @@ function setupIngestionForm() {
         origem: "Regras",
         classificacao: status === "APROVADO" || status === "OK" ? "Válido" : "Divergência",
         orientacao: "Entrada manual via portal web.",
-        confianca: "100.0%"
+        confianca: "100.0%",
+        _isNew: true
       };
 
       try {
@@ -372,7 +737,7 @@ function setupIngestionForm() {
         sucessoMsg.hidden = false;
       }
 
-      showToast(`Lote ${loteId} processado com sucesso.`, "success");
+      showToast(`Lote ${loteId} processado e inserido no DataPool!`, "success");
       renderDataPoolTable();
       renderDecisionTable(SMART_OFFICE_STATE.datapool);
       renderSampleRecordsTable(SMART_OFFICE_STATE.datapool);
@@ -397,21 +762,64 @@ function setupIngestionForm() {
 
   if (btnAuto) {
     btnAuto.addEventListener("click", () => {
-      loginSection.hidden = true;
-      cadastroSection.hidden = false;
-      const batches = [
-        { lote_id: "LG-AUTO-501", produto: "TV65-OLED", linha: "LINHA_01", turno: "A", status: "APROVADO", responsavel: "Playwright Bot", data: "15/06/2026", origem: "Regras", classificacao: "Válido", orientacao: "Playwright Web", confianca: "100.0%" },
-        { lote_id: "LG-AUTO-502", produto: "AC18-SPLIT", linha: "LINHA_02", turno: "B", status: "REPROVADO", responsavel: "Playwright Bot", data: "15/06/2026", origem: "ML", classificacao: "Divergência", orientacao: "Playwright Web", confianca: "97.2%" },
-        { lote_id: "LG-AUTO-503", produto: "MON32-4K", linha: "LINHA_03", turno: "A", status: "PENDENTE", responsavel: "Playwright Bot", data: "15/06/2026", origem: "ML", classificacao: "Ambíguo", orientacao: "Playwright Web", confianca: "88.6%" }
-      ];
-      batches.forEach(b => {
-        SMART_OFFICE_STATE.datapool.unshift(b);
-        SMART_OFFICE_STATE.executiveData.sampleRecords.unshift(b);
-      });
+      simulateRobotIngestionStepByStep();
+    });
+  }
+
+  if (btnAutoInner) {
+    btnAutoInner.addEventListener("click", () => {
+      simulateRobotIngestionStepByStep();
+    });
+  }
+
+  const btnClear = document.getElementById("btn-clear-datapool");
+  const btnRestore = document.getElementById("btn-restore-datapool");
+
+  if (btnClear) {
+    btnClear.addEventListener("click", () => {
+      SMART_OFFICE_STATE.datapool = [];
+      renderDataPoolTable();
+      renderDecisionTable([]);
+      renderSampleRecordsTable([]);
+      btnClear.style.display = "none";
+      if (btnRestore) btnRestore.style.display = "inline-flex";
+      showToast("DataPool zerado com sucesso! A fila está vazia para demonstrar a ingestão do zero.", "info");
+
+      const terminal = document.getElementById("pipeline-terminal");
+      if (terminal) {
+        const line = document.createElement("div");
+        line.className = "log-line log-warning";
+        const now = new Date().toLocaleTimeString("pt-BR");
+        line.textContent = `${now} | WARN | DataPool zerado pelo operador para demonstração do fluxo limpo do zero.`;
+        terminal.appendChild(line);
+        terminal.scrollTop = terminal.scrollHeight;
+      }
+    });
+  }
+
+  if (btnRestore) {
+    btnRestore.addEventListener("click", () => {
+      if (SMART_OFFICE_STATE.officialDatapool && SMART_OFFICE_STATE.officialDatapool.length > 0) {
+        SMART_OFFICE_STATE.datapool = [...SMART_OFFICE_STATE.officialDatapool];
+      } else {
+        loadInitialDataset();
+      }
       renderDataPoolTable();
       renderDecisionTable(SMART_OFFICE_STATE.datapool);
       renderSampleRecordsTable(SMART_OFFICE_STATE.datapool);
-      showToast("3 lotes adicionais injetados com sucesso pelo robô Playwright!", "success");
+      btnRestore.style.display = "none";
+      if (btnClear) btnClear.style.display = "inline-flex";
+      showToast("Base oficial de lotes restaurada com sucesso!", "success");
+
+      const terminal = document.getElementById("pipeline-terminal");
+      if (terminal) {
+        const line = document.createElement("div");
+        line.className = "log-line log-info";
+        const now = new Date().toLocaleTimeString("pt-BR");
+        line.textContent = `${now} | INFO | Base oficial restaurada: ${SMART_OFFICE_STATE.datapool.length} lotes disponíveis no DataPool.`;
+        terminal.appendChild(line);
+        terminal.scrollTop = terminal.scrollHeight;
+      }
     });
   }
 }
@@ -435,7 +843,7 @@ function setupPipelineRunner() {
 
   const nodes = [
     { id: "node-rpa01", name: "SCM_ColetaEstoque_BOT", runner: "RUNNER_WIN_GUI_01", desc: "etapa=coleta_estoque | base_oficial=1000_lotes | saldos_carregados=OK", dur: 1000 },
-    { id: "node-rpa02", name: "SCM_ColetaPedidos_BOT", runner: "RUNNER_SRV_BG_01", desc: "etapa=playwright_ingestion | datapool=1000_lotes_disponiveis | status=OK", dur: 900 },
+    { id: "node-rpa02", name: "SCM_ColetaPedidos_BOT", runner: "RUNNER_SRV_BG_01", desc: "etapa=playwright_ingestion | datapool=lotes_disponiveis | status=OK", dur: 1800 },
     { id: "node-rpa03", name: "SCM_Consolidacao_CORE", runner: "RUNNER_SRV_BG_01", desc: "etapa=regras_negocio | regras=RN01_RN12 | 720_regras_ok | 280_para_ml", dur: 1200 },
     { id: "node-rpa04", name: "SCM_ClassificadorML_BOT", runner: "RUNNER_SRV_BG_01", desc: "etapa=ml_inferencia | 280_lotes_analisados | acuracia=96.4% | circuit_breaker=CLOSED", dur: 1100 },
     { id: "node-rpa05", name: "SCM_RelatorioAlertas_NOTIF", runner: "RUNNER_SRV_BG_01", desc: "etapa=notificacao | relatorio=relatorio_conferencia_lotes.xlsx | telegram_alertas=204", dur: 1000 },
@@ -459,7 +867,7 @@ function setupPipelineRunner() {
       .catch(() => {});
 
     let index = 0;
-    function executeNext() {
+    async function executeNext() {
       if (index >= nodes.length) {
         appendLog("--- EXECUÇÃO CONCLUÍDA: CASCATA DOS 6 BOTS FINALIZADA COM SUCESSO ---", "success");
         showToast("Pipeline de 1.000 lotes concluído com 100% de sucesso!", "success");
@@ -500,22 +908,26 @@ function setupPipelineRunner() {
       }
       appendLog(`runner=${curr.runner} | bot=${curr.name} | ${curr.desc}`, "info");
 
-      setTimeout(() => {
-        if (el) {
-          el.className = "pipeline-node status-completed";
-          el.querySelector(".node-status-badge").textContent = "SUCCESS (Exit 0)";
+      if (curr.id === "node-rpa02") {
+        await simulateRobotIngestionStepByStep();
+      } else {
+        await new Promise(r => setTimeout(r, curr.dur));
+      }
+
+      if (el) {
+        el.className = "pipeline-node status-completed";
+        el.querySelector(".node-status-badge").textContent = "SUCCESS (Exit 0)";
+      }
+      appendLog(`runner=${curr.runner} | bot=${curr.name} | Concluído com EXIT CODE 0`, "success");
+
+      index++;
+      if (index < nodes.length) {
+        const nextEl = document.getElementById(nodes[index].id);
+        if (nextEl) {
+          nextEl.querySelector(".node-status-badge").textContent = "ENGATILHADO...";
         }
-        appendLog(`runner=${curr.runner} | bot=${curr.name} | Concluído com EXIT CODE 0`, "success");
-        
-        index++;
-        if (index < nodes.length) {
-          const nextEl = document.getElementById(nodes[index].id);
-          if (nextEl) {
-            nextEl.querySelector(".node-status-badge").textContent = "ENGATILHADO...";
-          }
-        }
-        executeNext();
-      }, curr.dur);
+      }
+      executeNext();
     }
 
     executeNext();
@@ -537,6 +949,7 @@ function setupDecisionEngine() {
   const filterSelect = document.getElementById("filter-decision-type");
   if (filterSelect) {
     filterSelect.addEventListener("change", (e) => {
+      TABLE_PAGINATION.decision.page = 1;
       const val = e.target.value;
       if (val === "Todos") {
         renderDecisionTable(SMART_OFFICE_STATE.datapool);
@@ -552,18 +965,36 @@ function renderDecisionTable(items) {
   const tbody = document.getElementById("table-decision-body");
   if (!tbody) return;
 
-  tbody.innerHTML = items.map(item => `
+  if (!items || items.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 2rem;">Nenhum registro encontrado no motor de decisão.</td></tr>`;
+    renderPaginationBar("pagination-decision", 0, 1, 10, () => {});
+    return;
+  }
+
+  const { page, pageSize } = TABLE_PAGINATION.decision;
+  const totalPages = Math.ceil(items.length / pageSize) || 1;
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  TABLE_PAGINATION.decision.page = safePage;
+
+  const pageItems = items.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  tbody.innerHTML = pageItems.map(item => `
     <tr>
       <td><strong>${item.lote_id}</strong></td>
       <td>${item.produto}</td>
       <td><span class="badge ${item.status === 'APROVADO' || item.status === 'OK' ? 'badge-success' : item.status === 'NOK' || item.status === 'REPROVADO' ? 'badge-danger' : 'badge-warning'}">${item.status}</span></td>
-      <td><span class="${item.origem === 'Regras' ? 'badge-decision-rules' : 'badge-decision-ml'}">${item.origem === 'Regras' ? 'Regras (RN01-RN12)' : 'Machine Learning'}</span></td>
+      <td><span class="${item.origem === 'Regras' ? 'badge-decision-rules' : 'badge-decision-ml'}">${item.origem === 'Regras' ? 'Regras (RN01–RN12)' : 'Machine Learning'}</span></td>
       <td>${item.orientacao || 'Conforme regra de validação'}</td>
       <td><span style="font-family: var(--font-mono); font-weight: 700; color: #a7f3d0;">${item.confianca || '100.0%'}</span></td>
       <td><span class="badge ${item.classificacao === 'Válido' ? 'badge-success' : item.classificacao === 'Divergência' ? 'badge-danger' : item.classificacao === 'Ambíguo' ? 'badge-warning' : 'badge-neutral'}">${item.classificacao}</span></td>
       <td style="font-size: 0.8rem; color: var(--text-muted);">${item.classificacao === 'Válido' ? 'Liberação para expedição' : item.classificacao === 'Divergência' ? 'Alerta disparado ao gestor' : item.classificacao === 'Ambíguo' ? 'Fila de revisão humana' : 'Quarentena Dead Letter'}</td>
     </tr>
   `).join("");
+
+  renderPaginationBar("pagination-decision", items.length, safePage, pageSize, (newPage) => {
+    TABLE_PAGINATION.decision.page = newPage;
+    renderDecisionTable(items);
+  });
 }
 
 // 6. Tab 4: Central de Alertas & Notificações (Telegram / Email)
@@ -613,6 +1044,7 @@ function setupExecutiveDashboard() {
   const searchInput = document.getElementById("search-lote");
 
   function filterRecords() {
+    TABLE_PAGINATION.records.page = 1;
     const classVal = filterClass ? filterClass.value : "Todos";
     const query = searchInput ? searchInput.value.toLowerCase().trim() : "";
 
@@ -782,7 +1214,7 @@ function renderExecutiveCharts() {
     const colors = [
       "#10b981", // RN06 (Verde - Normalização)
       "#ef4444", // RN05 (Vermelho - Divergência)
-      "#f97316", // RN07 (Laranja - Saldo Físico)
+      "#8b5cf6", // RN07 (Violeta - Saldo Físico)
       "#f59e0b", // RN01 (Âmbar - Data)
       "#a855f7", // RN02 (Roxo - Produto)
       "#6b7280"  // RN03 (Cinza - Turno)
@@ -835,7 +1267,20 @@ function renderSampleRecordsTable(records) {
   const tbody = document.getElementById("table-records-body");
   if (!tbody) return;
 
-  tbody.innerHTML = records.map(r => `
+  if (!records || records.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 2rem;">Nenhum registro encontrado.</td></tr>`;
+    renderPaginationBar("pagination-records", 0, 1, 10, () => {});
+    return;
+  }
+
+  const { page, pageSize } = TABLE_PAGINATION.records;
+  const totalPages = Math.ceil(records.length / pageSize) || 1;
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  TABLE_PAGINATION.records.page = safePage;
+
+  const pageRecords = records.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  tbody.innerHTML = pageRecords.map(r => `
     <tr>
       <td><strong>${r.lote_id}</strong></td>
       <td>${r.produto}</td>
@@ -847,6 +1292,11 @@ function renderSampleRecordsTable(records) {
       <td style="font-size: 0.8rem; color: var(--text-muted);">${r.orientacao}</td>
     </tr>
   `).join("");
+
+  renderPaginationBar("pagination-records", records.length, safePage, pageSize, (newPage) => {
+    TABLE_PAGINATION.records.page = newPage;
+    renderSampleRecordsTable(records);
+  });
 }
 
 // 8. Tab 6: Sabotage Trials
@@ -889,6 +1339,7 @@ function setupTables() {
   const searchLog = document.getElementById("search-task-log");
   if (searchLog) {
     searchLog.addEventListener("input", (e) => {
+      TABLE_PAGINATION.tasks.page = 1;
       const query = e.target.value.toLowerCase();
       const filtered = SMART_OFFICE_STATE.tasks.filter(t => 
         t.id.toLowerCase().includes(query) ||
@@ -907,29 +1358,82 @@ function renderTasksTable() {
 function renderFilteredTasksTable(tasks) {
   const tbody = document.getElementById("table-tasks-body");
   if (!tbody) return;
-  tbody.innerHTML = tasks.map(t => `
+
+  if (!tasks || tasks.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 1.5rem;">Nenhuma task registrada.</td></tr>`;
+    renderPaginationBar("pagination-tasks", 0, 1, 10, () => {});
+    return;
+  }
+
+  const { page, pageSize } = TABLE_PAGINATION.tasks;
+  const totalPages = Math.ceil(tasks.length / pageSize) || 1;
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  TABLE_PAGINATION.tasks.page = safePage;
+
+  const pageTasks = tasks.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  tbody.innerHTML = pageTasks.map(t => `
     <tr>
-      <td><strong>${t.id}</strong></td>
-      <td>${t.automation}</td>
-      <td><code>${t.runner}</code></td>
+      <td style="white-space: nowrap;"><strong style="font-family: var(--font-mono); font-size: 0.8125rem;">${t.id}</strong></td>
+      <td style="white-space: nowrap;">${t.automation}</td>
+      <td style="white-space: nowrap;"><code>${t.runner}</code></td>
       <td><span class="node-priority">${t.priority}</span></td>
-      <td>${t.start}</td>
-      <td>${t.duration}</td>
+      <td style="white-space: nowrap;">${t.start}</td>
+      <td style="white-space: nowrap;">${t.duration}</td>
       <td><span class="badge ${t.status === 'Completed' ? 'badge-success' : t.status === 'Running' ? 'badge-info' : 'badge-danger'}">${t.status}</span></td>
       <td>${t.event}</td>
     </tr>
   `).join("");
+
+  renderPaginationBar("pagination-tasks", tasks.length, safePage, pageSize, (newPage) => {
+    TABLE_PAGINATION.tasks.page = newPage;
+    renderFilteredTasksTable(tasks);
+  });
+}
+
+function updateDataPoolCounter() {
+  const counter = document.getElementById("datapool-count-text");
+  if (counter) {
+    const total = SMART_OFFICE_STATE.datapool.length;
+    counter.textContent = `${total.toLocaleString("pt-BR")} lotes prontos para a esteira`;
+  }
 }
 
 function renderDataPoolTable() {
+  updateDataPoolCounter();
   renderFilteredDataPoolTable(SMART_OFFICE_STATE.datapool);
 }
 
 function renderFilteredDataPoolTable(items) {
   const tbody = document.getElementById("table-cadastrados-body");
   if (!tbody) return;
-  tbody.innerHTML = items.map(d => `
-    <tr>
+  if (!items || items.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="8" style="text-align: center; padding: 2.8rem 1rem; color: var(--text-dim);">
+          <div style="font-size: 1.25rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.5rem;">Fila do DataPool Zerada (0 Lotes)</div>
+          <p style="font-size: 0.875rem; max-width: 520px; margin: 0 auto 1.25rem; line-height: 1.5;">
+            A fila de entrada está limpa. Clique em <strong>Executar Ingestão ao Vivo</strong> no painel do Robô Playwright acima para cadastrar lotes ou recarregue a base oficial a qualquer momento.
+          </p>
+          <button type="button" class="btn btn-sm btn-primary" onclick="document.getElementById('btn-restore-datapool')?.click();">
+            Restaurar Base Oficial do DataPool
+          </button>
+        </td>
+      </tr>
+    `;
+    renderPaginationBar("pagination-datapool", 0, 1, 10, () => {});
+    return;
+  }
+
+  const { page, pageSize } = TABLE_PAGINATION.datapool;
+  const totalPages = Math.ceil(items.length / pageSize) || 1;
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  TABLE_PAGINATION.datapool.page = safePage;
+
+  const pageItems = items.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  tbody.innerHTML = pageItems.map(d => `
+    <tr class="${d._isNew ? 'row-newly-added' : ''}">
       <td><strong>${d.lote_id}</strong></td>
       <td>${d.produto}</td>
       <td>${d.linha}</td>
@@ -940,6 +1444,11 @@ function renderFilteredDataPoolTable(items) {
       <td><span class="badge ${d.classificacao === 'Válido' ? 'badge-success' : d.classificacao === 'Divergência' ? 'badge-danger' : d.classificacao === 'Ambíguo' ? 'badge-warning' : 'badge-neutral'}">${d.classificacao}</span></td>
     </tr>
   `).join("");
+
+  renderPaginationBar("pagination-datapool", items.length, safePage, pageSize, (newPage) => {
+    TABLE_PAGINATION.datapool.page = newPage;
+    renderFilteredDataPoolTable(items);
+  });
 }
 
 function renderManifestTable() {
@@ -950,8 +1459,13 @@ function renderManifestTable() {
       <td><strong>${p.bot}</strong></td>
       <td><code>${p.arquivo}</code></td>
       <td>${p.tamanho}</td>
-      <td><span style="font-family: var(--font-mono); font-size: 0.75rem; color: #a7f3d0;">${p.sha256}</span></td>
-      <td>${p.runner}</td>
+      <td>
+        <span class="sha256-badge" title="SHA-256: ${p.sha256} (Clique para copiar)" onclick="navigator.clipboard.writeText('${p.sha256}'); showToast('Hash SHA-256 copiado para a área de transferência!', 'info');">
+          <code>${p.sha256.substring(0, 10)}...${p.sha256.substring(56)}</code>
+          <span class="copy-icon">📋</span>
+        </span>
+      </td>
+      <td><code>${p.runner}</code></td>
       <td><span class="badge badge-success">${p.version}</span></td>
     </tr>
   `).join("");
@@ -1153,6 +1667,7 @@ async function loadAndRenderExcelPreview() {
   containerSheets.querySelectorAll(".sheet-pill").forEach(btn => {
     btn.addEventListener("click", () => {
       currentActiveSheet = btn.getAttribute("data-sheet-name");
+      TABLE_PAGINATION.excel.page = 1;
       containerSheets.querySelectorAll(".sheet-pill").forEach(p => {
         p.classList.toggle("active", p.getAttribute("data-sheet-name") === currentActiveSheet);
       });
@@ -1178,6 +1693,13 @@ function renderSheetTable(sheetName, data) {
   const headers = rows[0] || [];
   const bodyRows = rows.slice(1);
 
+  const { page, pageSize } = TABLE_PAGINATION.excel;
+  const totalPages = Math.ceil(bodyRows.length / pageSize) || 1;
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  TABLE_PAGINATION.excel.page = safePage;
+
+  const pageRows = bodyRows.slice((safePage - 1) * pageSize, safePage * pageSize);
+
   const theadHtml = `
     <thead>
       <tr>
@@ -1188,7 +1710,7 @@ function renderSheetTable(sheetName, data) {
 
   const tbodyHtml = `
     <tbody>
-      ${bodyRows.map(row => `
+      ${pageRows.map(row => `
         <tr>
           ${row.map(cell => {
             let cellContent = cell;
@@ -1208,7 +1730,17 @@ function renderSheetTable(sheetName, data) {
     </tbody>
   `;
 
-  content.innerHTML = `<table class="rep-table">${theadHtml}${tbodyHtml}</table>`;
+  content.innerHTML = `
+    <div class="table-responsive">
+      <table class="rep-table">${theadHtml}${tbodyHtml}</table>
+    </div>
+    <div id="pagination-excel" class="table-pagination"></div>
+  `;
+
+  renderPaginationBar("pagination-excel", bodyRows.length, safePage, pageSize, (newPage) => {
+    TABLE_PAGINATION.excel.page = newPage;
+    renderSheetTable(sheetName, data);
+  });
 }
 
 async function loadAndRenderMarkdownSummary() {
@@ -1336,7 +1868,7 @@ function renderPdfLetterheadPreview() {
           <td><strong>Total de Lotes Auditados</strong></td>
           <td>${total}</td>
           <td>100.0%</td>
-          <td><span style="color: #0284c7; font-weight: 700;">Amostragem Completa</span></td>
+          <td><span style="color: #c084fc; font-weight: 700;">Amostragem Completa</span></td>
         </tr>
         <tr>
           <td><strong>Registros Conformes (Válidos)</strong></td>

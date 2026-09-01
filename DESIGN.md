@@ -11,10 +11,10 @@
 - `--lg-border-subtle`: `rgba(255, 255, 255, 0.08)`
 
 ### The Red Spectrum (Cores de Destaque)
-- `--lg-active-red`: `#FD312E` (Vermelho Ativo — Botões primários, foco ativo, badges de destaque)
-- `--lg-heritage-red`: `#A50034` (Vermelho Legado — Identidade institucional, logotipo e gradiente atmosférico)
-- `--lg-active-red-hover`: `#e02421`
-- `--lg-active-red-muted`: `rgba(253, 49, 46, 0.12)`
+- `--lg-active-red`: `#A50034` (Vermelho Oficial LG — Botões primários, abas ativas, foco ativo e destaques)
+- `--lg-heritage-red`: `#A50034` (Vermelho Legado LG — Identidade institucional e botões)
+- `--lg-active-red-hover`: `#bd003c`
+- `--lg-active-red-muted`: `rgba(165, 0, 52, 0.15)`
 
 ### Tipografia & Neutros
 - `--lg-text-pure`: `#FFFFFF` (Branco Puro — Títulos e dados críticos com contraste AAA)
@@ -26,7 +26,7 @@
 - `--status-success`: `#10b981` / `--status-success-bg`: `rgba(16, 185, 129, 0.12)` (Lotes Válidos / OK)
 - `--status-warning`: `#f59e0b` / `--status-warning-bg`: `rgba(245, 158, 11, 0.12)` (Ambíguos / Revisão Humana)
 - `--status-error`: `#ef4444` / `--status-error-bg`: `rgba(239, 68, 68, 0.12)` (Divergências / Dead Letter)
-- `--status-info`: `#38bdf8` / `--status-info-bg`: `rgba(56, 189, 248, 0.12)` (Informações de Pipeline)
+- `--status-info`: `#c084fc` / `--status-info-bg`: `rgba(168, 85, 247, 0.15)` (Informações de Pipeline / Violeta Acentuado)
 
 ### Gradiente Assinatura Dark
 ```css
