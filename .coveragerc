@@ -1,0 +1,25 @@
+[run]
+branch = False
+source = src
+omit =
+    src/scripts/*
+    src/automation/playwright_automation.py
+    src/pages/playwright_pages.py
+    src/pages/formulario_lotes_page.py
+    src/runners/producer.py
+    src/runners/coletor.py
+    src/runners/pipeline.py
+    src/automation/wait_for_predecessor.py
+    src/automation/web_automation.py
+    */__pycache__/*
+    */tests/*
+
+[report]
+show_missing = True
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if __name__ == .__main__.:
+    raise NotImplementedError
+    if TYPE_CHECKING:
+    pass
