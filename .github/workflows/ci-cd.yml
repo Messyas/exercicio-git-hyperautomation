@@ -22,13 +22,13 @@ jobs:
       - run: pip install flake8
       - name: Verificar erros Python
         run: >-
-          flake8 bot.py main.py pipeline.py producer.py consumer.py config.py
-          src/ api_ml/ dashboard/ scripts/ tests/ --count --select=E9,F63,F7,F82
+          flake8 bot.py coletor.py main.py pipeline.py producer.py consumer.py config.py
+          src/ api_ml/ tests/ web/ --count --select=E9,F63,F7,F82
           --show-source --statistics
       - name: Verificar estilo sem bloquear
         run: >-
-          flake8 bot.py main.py pipeline.py producer.py consumer.py config.py
-          src/ api_ml/ dashboard/ scripts/ tests/ --count --max-line-length=100
+          flake8 bot.py coletor.py main.py pipeline.py producer.py consumer.py config.py
+          src/ api_ml/ tests/ web/ --count --max-line-length=120
           --ignore=E501,W503 --exit-zero --statistics
 
   test:
@@ -41,7 +41,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-      - run: pip install -r requirements-dev.txt -r api_ml/requirements.txt
+        run: pip install -r requirements-dev.txt -r api_ml/requirements.txt
       - name: Executar suite local e validar cobertura
         shell: bash
         env:
@@ -50,15 +50,13 @@ jobs:
           mkdir -p reports/coverage-html data/output
           set -o pipefail
           pytest tests/ -m "not browser" -v --tb=short -rsxX \
-            --cov=src --cov=dashboard --cov-config=.coveragerc \
+            --cov=src --cov-config=.coveragerc \
             --cov-report=term-missing \
             --cov-report=xml:reports/coverage.xml \
             --cov-report=html:reports/coverage-html \
             --cov-fail-under=80 | tee reports/pytest-aula24.log
-          python -m dashboard.main \
-            --entrada "data/samples/inspecao_lotes_10dias_sem gabarito.xlsx" \
-            --saida data/output
-          python scripts/auditar_modelo_ml.py \
+          python src/scripts/gerar_relatorio_executivo.py
+          python src/scripts/auditar_modelo_ml.py \
             --output-dir reports/model_audit --fail-on-alert
       - name: Anexar evidências da Aula 24
         uses: actions/upload-artifact@v4
@@ -141,7 +139,7 @@ jobs:
           test -n "$(find screenshots -type f -name '*.png' -print -quit)" || (echo "screenshots/ vazio" && exit 1)
           grep -q '"event": "ML_DECISION"' data/output/execucao_dashboard.log
           docker compose run --rm --no-deps --entrypoint python \
-            bot-conferencia scripts/verify_pipeline.py
+            bot-conferencia src/scripts/verify_pipeline.py
       - name: Salvar evidencias como artefato
         uses: actions/upload-artifact@v4
         if: always()
@@ -168,7 +166,7 @@ jobs:
         run: |
           if grep -RIn --include='*.py' \
             -E '(password|secret|api_key|token)[[:space:]]*=[[:space:]]*["'\''][^"'\'']+["'\'']' \
-            bot.py main.py pipeline.py producer.py consumer.py config.py src api_ml dashboard scripts; then
+            bot.py coletor.py main.py pipeline.py producer.py consumer.py config.py src api_ml tests web; then
             echo "Credencial possivelmente hardcoded."
             exit 1
           fi

@@ -42,7 +42,7 @@ jobs:
           fi
           echo "value=$version" >> "$GITHUB_OUTPUT"
       - name: Gerar pacotes independentes
-        run: python scripts/build_botcity_packages.py
+        run: python src/scripts/build_botcity_packages.py
       - name: Validar conteúdo dos ZIPs
         run: |
           unzip -l dist/botcity/bot-lotes-cadastro-playwright-mk7.zip

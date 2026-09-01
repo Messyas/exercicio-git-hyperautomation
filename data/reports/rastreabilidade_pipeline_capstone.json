@@ -1,6 +1,6 @@
 {
   "batch_id": "TESTE-INTEGRACAO-CAPSTONE",
-  "executado_em": "2026-08-31T22:02:09.748659-04:00",
+  "executado_em": "2026-08-31T23:06:00.294205-04:00",
   "total_bots_executados": 6,
   "sucesso_global": true,
   "cadeia_orquestracao": [
@@ -11,7 +11,7 @@
       "disparado_por": "PIPELINE_INIT",
       "predecessor": "ROOT",
       "status": "CREATED",
-      "timestamp": "2026-08-31T22:01:35.810816-04:00",
+      "timestamp": "2026-08-31T23:05:31.444403-04:00",
       "status_final": "SUCCESS"
     },
     {
@@ -21,7 +21,7 @@
       "disparado_por": "PIPELINE_INIT",
       "predecessor": "ROOT",
       "status": "CREATED",
-      "timestamp": "2026-08-31T22:01:35.813623-04:00",
+      "timestamp": "2026-08-31T23:05:31.446902-04:00",
       "status_final": "SUCCESS"
     },
     {
@@ -31,7 +31,7 @@
       "disparado_por": "RPA01_ColetaEstoque_DESKTOP+RPA02_ColetaPedidos_WEB",
       "predecessor": "task-rpa01_coletaestoque_desktop-1+task-rpa02_coletapedidos_web-2",
       "status": "CREATED",
-      "timestamp": "2026-08-31T22:01:36.189981-04:00",
+      "timestamp": "2026-08-31T23:05:31.787842-04:00",
       "status_final": "SUCCESS"
     },
     {
@@ -41,7 +41,7 @@
       "disparado_por": "RPA03_ConsolidacaoRegras_CORE",
       "predecessor": "task-rpa03_consolidacaoregras_core-3",
       "status": "CREATED",
-      "timestamp": "2026-08-31T22:01:42.918739-04:00",
+      "timestamp": "2026-08-31T23:05:38.560713-04:00",
       "status_final": "SUCCESS"
     },
     {
@@ -51,7 +51,7 @@
       "disparado_por": "RPA04_ClassificadorML_HYBRID",
       "predecessor": "task-rpa04_classificadorml_hybrid-4",
       "status": "CREATED",
-      "timestamp": "2026-08-31T22:01:56.582510-04:00",
+      "timestamp": "2026-08-31T23:05:52.441192-04:00",
       "status_final": "SUCCESS"
     },
     {
@@ -61,7 +61,7 @@
       "disparado_por": "SCHEDULED_CRON",
       "predecessor": "SCHEDULED",
       "status": "CREATED",
-      "timestamp": "2026-08-31T22:02:03.531433-04:00",
+      "timestamp": "2026-08-31T23:05:54.049811-04:00",
       "status_final": "SUCCESS"
     }
   ]
