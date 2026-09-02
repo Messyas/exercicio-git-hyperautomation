@@ -72,9 +72,9 @@ As seções a seguir descrevem o comportamento atual deste repositório.
 
 **Campo para preenchimento:**
 
-* Processo: Inspeção de Lotes Diários  
-* Área: Controle de Qualidade   
-* Versão: 0.3; Data: 04/08/2026
+* Processo: Conferência Híbrida de Estoque e Pedidos (Evolução Capstone RPA01–RPA06)  
+* Área: Controle de Qualidade & Supply Chain Management (SCM)   
+* Versão: 2.1 (Capstone Final); Data: 28/08/2026
 * Responsável: Messyas Gois França 
 
 # **2\. Contexto e justificativa**
@@ -997,6 +997,26 @@ O pipeline adota uma separação rigorosa de classes de erro:
 ### 21.4 Prevenção de Conflito no Runner (`CoexistenceGuard`)
 
 Para viabilizar a **coexistência entre BotCity e Smart Office**, o módulo [`src/coexistence_guard.py`](file:///c:/Users/User/Documents/projects/hyperauto/exercicio-git-hyperautomation/src/coexistence_guard.py) atua como mutex de arquivo (`runner_session.lock`), garantindo que apenas uma automação utilize a sessão gráfica Windows por vez.
+
+### 21.5 Portal Integrado Web e Telemetria em Tempo Real (`web/`)
+
+Como interface corporativa de demonstração e governança, foi desenvolvido o **Smart Office Control Tower** (`web/index.html` e `web/server.py` em `http://localhost:8080`), permitindo à banca e aos operadores de fábrica:
+1. **Disparador Master da Esteira:** Execução orquestrada em cascata dos 6 robôs (`RPA01` a `RPA06`) com terminal de telemetria e logs estruturados em tempo real por Runner conectado.
+2. **Simulador Interativo Playwright Web (RPA02):** Visualização da digitação campo a campo de novos lotes de fornecedores e suporte a cadastro manual com validações E2E.
+3. **Painel de Ensaios de Sabotagem:** Disparadores interativos para os 6 cenários de crise e sabotagem técnica estabelecidos na Seção 6 do Enunciado do Capstone.
+4. **Central de Visualização de Artefatos Oficiais:** Modal embutido para inspeção direta das 9 abas da planilha Excel (`relatorio_conferencia_lotes.xlsx`), Resumo Executivo em Markdown, PDF oficial e JSON de rastreabilidade.
+
+### 21.6 Dataset Industrial Expandido (1.000 Lotes / 10 Dias Fabris) e Conciliação no DataPool
+
+Diferente do exercício didático inicial (25 registros), a esteira do Capstone opera sobre uma base industrial representativa de **10 dias de operação (1.000 lotes totais)**:
+* **Não há particionamento 500/500:** O robô **RPA01 (Desktop)** extrai a verdade física de saldos nas Docas de entrada (`coleta_desktop_estoque.json`), enquanto o robô **RPA02 (Web)** extrai as ordens de compra abertas (`coleta_web_pedidos.json`).
+* **Conciliação no DataPool:** O robô **RPA03 (Consolidação CORE)** unifica os 1.000 registros no DataPool e executa o batimento determinístico aplicando as regras RN01 a RN12 para identificação de sobras, faltas e inconsistências cadastrais.
+
+### 21.7 Execução Híbrida com Janela Desktop em Primeiro Plano
+
+Para demonstrar a independência e a não-interferência entre os Runners:
+* Ao acionar a esteira pelo botão principal da tela, a aplicação gráfica legada (`desktop_app/sistema_estoque.py`) é lançada em primeiro plano sobre a tela via argumentos `--auto-demo` e `--topmost`.
+* Concomitantemente, o portal web exibe a janela desktop simulada flutuante demonstrando as consultas de doca via atalho (F2) sob proteção do `CoexistenceGuard`, enquanto o robô Web Playwright preenche os lotes no portal sem disputa de foco.
 
 ---
 

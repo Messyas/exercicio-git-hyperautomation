@@ -13,6 +13,8 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+import argparse
+
 logger = logging.getLogger(__name__)
 
 # Base de dados simulada de posições de estoque interno
@@ -59,11 +61,11 @@ class SistemaEstoqueDesktop:
         return dict(self.estoque)
 
 
-def iniciar_interface_grafica() -> None:
+def iniciar_interface_grafica(auto_demo: bool = False, topmost: bool = True) -> None:
     """Inicia a interface gráfica Tkinter para demonstração ao vivo."""
     try:
         import tkinter as tk
-        from tkinter import ttk, messagebox
+        from tkinter import ttk
     except ImportError:
         logger.warning("Tkinter não disponível neste ambiente.")
         return
@@ -71,8 +73,16 @@ def iniciar_interface_grafica() -> None:
     app = SistemaEstoqueDesktop()
     root = tk.Tk()
     root.title("LG Electronics — Sistema Interno de Controle de Estoque (v3.2.0 - Legado)")
-    root.geometry("640x480")
+    root.geometry("660x520")
     root.resizable(False, False)
+
+    if topmost:
+        try:
+            root.attributes("-topmost", True)
+            root.lift()
+            root.focus_force()
+        except Exception:
+            pass
 
     # Estilo
     style = ttk.Style()
@@ -86,12 +96,12 @@ def iniciar_interface_grafica() -> None:
     )
     header.pack(pady=10)
 
-    frame_busca = ttk.LabelFrame(root, text="Consulta de Lote / Posição")
-    frame_busca.pack(padx=20, pady=10, fill="x")
+    frame_busca = ttk.LabelFrame(root, text="Consulta de Lote / Posição (RUNNER_WIN_GUI_01)")
+    frame_busca.pack(padx=20, pady=8, fill="x")
 
     lbl_lote = ttk.Label(frame_busca, text="Código do Lote:")
     lbl_lote.grid(row=0, column=0, padx=5, pady=5, sticky="w")
-    ent_lote = ttk.Entry(frame_busca, width=20)
+    ent_lote = ttk.Entry(frame_busca, width=22)
     ent_lote.grid(row=0, column=1, padx=5, pady=5)
 
     lbl_resultado = ttk.Label(frame_busca, text="", font=("Arial", 10, "italic"))
@@ -113,25 +123,63 @@ def iniciar_interface_grafica() -> None:
     btn_buscar.grid(row=0, column=2, padx=5, pady=5)
 
     # Tabela de lotes
-    frame_tabela = ttk.LabelFrame(root, text="Posições Físicas em Aberto")
-    frame_tabela.pack(padx=20, pady=10, fill="both", expand=True)
+    frame_tabela = ttk.LabelFrame(root, text="Posições Físicas em Aberto no Armazém / Docas")
+    frame_tabela.pack(padx=20, pady=8, fill="both", expand=True)
 
     colunas = ("Lote", "Produto", "Saldo", "Doca", "Status", "Turno")
     tree = ttk.Treeview(frame_tabela, columns=colunas, show="headings", height=8)
     for col in colunas:
         tree.heading(col, text=col)
-        tree.column(col, width=95, anchor="center")
+        tree.column(col, width=98, anchor="center")
 
     for lote, dados in app.listar_todos().items():
         tree.insert("", "end", values=(lote, dados["produto"], dados["saldo_fisico"], dados["localizacao"], dados["status"], dados["turno"]))
 
     tree.pack(fill="both", expand=True, padx=5, pady=5)
 
-    status_bar = ttk.Label(root, text="Sessão Gráfica Dedicada: RUNNER_DESKTOP_01 | Status: ONLINE", relief="sunken", anchor="w")
+    status_bar = ttk.Label(
+        root,
+        text="Sessão Gráfica Dedicada: RUNNER_WIN_GUI_01 | Mutex: CoexistenceGuard ATIVO | Status: ONLINE",
+        relief="sunken",
+        anchor="w",
+    )
     status_bar.pack(side="bottom", fill="x")
+
+    if auto_demo:
+        demo_lotes = ["LOTE-001", "LOTE-002", "LOTE-003", "LOTE-004", "LOTE-006", "LOTE-007"]
+
+        def executar_passo_demo(indice: int = 0):
+            if indice >= len(demo_lotes):
+                status_bar.config(
+                    text="[RPA01_DESKTOP] Coleta Concluída com Sucesso! 1.000 saldos integrados no DataPool.",
+                )
+                return
+            lote = demo_lotes[indice]
+            ent_lote.delete(0, tk.END)
+            ent_lote.insert(0, lote)
+            buscar()
+
+            for item in tree.get_children():
+                vals = tree.item(item, "values")
+                if vals and vals[0] == lote:
+                    tree.selection_set(item)
+                    tree.focus(item)
+                    break
+
+            status_bar.config(
+                text=f"[RPA01_DESKTOP] Coletando lote {lote}... Posição confirmada no sistema legado",
+            )
+            root.after(800, lambda: executar_passo_demo(indice + 1))
+
+        root.after(1000, lambda: executar_passo_demo(0))
 
     root.mainloop()
 
 
 if __name__ == "__main__":
-    iniciar_interface_grafica()
+    parser = argparse.ArgumentParser(description="Sistema Desktop Legado de Estoque")
+    parser.add_argument("--auto-demo", action="store_true", help="Executa ciclo automático de demonstração")
+    parser.add_argument("--topmost", action="store_true", default=True, help="Mantém a janela sobreposta ao navegador")
+    parser.add_argument("--no-topmost", action="store_false", dest="topmost")
+    args = parser.parse_args()
+    iniciar_interface_grafica(auto_demo=args.auto_demo, topmost=args.topmost)

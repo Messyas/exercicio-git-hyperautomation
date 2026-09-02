@@ -21,7 +21,7 @@ class PlaywrightLoginPage:
         self._senha = page.get_by_label("Senha", exact=True)
         self._entrar = page.get_by_role("button", name="Entrar", exact=True)
         self._titulo = page.get_by_role(
-            "heading", name="Cadastro de Lotes", exact=True
+            "heading", name="Cadastro de Lotes"
         )
 
     def entrar(
@@ -50,7 +50,7 @@ class PlaywrightFormPage:
         self._data = page.get_by_label("Data", exact=True)
         self._observacao = page.get_by_label("Observação", exact=True)
         self._processar = page.get_by_role(
-            "button", name="Processar lote", exact=True
+            "button", name="Processar lote"
         )
         self._formulario = page.get_by_role(
             "form", name="Formulário de cadastro de lote", exact=True

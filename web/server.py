@@ -198,6 +198,15 @@ class CapstonePortalHandler(SimpleHTTPRequestHandler):
     def do_POST(self) -> None:
         if self.path == "/api/run-pipeline":
             logger.info("Executando pipeline Smart Office via API...")
+            # Dispara a janela do cliente Desktop legado em primeiro plano sobre a tela
+            try:
+                subprocess.Popen(
+                    [sys.executable, str(PROJECT_ROOT / "desktop_app" / "sistema_estoque.py"), "--auto-demo", "--topmost"]
+                )
+                logger.info("Janela GUI do cliente Desktop de estoque aberta em primeiro plano.")
+            except Exception as exc:
+                logger.warning("Não foi possível abrir a janela gráfica desktop nativa: %s", exc)
+
             try:
                 proc = subprocess.run(
                     [sys.executable, str(PROJECT_ROOT / "src" / "scripts" / "simular_execucao_smartoffice.py")],
@@ -212,6 +221,17 @@ class CapstonePortalHandler(SimpleHTTPRequestHandler):
                     "stderr": proc.stderr,
                     "metrics": metrics
                 })
+            except Exception as exc:
+                self._send_json({"sucesso": False, "erro": str(exc)}, status=500)
+            return
+
+        elif self.path in ("/api/open-desktop-gui", "/api/launch-desktop"):
+            logger.info("Solicitada abertura da janela Desktop GUI...")
+            try:
+                subprocess.Popen(
+                    [sys.executable, str(PROJECT_ROOT / "desktop_app" / "sistema_estoque.py"), "--auto-demo", "--topmost"]
+                )
+                self._send_json({"sucesso": True, "mensagem": "Janela Desktop aberta com sucesso"})
             except Exception as exc:
                 self._send_json({"sucesso": False, "erro": str(exc)}, status=500)
             return

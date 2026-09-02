@@ -177,6 +177,9 @@
               <p class="section-subtitle">Acompanhe o robô Playwright cadastrando novos lotes campo a campo em tempo real ou realize o cadastro manual como operador.</p>
             </div>
             <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+              <button id="btn-toggle-desktop-gui" type="button" class="btn btn-sm" style="border: 1px solid rgba(244, 63, 94, 0.4); color: #fda4af; background: rgba(244, 63, 94, 0.1);">
+                Abrir Sistema Desktop (RPA01)
+              </button>
               <span id="bot-status-badge" class="badge badge-info" style="font-weight: 700; font-size: 0.8rem; padding: 0.4rem 0.8rem;">AGUARDANDO DISPARO DA ESTEIRA</span>
             </div>
           </div>
@@ -201,7 +204,7 @@
             <!-- Section Cadastro (Playwright E2E Compatible) -->
             <section id="cadastro" hidden>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <h4 class="section-title" style="font-size: 1.15rem;">Cadastro de Lotes de Inspeção</h4>
+                <h4 class="section-title" style="font-size: 1.15rem;">Cadastro de Lotes</h4>
                 <div id="sucesso" role="status" hidden style="background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #34d399; padding: 0.5rem 1rem; border-radius: var(--radius-sm); font-size: 0.85rem;"></div>
               </div>
               
@@ -273,7 +276,7 @@
                 </div>
 
                 <div style="margin-top: 1.25rem; display: flex; justify-content: flex-end;">
-                  <button type="submit" id="btn-processar-lote" class="btn btn-primary">Processar Lote Manualmente</button>
+                  <button type="submit" id="btn-processar-lote" class="btn btn-primary">Processar lote</button>
                 </div>
               </form>
             </section>
@@ -911,6 +914,77 @@
           <button type="button" class="btn btn-secondary btn-sm" id="btn-close-report-modal-footer">
             Fechar Visualização [ESC]
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================================================================
+         JANELA FLUTUANTE SIMULADA DO CLIENTE DESKTOP LEGADO (RPA01 · RUNNER_WIN_GUI_01)
+         Permite demonstrar a automação desktop ocorrendo por cima do navegador
+         ========================================================================= -->
+    <div id="desktop-gui-window" class="desktop-floating-window" style="display: none;" role="region" aria-label="Janela do Sistema Desktop de Estoque">
+      <div class="desktop-window-header" id="desktop-window-drag-handle">
+        <div class="desktop-window-title">
+          <strong>RUNNER_WIN_GUI_01</strong> &middot; Sistema Interno de Controle de Estoque (v3.2.0 - Legado)
+        </div>
+        <div class="desktop-window-badges">
+          <span class="badge badge-success" id="gui-mutex-badge" style="font-size: 0.7rem;">MUTEX ATIVO</span>
+          <span class="badge badge-error" style="font-size: 0.7rem;">P1 &middot; GUI EXCLUSIVA</span>
+        </div>
+        <div class="desktop-window-controls">
+          <button type="button" class="win-btn win-btn-minimize" id="btn-minimize-desktop-gui" title="Minimizar / Restaurar">_</button>
+          <button type="button" class="win-btn win-btn-close" id="btn-close-desktop-gui" title="Fechar Janela">&times;</button>
+        </div>
+      </div>
+      
+      <div class="desktop-window-body" id="desktop-window-content">
+        <div class="desktop-brand-bar">
+          <span style="color: var(--lg-active-red); font-weight: 800;">LG ELECTRONICS DO BRASIL</span> &middot; SCM Armazém Central &amp; Docas de Entrada
+        </div>
+
+        <!-- Barra de Busca Simulada F2 -->
+        <div class="desktop-search-box">
+          <label for="gui-lote-input" style="font-size: 0.8rem; font-weight: 600; color: #cbd5e1;">Código do Lote:</label>
+          <div style="display: flex; gap: 0.5rem; flex: 1;">
+            <input type="text" id="gui-lote-input" placeholder="Ex: LOTE-001" readonly style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; height: 32px; background: #0f172a; border: 1px solid #334155; color: #38bdf8;" />
+            <button type="button" id="gui-btn-buscar" class="btn btn-primary btn-sm" style="padding: 0 0.75rem; height: 32px; font-size: 0.75rem;">Consultar Físico (F2)</button>
+          </div>
+        </div>
+
+        <!-- Banner de Resultado da Consulta de Estoque -->
+        <div id="gui-resultado-banner" class="desktop-result-banner">
+          <span id="gui-result-text">Aguardando comando do robô RPA01 (SCM_ColetaEstoque_BOT)...</span>
+        </div>
+
+        <!-- Tabela das Posições Físicas em Aberto -->
+        <div class="desktop-table-container">
+          <table class="desktop-stock-table">
+            <thead>
+              <tr>
+                <th>Lote Físico</th>
+                <th>Produto Cadastrado</th>
+                <th>Saldo em Estoque</th>
+                <th>Doca / Localização</th>
+                <th>Status Físico</th>
+                <th>Turno</th>
+              </tr>
+            </thead>
+            <tbody id="desktop-stock-tbody">
+              <tr data-lote="LOTE-001"><td>LOTE-001</td><td>TV 55 OLED</td><td><strong>150 un</strong></td><td>DOCA-01</td><td><span class="badge badge-success">LIBERADO</span></td><td>A</td></tr>
+              <tr data-lote="LOTE-002"><td>LOTE-002</td><td>LAVADORA 12KG</td><td><strong>80 un</strong></td><td>DOCA-02</td><td><span class="badge badge-success">LIBERADO</span></td><td>B</td></tr>
+              <tr data-lote="LOTE-003"><td>LOTE-003</td><td>GELADEIRA FROST</td><td><strong>45 un</strong></td><td>DOCA-01</td><td><span class="badge badge-warning">INSPECAO</span></td><td>A</td></tr>
+              <tr data-lote="LOTE-004"><td>LOTE-004</td><td>AR CONDICIONADO</td><td><strong>200 un</strong></td><td>DOCA-03</td><td><span class="badge badge-success">LIBERADO</span></td><td>C</td></tr>
+              <tr data-lote="LOTE-005"><td>LOTE-005</td><td>MICROONDAS 30L</td><td><strong>0 un</strong></td><td>DOCA-02</td><td><span class="badge badge-error">ESGOTADO</span></td><td>B</td></tr>
+              <tr data-lote="LOTE-006"><td>LOTE-006</td><td>SOUNDBAR LG</td><td><strong>95 un</strong></td><td>DOCA-01</td><td><span class="badge badge-success">LIBERADO</span></td><td>A</td></tr>
+              <tr data-lote="LOTE-007"><td>LOTE-007</td><td>MONITOR ULTRA</td><td><strong>120 un</strong></td><td>DOCA-04</td><td><span class="badge badge-success">LIBERADO</span></td><td>C</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Status Bar Inferior do Aplicativo Windows -->
+        <div class="desktop-window-statusbar">
+          <span id="gui-statusbar-text">Sessão Gráfica Dedicada: RUNNER_WIN_GUI_01 &middot; Status: ONLINE</span>
+          <span style="color: #64748b; font-size: 0.7rem;">The DX Way &middot; RPA01</span>
         </div>
       </div>
     </div>

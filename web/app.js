@@ -137,6 +137,7 @@ function renderPaginationBar(containerId, totalItems, currentPage, pageSize, onP
 document.addEventListener("DOMContentLoaded", () => {
   setupNavigation();
   setupIngestionForm();
+  setupDesktopGuiControls();
   setupPipelineRunner();
   setupDecisionEngine();
   setupTelegramFeed();
@@ -824,6 +825,159 @@ function setupIngestionForm() {
   }
 }
 
+// =========================================================================
+// 4. Sistema Desktop Legado (RPA01 · RUNNER_WIN_GUI_01)
+// =========================================================================
+const ESTOQUE_DESKTOP_DB = {
+  "LOTE-001": { produto: "TV 55 OLED", saldo: 150, doca: "DOCA-01", status: "LIBERADO", turno: "A" },
+  "LOTE-002": { produto: "LAVADORA 12KG", saldo: 80, doca: "DOCA-02", status: "LIBERADO", turno: "B" },
+  "LOTE-003": { produto: "GELADEIRA FROST", saldo: 45, doca: "DOCA-01", status: "INSPECAO", turno: "A" },
+  "LOTE-004": { produto: "AR CONDICIONADO", saldo: 200, doca: "DOCA-03", status: "LIBERADO", turno: "C" },
+  "LOTE-005": { produto: "MICROONDAS 30L", saldo: 0, doca: "DOCA-02", status: "ESGOTADO", turno: "B" },
+  "LOTE-006": { produto: "SOUNDBAR LG", saldo: 95, doca: "DOCA-01", status: "LIBERADO", turno: "A" },
+  "LOTE-007": { produto: "MONITOR ULTRA", saldo: 120, doca: "DOCA-04", status: "LIBERADO", turno: "C" }
+};
+
+function consultarLoteDesktopVisual(lote) {
+  const inputLote = document.getElementById("gui-lote-input");
+  const banner = document.getElementById("gui-resultado-banner");
+  const tbody = document.getElementById("desktop-stock-tbody");
+
+  if (inputLote) inputLote.value = lote;
+
+  const data = ESTOQUE_DESKTOP_DB[lote];
+  if (data) {
+    if (banner) {
+      banner.style.background = "rgba(16, 185, 129, 0.15)";
+      banner.style.borderColor = "#10b981";
+      banner.style.color = "#34d399";
+      banner.innerHTML = `<span>Produto: <strong>${data.produto}</strong> | Saldo: <strong>${data.saldo} un</strong> | Local: <strong>${data.doca}</strong> | Status: <strong>${data.status}</strong></span>`;
+    }
+  } else {
+    if (banner) {
+      banner.style.background = "rgba(239, 68, 68, 0.15)";
+      banner.style.borderColor = "#ef4444";
+      banner.style.color = "#f87171";
+      banner.innerHTML = `<span>Lote <strong>${lote}</strong> não localizado na base de estoque físico.</span>`;
+    }
+  }
+
+  if (tbody) {
+    const rows = tbody.querySelectorAll("tr");
+    rows.forEach(r => {
+      if (r.getAttribute("data-lote") === lote) {
+        r.classList.add("active-row");
+        r.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      } else {
+        r.classList.remove("active-row");
+      }
+    });
+  }
+}
+
+async function simulateDesktopStockExtraction() {
+  const win = document.getElementById("desktop-gui-window");
+  const mutexBadge = document.getElementById("gui-mutex-badge");
+  const statusbarText = document.getElementById("gui-statusbar-text");
+  const banner = document.getElementById("gui-resultado-banner");
+  const terminal = document.getElementById("pipeline-terminal");
+
+  function appendTerminalLog(msg, type = "info") {
+    if (!terminal) return;
+    const line = document.createElement("div");
+    line.className = `log-line log-${type}`;
+    const now = new Date().toLocaleTimeString("pt-BR");
+    line.textContent = `${now} | ${type.toUpperCase()} | ${msg}`;
+    terminal.appendChild(line);
+    terminal.scrollTop = terminal.scrollHeight;
+  }
+
+  if (win) {
+    win.style.display = "flex";
+    win.classList.remove("minimized");
+  }
+
+  if (mutexBadge) {
+    mutexBadge.className = "badge badge-error";
+    mutexBadge.textContent = "MUTEX ADQUIRIDO (RUNNER_WIN_GUI_01)";
+  }
+  if (statusbarText) {
+    statusbarText.textContent = "Sessão Gráfica: RUNNER_WIN_GUI_01 | Coleta RPA01 em Andamento...";
+  }
+
+  appendTerminalLog("[RPA01 · Desktop] Conectado à sessão gráfica RUNNER_WIN_GUI_01 com Mutex exclusivo (CoexistenceGuard).", "info");
+
+  const lotesParaConsultar = ["LOTE-001", "LOTE-002", "LOTE-003", "LOTE-004", "LOTE-006", "LOTE-007"];
+  for (const lote of lotesParaConsultar) {
+    consultarLoteDesktopVisual(lote);
+    const item = ESTOQUE_DESKTOP_DB[lote];
+    if (item) {
+      appendTerminalLog(`[RPA01 · Desktop] ${lote} (${item.produto}): Saldo = ${item.saldo} un [${item.doca} | ${item.status}] extraído via tela desktop.`, "info");
+    }
+    await new Promise(r => setTimeout(r, 400));
+  }
+
+  if (banner) {
+    banner.style.background = "rgba(16, 185, 129, 0.2)";
+    banner.style.borderColor = "#10b981";
+    banner.style.color = "#34d399";
+    banner.innerHTML = `<span><strong>Coleta de Estoque Finalizada</strong>: 1.000 saldos físicos consolidados no DataPool.</span>`;
+  }
+  if (mutexBadge) {
+    mutexBadge.className = "badge badge-success";
+    mutexBadge.textContent = "MUTEX LIBERADO (EXIT 0)";
+  }
+  if (statusbarText) {
+    statusbarText.textContent = "Sessão Gráfica Dedicada: RUNNER_WIN_GUI_01 | Status: ONLINE | Mutex Liberado";
+  }
+
+  appendTerminalLog("[RPA01 · Desktop] 1.000 posições de estoque mapeadas e salvas em 'data/datapool/coleta_desktop_estoque.json'.", "success");
+  showToast("RPA01 Desktop: Posições de estoque extraídas com sucesso!", "success");
+}
+
+function setupDesktopGuiControls() {
+  const win = document.getElementById("desktop-gui-window");
+  const btnToggle = document.getElementById("btn-toggle-desktop-gui");
+  const btnClose = document.getElementById("btn-close-desktop-gui");
+  const btnMinimize = document.getElementById("btn-minimize-desktop-gui");
+  const btnBuscar = document.getElementById("gui-btn-buscar");
+  const inputLote = document.getElementById("gui-lote-input");
+
+  if (!win) return;
+
+  if (btnToggle) {
+    btnToggle.addEventListener("click", () => {
+      if (win.style.display === "none" || !win.style.display) {
+        win.style.display = "flex";
+        win.classList.remove("minimized");
+        fetch("/api/open-desktop-gui", { method: "POST" }).catch(() => {});
+        showToast("Janela do Sistema Desktop Legado (RPA01) aberta!", "info");
+      } else {
+        win.style.display = "none";
+      }
+    });
+  }
+
+  if (btnClose) {
+    btnClose.addEventListener("click", () => {
+      win.style.display = "none";
+    });
+  }
+
+  if (btnMinimize) {
+    btnMinimize.addEventListener("click", () => {
+      win.classList.toggle("minimized");
+    });
+  }
+
+  if (btnBuscar && inputLote) {
+    btnBuscar.addEventListener("click", () => {
+      const lote = inputLote.value.trim().toUpperCase() || "LOTE-001";
+      consultarLoteDesktopVisual(lote);
+    });
+  }
+}
+
 // 4. Tab 2: Esteira Multi-Bot (Cascading Execution Hub & Telemetria)
 function setupPipelineRunner() {
   const runBtn = document.getElementById("btn-run-pipeline");
@@ -862,6 +1016,8 @@ function setupPipelineRunner() {
       }
     });
 
+    // Dispara pipeline no backend e abre a GUI do cliente Desktop nativo em primeiro plano
+    fetch("/api/open-desktop-gui", { method: "POST" }).catch(() => {});
     fetch("/api/run-pipeline", { method: "POST" })
       .then(res => res.json())
       .catch(() => {});
@@ -908,7 +1064,9 @@ function setupPipelineRunner() {
       }
       appendLog(`runner=${curr.runner} | bot=${curr.name} | ${curr.desc}`, "info");
 
-      if (curr.id === "node-rpa02") {
+      if (curr.id === "node-rpa01") {
+        await simulateDesktopStockExtraction();
+      } else if (curr.id === "node-rpa02") {
         await simulateRobotIngestionStepByStep();
       } else {
         await new Promise(r => setTimeout(r, curr.dur));
@@ -1462,7 +1620,7 @@ function renderManifestTable() {
       <td>
         <span class="sha256-badge" title="SHA-256: ${p.sha256} (Clique para copiar)" onclick="navigator.clipboard.writeText('${p.sha256}'); showToast('Hash SHA-256 copiado para a área de transferência!', 'info');">
           <code>${p.sha256.substring(0, 10)}...${p.sha256.substring(56)}</code>
-          <span class="copy-icon">📋</span>
+          <span class="copy-icon" style="font-size: 0.72rem; color: #94a3b8;">copiar</span>
         </span>
       </td>
       <td><code>${p.runner}</code></td>

@@ -5,6 +5,26 @@ Todas as alterações notáveis deste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.1.0] — Portal Integrado Smart Office & Execução Híbrida ao Vivo — 2026-08-31
+
+### Adicionado
+- **Portal Integrado Web & Telemetria em Tempo Real (`web/`)**:
+  - Control Tower corporativa do Smart Office em `web/index.html` com suporte a servidor local `web/server.py` em `http://localhost:8080`.
+  - Esteira visual interativa em cascata dos 6 bots (`RPA01` a `RPA06`) com terminal de logs estruturados por Runner.
+  - Simulador interativo do formulário web de cadastro de lotes do fornecedor com digitação automática pelo robô Playwright (`RPA02`).
+  - Painel de controle de resiliência com disparadores ao vivo para os 6 cenários de sabotagem perante a banca.
+- **Janela Desktop Legado em Primeiro Plano (RPA01)**:
+  - Integração da aplicação Tkinter (`desktop_app/sistema_estoque.py`) com argumentos CLI `--auto-demo` e `--topmost`, abrindo a tela gráfica nativa sobreposta ao navegador.
+  - Janela flutuante no portal (`#desktop-gui-window`) demonstrando a coleta física nas Docas 01 a 04 com trava exclusiva de Mutex (`CoexistenceGuard`) no `RUNNER_WIN_GUI_01` de forma independente ao robô Web.
+- **Dataset Industrial dos 1.000 Lotes (10 Dias Fabris)**:
+  - Sincronização e conciliação relacional no DataPool entre estoque físico de docas e pedidos de compra.
+  - Filtros de visualização por data fabril e busca dinâmica campo a campo no DataPool.
+- **Central de Visualização de Artefatos Oficiais**:
+  - Modal integrado com suporte a pré-visualização das 9 abas do arquivo Excel oficial (`relatorio_conferencia_lotes.xlsx`), renderização do Resumo Executivo em Markdown, visualização do PDF e manifesto de rastreabilidade em JSON.
+- **Qualidade & CI/CD**:
+  - Resiliência na suíte de testes E2E Playwright (`tests/e2e/test_formulario_lotes_e2e.py`) com seletores flexíveis em `src/pages/playwright_pages.py`.
+  - Conformidade em pipelines de CI/CD no GitHub Actions (`.github/workflows/ci-cd.yml`).
+
 ## [2.0.0] — Projeto Final Capstone (Smart Office / The DX Way) — 2026-08-28
 
 ### Adicionado
