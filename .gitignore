@@ -33,6 +33,11 @@ blob-report/
 .env.*
 !.env.example
 
+# Credenciais OAuth e tokens de integrações externas.
+client_secret*.json
+secrets/
+token_gmail.json
+
 # IDEs e editores
 .vscode/
 .idea/
@@ -43,13 +48,12 @@ blob-report/
 Thumbs.db
 Desktop.ini
 
-# Saídas geradas pelo bot
 data/output/*
 !data/output/.gitkeep
-!data/output/relatorio_conferencia_lotes.xlsx
-!data/output/resumo_conferencia_lotes.pdf
-!data/output/execucao_dashboard.log
+!data/output/ensaio_sabotagem_carga.json
+!data/output/ensaio_sabotagem_carga.md
 data/datapool/
+data/incident/
 logs/
 
 # Evidências geradas pela automação web
@@ -60,7 +64,3 @@ logs/
 !/reports/.gitkeep
 /tests/e2e/screenshots/*
 !/tests/e2e/screenshots/.gitkeep
-
-# Frontend
-frontend/node_modules/
-frontend/.next/

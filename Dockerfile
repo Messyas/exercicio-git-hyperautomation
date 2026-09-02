@@ -20,6 +20,12 @@ COPY bots/validacao/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 
+# Runtime dedicado ao classificador e gerador de relatórios.
+FROM runtime-base AS ml-runner-dependencies
+COPY requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+
 FROM runtime-base AS producer-dependencies
 COPY bots/cadastro/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
@@ -44,12 +50,33 @@ USER appuser
 CMD ["python", "consumer.py"]
 
 
+FROM ml-runner-dependencies AS ml-runner
+
+RUN adduser --disabled-password --gecos "" appuser
+COPY --chown=appuser:appuser . .
+RUN mkdir -p /app/data/output /app/data/logs /app/data/reports \
+    && chown -R appuser:appuser /app
+USER appuser
+CMD ["python", "src/scripts/gerar_relatorio_executivo.py"]
+
+
+FROM ml-runner-dependencies AS portal
+
+RUN adduser --disabled-password --gecos "" appuser
+COPY --chown=appuser:appuser . .
+RUN mkdir -p /app/data/output /app/data/datapool /app/data/logs /app/data/reports \
+    && chown -R appuser:appuser /app
+USER appuser
+EXPOSE 8080
+CMD ["python", "web/server.py", "8080"]
+
+
 FROM browser-dependencies AS producer
 
 RUN adduser --disabled-password --gecos "" appuser
 COPY --chown=appuser:appuser . .
 RUN mkdir -p /app/screenshots /app/data/output /app/data/datapool \
-    /app/logs /app/reports \
+    /app/data/logs /app/data/reports \
     && chown -R appuser:appuser /app
 USER appuser
 CMD ["python", "producer.py"]

@@ -1,35 +1,22 @@
-"""Executa produtor e consumidor no serviço bot-conferencia."""
+"""Ponto de entrada do Pipeline integrado sequencial."""
 
 from __future__ import annotations
 
-import os
+import sys
 from pathlib import Path
 
-from consumer import run_consumer
-from producer import run_producer
+PROJECT_ROOT = Path(__file__).resolve().parent
+if str(PROJECT_ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "src"))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
+import src.runners.pipeline as _m
+from src.runners.pipeline import *
 
-def _signal_finished() -> None:
-    shutdown_file = os.getenv("SHUTDOWN_FILE")
-    if not shutdown_file:
-        return
-    path = Path(shutdown_file)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.touch()
-
-
-def main() -> int:
-    try:
-        os.environ["BOT_ID"] = "bot-lotes-cadastro-playwright-mk7"
-        producer_status = run_producer()
-        if producer_status:
-            return producer_status
-
-        os.environ["BOT_ID"] = "bot-lotes-validacao-mk7"
-        return run_consumer()
-    finally:
-        _signal_finished()
-
+for _attr in dir(_m):
+    if not _attr.startswith("__"):
+        globals()[_attr] = getattr(_m, _attr)
 
 if __name__ == "__main__":
     raise SystemExit(main())

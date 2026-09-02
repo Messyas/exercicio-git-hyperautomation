@@ -1,12 +1,13 @@
 from pathlib import Path
+import json
 
 import openpyxl
 import pandas as pd
 import pytest
 from openpyxl.chart import DoughnutChart, LineChart
 
-from dashboard.gerar_relatorio import gerar_relatorio, validar_registros
-from dashboard.servico_validacao import RegistroValidado, validar_registro
+from src.relatorio_executivo import gerar_relatorio, validar_registros
+from src.servico_validacao import RegistroValidado, validar_registro
 
 
 pytestmark = pytest.mark.integration
@@ -21,7 +22,7 @@ def test_relatorio_dashboard_tem_totais_e_abas_isoladas(
     instante_fixo_manaus,
 ) -> None:
     monkeypatch.setattr(
-        "dashboard.gerar_relatorio._agora_manaus",
+        "src.relatorio_executivo._agora_manaus",
         lambda: instante_fixo_manaus,
     )
     destino = gerar_relatorio(ENTRADA, tmp_path)
@@ -34,7 +35,11 @@ def test_relatorio_dashboard_tem_totais_e_abas_isoladas(
             "Divergências",
             "Ambíguos",
             "Erros de Entrada",
+            "Ranking de Regras",
+            "Dicionário",
+            "Decisões de ML",
         ]
+
         todos = pd.read_excel(arquivo, sheet_name="Todos")
         assert len(todos) == 250
         assert todos.columns.tolist() == [
@@ -67,7 +72,7 @@ def test_relatorio_dashboard_tem_totais_e_abas_isoladas(
     assert resumo._charts[1].title.tx.rich.p[0].r[0].t == (
         "Evolução dos registros"
     )
-    assert [resumo.cell(linha, 1).value for linha in range(14, 24)] == [
+    assert [resumo.cell(linha, 1).value for linha in range(20, 30)] == [
         "15/06/2026",
         "16/06/2026",
         "17/06/2026",
@@ -80,10 +85,23 @@ def test_relatorio_dashboard_tem_totais_e_abas_isoladas(
         "26/06/2026",
     ]
 
-    log = (tmp_path / "execucao_dashboard.log").read_text(encoding="utf-8")
-    assert "Executado em 30/06/2026 08:15:00 -0400" in log
-    for trecho in ("total': 250", "Válido': 150", "Divergência': 50", "Ambíguo': 20", "Erro de Entrada': 30"):
-        assert trecho in log
+    eventos = [
+        json.loads(linha)
+        for linha in (tmp_path / "execucao_dashboard.log").read_text(encoding="utf-8").splitlines()
+    ]
+    resumo_log = next(
+        evento
+        for evento in eventos
+        if evento.get("event") == "DASHBOARD_EXECUTION_COMPLETED"
+    )
+    assert "Executado em 30/06/2026 08:15:00 -0400" in resumo_log["message"]
+    assert resumo_log["summary"] == {
+        "total": 250,
+        "Válido": 150,
+        "Divergência": 50,
+        "Ambíguo": 20,
+        "Erro de Entrada": 30,
+    }
 
     resumo_pdf = tmp_path / "resumo_conferencia_lotes.pdf"
     assert resumo_pdf.exists()

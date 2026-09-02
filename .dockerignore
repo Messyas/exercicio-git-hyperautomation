@@ -17,10 +17,15 @@
 .env.*
 !.env.example
 
+client_secret*.json
+secrets/
+token_gmail.json
+
 screenshots
 artefatos
 reports
 data/datapool
+data/incident
 data/output
 docs
 frontend

@@ -1,34 +1,74 @@
 services:
-  frontend:
+  # ===========================================================================
+  # PORTAL WEB & CONTROL TOWER (Serviço Principal do Docker Compose)
+  # Disponibilizado em http://localhost:8080 ao rodar `docker compose up`
+  # ===========================================================================
+  portal:
     build:
-      context: ./frontend
+      context: .
       dockerfile: Dockerfile
+      target: portal
     ports:
-      - "3000:3000"
+      - "8080:8080"
     environment:
-      SHUTDOWN_FILE: /run-status/pipeline-finished
+      APP_TIMEZONE: America/Manaus
       TZ: America/Manaus
+      ML_API_URL: http://api-ml:8000
+    volumes:
+      - ./data:/app/data
+      - ./web:/app/web
+      - ./reports:/app/reports
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+  # ===========================================================================
+  # SERVIÇOS SOB DEMANDA / PROFILES ESPECÍFICOS (Invocados pelo portal ou CLI)
+  # Não iniciam automaticamente no `docker compose up` padrão
+  # ===========================================================================
+  run-status-init:
+    profiles: ["bots", "pipeline", "cli", "avaliacao"]
+    image: busybox:1.36.1
+    user: "0:0"
     volumes:
       - run-status:/run-status
+    command:
+      - sh
+      - -c
+      - "mkdir -p /run-status && chown -R 1000:1000 /run-status && chmod -R u+rwX,g+rwX /run-status"
+    restart: "no"
+
+  api-ml:
+    profiles: ["ml", "full", "sabotagem", "simulacao"]
+    build:
+      context: .
+      dockerfile: api_ml/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      ML_MODEL_PATH: /service/models/classificador_lotes.pkl
+      ML_MAX_CONCURRENCY: "1"
+      TZ: America/Manaus
     healthcheck:
       test:
         - CMD
-        - node
-        - -e
-        - "fetch('http://localhost:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-      interval: 3s
-      timeout: 5s
-      retries: 20
-      start_period: 15s
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    restart: "no"
 
   producer:
+    profiles: ["bots", "pipeline", "cli"]
     build:
       context: .
       dockerfile: Dockerfile
       target: producer
     depends_on:
-      frontend:
-        condition: service_healthy
+      run-status-init:
+        condition: service_completed_successfully
     env_file:
       - path: ./.env.example
         required: true
@@ -36,7 +76,7 @@ services:
         required: false
     environment:
       BOT_ID: bot-lotes-cadastro-playwright-mk7
-      BOT_URL: http://frontend:3000
+      BOT_URL: file:///app/web/index.html
       BOT_HEADLESS: "true"
       BOT_LOG_DIR: /app/logs
       DATAPOOL_BACKEND: local
@@ -46,6 +86,7 @@ services:
       ENVIRONMENT: container
       APP_TIMEZONE: America/Manaus
       TZ: America/Manaus
+      ML_API_URL: http://api-ml:8000
     volumes:
       - ./screenshots:/app/screenshots
       - ./data/datapool:/app/data/datapool
@@ -56,11 +97,14 @@ services:
     restart: "no"
 
   consumer:
+    profiles: ["bots", "pipeline", "cli"]
     build:
       context: .
       dockerfile: Dockerfile
       target: consumer
     depends_on:
+      run-status-init:
+        condition: service_completed_successfully
       producer:
         condition: service_completed_successfully
     env_file:
@@ -78,12 +122,57 @@ services:
       ENVIRONMENT: container
       APP_TIMEZONE: America/Manaus
       TZ: America/Manaus
+      ML_API_URL: http://api-ml:8000
     volumes:
       - ./data/datapool:/app/data/datapool
       - ./data/output:/app/data/output
       - ./logs:/app/logs
       - ./reports:/app/reports
+      - ./secrets:/app/secrets:ro
       - run-status:/run-status
+    restart: "no"
+
+  gmail-authorize:
+    profiles: ["gmail"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: consumer
+    env_file:
+      - path: ./.env.example
+        required: true
+      - path: ./.env
+        required: false
+    environment:
+      GMAIL_OAUTH_PORT: "8080"
+      GMAIL_OAUTH_BIND_ADDRESS: "0.0.0.0"
+      GMAIL_OAUTH_REDIRECT_HOST: "localhost"
+      GMAIL_OAUTH_OPEN_BROWSER: "false"
+      TZ: America/Manaus
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./secrets:/app/secrets
+    command: ["python", "scripts/autorizar_gmail.py"]
+    restart: "no"
+
+  gmail-test:
+    profiles: ["gmail"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: consumer
+    env_file:
+      - path: ./.env.example
+        required: true
+      - path: ./.env
+        required: false
+    environment:
+      TZ: America/Manaus
+    volumes:
+      - ./secrets:/app/secrets:ro
+      - ./reports:/app/reports
+    command: ["python", "scripts/testar_gmail.py"]
     restart: "no"
 
   bot-conferencia:
@@ -93,15 +182,15 @@ services:
       dockerfile: Dockerfile
       target: producer
     depends_on:
-      frontend:
-        condition: service_healthy
+      run-status-init:
+        condition: service_completed_successfully
     env_file:
       - path: ./.env.example
         required: true
       - path: ./.env
         required: false
     environment:
-      BOT_URL: http://frontend:3000
+      BOT_URL: file:///app/web/index.html
       BOT_HEADLESS: "true"
       BOT_LOG_DIR: /app/logs
       BOT_OUTPUT_DIR: /app/data/output
@@ -113,16 +202,65 @@ services:
       ENVIRONMENT: container
       APP_TIMEZONE: America/Manaus
       TZ: America/Manaus
+      ML_API_URL: http://api-ml:8000
     volumes:
       - ./screenshots:/app/screenshots
       - ./data/datapool:/app/data/datapool
       - ./data/output:/app/data/output
       - ./logs:/app/logs
       - ./reports:/app/reports
+      - ./secrets:/app/secrets:ro
       - run-status:/run-status
     shm_size: 1gb
     restart: "no"
     command: ["python", "pipeline.py"]
+
+  bot-classificador:
+    profiles: ["ml"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: ml-runner
+    depends_on:
+      api-ml:
+        condition: service_healthy
+    env_file:
+      - path: ./.env.example
+        required: true
+      - path: ./.env
+        required: false
+    environment:
+      ML_API_URL: http://api-ml:8000
+      APP_TIMEZONE: America/Manaus
+      TZ: America/Manaus
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    command: ["python", "src/scripts/gerar_relatorio_executivo.py"]
+
+  simulacao-crise:
+    profiles: ["sabotagem", "simulacao"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: producer
+    depends_on:
+      api-ml:
+        condition: service_healthy
+    env_file:
+      - path: ./.env.example
+        required: true
+      - path: ./.env
+        required: false
+    environment:
+      ML_API_URL: http://api-ml:8000
+      APP_TIMEZONE: America/Manaus
+      TZ: America/Manaus
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+    command: ["python", "src/scripts/simular_cenarios_sabotagem.py"]
 
 volumes:
   run-status:

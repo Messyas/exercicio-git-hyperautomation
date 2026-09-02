@@ -1,0 +1,86 @@
+{
+  "data_execucao": "2026-08-31T21:03:30.961079-04:00",
+  "total_cenarios": 6,
+  "total_aprovados": 6,
+  "cenarios": [
+    {
+      "cenario": 1,
+      "titulo": "Bot desktop indisponível",
+      "falha_simulada": "Sistema desktop simulado fechado/travado",
+      "comportamento_esperado": "Retry acionado; item marcado para revisão; alerta disparado; pipeline não trava",
+      "sucesso": true,
+      "detalhes": {
+        "lote_id": "LOTE-001",
+        "status_conferencia": "PENDENTE_REVISAO_DESKTOP",
+        "motivo": "Sistema desktop indisponível após 3 tentativas de retry.",
+        "origem": "FALLBACK_DEGRADADO"
+      }
+    },
+    {
+      "cenario": 2,
+      "titulo": "Timeout de dependência",
+      "falha_simulada": "Bot de coleta atrasado além do deadline configurado",
+      "comportamento_esperado": "Bot de consolidação detecta timeout e não aguarda indefinidamente",
+      "sucesso": true,
+      "detalhes": {
+        "task_id": "task-coletor-atrasado-01",
+        "desfecho": "TIMEOUT_TRATADO_SEM_TRAVAR"
+      }
+    },
+    {
+      "cenario": 3,
+      "titulo": "Serviço de ML fora do ar",
+      "falha_simulada": "Endpoint de ML inválido / resposta HTTP 503",
+      "comportamento_esperado": "Item segue via fallback determinístico, sem exceção, origem_decisao=fallback",
+      "sucesso": true,
+      "detalhes": {
+        "lote_id": "LOTE-SAB-02",
+        "causa_provavel_ml": "nao_classificado",
+        "confianca_ml": 0.0,
+        "origem_decisao": "fallback",
+        "motivo_fallback": "indisponibilidade",
+        "latencia_ms": 0.61
+      }
+    },
+    {
+      "cenario": 4,
+      "titulo": "Canal de alerta principal falha",
+      "falha_simulada": "Token do Telegram invalidado / erro 401",
+      "comportamento_esperado": "Alerta redirecionado para canal secundário / log de destaque sem travar",
+      "sucesso": true,
+      "detalhes": {
+        "evento": "SABOTAGEM_ALERTA",
+        "nivel": "CRITICO",
+        "mensagem": "Alerta de teste de sabotagem do canal principal",
+        "canal_utilizado": "LogLocal",
+        "sucesso": true,
+        "tentativas_falhas": [
+          "Telegram (HTTP erro)"
+        ]
+      }
+    },
+    {
+      "cenario": 5,
+      "titulo": "Coexistência de orquestradores",
+      "falha_simulada": "BotCity e Smart Office ativos ao mesmo tempo apontando para a mesma máquina",
+      "comportamento_esperado": "Mecanismo evita conflito de sessão/execução duplicada conforme plano",
+      "sucesso": true,
+      "detalhes": {
+        "protecao": "CoexistenceGuard_MutexLock",
+        "conflito_retido": true
+      }
+    },
+    {
+      "cenario": 6,
+      "titulo": "Item com dado irrecuperável",
+      "falha_simulada": "Registro com dados corrompidos forçado a falhar",
+      "comportamento_esperado": "Item vai para dead letter após tentativas configuradas, sem travar o pipeline",
+      "sucesso": true,
+      "detalhes": {
+        "item_id": "ITEM-CORROMPIDO-01",
+        "status": "PENDENTE_REVISAO",
+        "dlq_total": 31
+      }
+    }
+  ]
+}

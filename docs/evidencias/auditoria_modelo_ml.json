@@ -1,0 +1,195 @@
+{
+  "modelo_versao": "rf-lotes-1.0.0",
+  "integridade": {
+    "dataset_sha_confere": true,
+    "feature_order_confere": true,
+    "features_bundle": [
+      "status_raw",
+      "turno",
+      "tem_obs"
+    ]
+  },
+  "calibracao": {
+    "amostras_teste": 2400,
+    "accuracy": 0.8383333333333334,
+    "macro_f1": 0.8389418617690253,
+    "ece": 0.01136146067605226,
+    "cobertura_alta_confianca": 0.4975,
+    "accuracy_alta_confianca": 0.9229480737018425
+  },
+  "equidade_turno": {
+    "por_turno": {
+      "A": {
+        "amostras": 801,
+        "accuracy": 0.8539325842696629,
+        "macro_f1": 0.853565996157012,
+        "confianca_media": 0.8335817870379462
+      },
+      "B": {
+        "amostras": 800,
+        "accuracy": 0.83875,
+        "macro_f1": 0.8398392627367636,
+        "confianca_media": 0.8402135055071344
+      },
+      "C": {
+        "amostras": 799,
+        "accuracy": 0.8222778473091364,
+        "macro_f1": 0.8237603886551618,
+        "confianca_media": 0.8320403188545757
+      }
+    },
+    "gap_accuracy_max": 0.03165473696052645
+  },
+  "contrafactual_turno": {
+    "amostras_base": 500,
+    "taxa_mudanca_classe": 0.0,
+    "max_delta_confianca": 0.07489484541526137,
+    "media_delta_confianca": 0.01888415189238867
+  },
+  "ood": {
+    "casos": 24,
+    "confianca_maxima": 0.5068386925995751,
+    "automaticas_alta_confianca": 0,
+    "predicoes": [
+      {
+        "classe": "revisar",
+        "probabilidade": 0.4924795099340932
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.4984713382882876
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.5048870174977284
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.4979435583334705
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.504636821756157
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.5068386925995751
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.4924795099340932
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.4984713382882876
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.5048870174977284
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.4979435583334705
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.504636821756157
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.5068386925995751
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.4924795099340932
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.4984713382882876
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.5048870174977284
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.4979435583334705
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.504636821756157
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.5068386925995751
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.4924795099340932
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.4984713382882876
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.5048870174977284
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.4979435583334705
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.504636821756157
+      },
+      {
+        "classe": "revisar",
+        "probabilidade": 0.5068386925995751
+      }
+    ]
+  },
+  "limites": {
+    "max_gap_turno": 0.05,
+    "max_mudanca": 0.1,
+    "max_ece": 0.05
+  },
+  "politicas": [
+    {
+      "teste": "integridade_dataset",
+      "aprovado": true,
+      "criterio": "SHA-256 do dataset confere com o bundle"
+    },
+    {
+      "teste": "features_sem_proxies",
+      "aprovado": true,
+      "criterio": "Somente as três features aprovadas estão no bundle"
+    },
+    {
+      "teste": "calibracao_ece",
+      "aprovado": true,
+      "criterio": "ECE <= 0.05"
+    },
+    {
+      "teste": "confianca_alta",
+      "aprovado": true,
+      "criterio": "Acurácia em alta confiança >= 0,85"
+    },
+    {
+      "teste": "gap_por_turno",
+      "aprovado": true,
+      "criterio": "Gap de accuracy <= 0.05"
+    },
+    {
+      "teste": "contrafactual_turno",
+      "aprovado": true,
+      "criterio": "Mudança contrafactual <= 0.10"
+    },
+    {
+      "teste": "ood_sem_automacao",
+      "aprovado": true,
+      "criterio": "OOD não gera ação automática de alta confiança"
+    }
+  ],
+  "status": "APROVADO"
+}

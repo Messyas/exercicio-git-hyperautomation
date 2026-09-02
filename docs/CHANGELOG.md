@@ -1,0 +1,93 @@
+# CHANGELOG
+
+Todas as alterações notáveis deste projeto serão documentadas neste arquivo.
+
+O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
+e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
+
+## [2.1.0] — Portal Integrado Smart Office & Execução Híbrida ao Vivo — 2026-08-31
+
+### Adicionado
+- **Portal Integrado Web & Telemetria em Tempo Real (`web/`)**:
+  - Control Tower corporativa do Smart Office em `web/index.html` com suporte a servidor local `web/server.py` em `http://localhost:8080`.
+  - Esteira visual interativa em cascata dos 6 bots (`RPA01` a `RPA06`) com terminal de logs estruturados por Runner.
+  - Simulador interativo do formulário web de cadastro de lotes do fornecedor com digitação automática pelo robô Playwright (`RPA02`).
+  - Painel de controle de resiliência com disparadores ao vivo para os 6 cenários de sabotagem perante a banca.
+- **Janela Desktop Legado em Primeiro Plano (RPA01)**:
+  - Integração da aplicação Tkinter (`desktop_app/sistema_estoque.py`) com argumentos CLI `--auto-demo` e `--topmost`, abrindo a tela gráfica nativa sobreposta ao navegador.
+  - Janela flutuante no portal (`#desktop-gui-window`) demonstrando a coleta física nas Docas 01 a 04 com trava exclusiva de Mutex (`CoexistenceGuard`) no `RUNNER_WIN_GUI_01` de forma independente ao robô Web.
+- **Dataset Industrial dos 1.000 Lotes (10 Dias Fabris)**:
+  - Sincronização e conciliação relacional no DataPool entre estoque físico de docas e pedidos de compra.
+  - Filtros de visualização por data fabril e busca dinâmica campo a campo no DataPool.
+- **Central de Visualização de Artefatos Oficiais**:
+  - Modal integrado com suporte a pré-visualização das 9 abas do arquivo Excel oficial (`relatorio_conferencia_lotes.xlsx`), renderização do Resumo Executivo em Markdown, visualização do PDF e manifesto de rastreabilidade em JSON.
+- **Qualidade & CI/CD**:
+  - Resiliência na suíte de testes E2E Playwright (`tests/e2e/test_formulario_lotes_e2e.py`) com seletores flexíveis em `src/pages/playwright_pages.py`.
+  - Conformidade em pipelines de CI/CD no GitHub Actions (`.github/workflows/ci-cd.yml`).
+
+## [2.0.0] — Projeto Final Capstone (Smart Office / The DX Way) — 2026-08-28
+
+### Adicionado
+- **Arquitetura Multi-Bot Híbrida (6 Bots)**: Criação dos 6 pacotes modulares no padrão Smart Office em `bots/`:
+  - `RPA01_ColetaEstoque_DESKTOP` (Prioridade 1, GUI Session Lock);
+  - `RPA02_ColetaPedidos_WEB` (Prioridade 2, Playwright Web);
+  - `RPA03_ConsolidacaoRegras_CORE` (Prioridade 3, Motor RN01–RN12 e Timeout);
+  - `RPA04_ClassificadorML_HYBRID` (Prioridade 4, Enriquecimento Não-Crítico);
+  - `RPA05_RelatorioAlertas_NOTIF` (Prioridade 5, Excel 9 Abas e Alertas Multicanal);
+  - `RPA06_ReprocessadorDeadLetter_SCHED` (Prioridade 5, Auditoria de DLQ).
+- **Simulador do Sistema Desktop**: Aplicação gráfica Tkinter de controle de estoque em `desktop_app/sistema_estoque.py` e cliente `DesktopAutomationClient` em `src/desktop_automation.py`.
+- **Prevenção de Conflito de Sessão Gráfica**: Módulo `CoexistenceGuard` em `src/coexistence_guard.py` com Mutex de arquivo para garantir execução exclusiva no Runner.
+- **Dead Letter Queue (DLQ)**: Módulo `DeadLetterQueue` em `src/dead_letter.py` com persistência auditável em JSON Lines.
+- **Hierarquia Formal de Exceções**: Módulo `src/exceptions.py` separando `FalhaItemError` (falhas irrecuperáveis de dados) de `FalhaInfraestruturaError` (quedas de infraestrutura com retry).
+- **Circuit Breaker em ML**: Integração de Circuit Breaker com abertura após 5 falhas consecutivas em `src/classificador_divergencia.py`.
+- **Utilitários de Deploy e Teste de Crise**:
+  - `scripts/build_smartoffice_packages.py` para geração dos pacotes ZIP válidos com `bot.py` na raiz;
+  - `scripts/simular_cenarios_sabotagem.py` para os 6 cenários de sabotagem ao vivo (100% aprovados);
+  - `scripts/smoke_test_cutover.py` para o Smoke Test de Corte (Capítulo 13 do Manual);
+  - `scripts/demo_capstone.py` para demonstração de ponta a ponta.
+- **Documentação de Governança**:
+  - `docs/PLANO_MIGRACAO_COEXISTENCIA.md` (Janela de 14 dias, Shadow Mode, Rollback RTO < 15 min);
+  - `docs/evidencias/EVIDENCIAS_CAPSTONE.md` (Rastreabilidade dos 7 eixos da rubrica);
+  - `docs/PITCH_APRESENTACAO_CAPSTONE.md` (Roteiro de 10 min e gabarito técnico da banca);
+  - Atualização do PDD v2.0 com a Seção 21.
+
+## [1.1.0] — Exercício 24-A (ML + RPA) — 2026-08-18
+
+### Adicionado
+- Microserviço `api_ml` em FastAPI com endpoints `POST /predict` e `GET /health`.
+- Pipeline de treino Random Forest com `CalibratedClassifierCV` em `scripts/train_model.py` e dataset sintético de 12.000 amostras.
+- Cliente resiliente `MLClient` com `CircuitBreaker` (abertura após 5 falhas consecutivas) em `src/ml_client.py`.
+- Módulo `src/item_processor.py` integrando ML para registros ambíguos sem interromper o fluxo do lote (`REVISAO_ML_OFFLINE`).
+- 9ª aba `Decisões de ML` no relatório Excel consolidado `relatorio_conferencia_lotes.xlsx`.
+- Script de demonstração `scripts/demo_torneio.py` para os 50 casos ambíguos.
+- Suíte completa de testes unitários e de integração/sabotagem para ML (`test_api_ml.py`, `test_ml_client.py`, `test_item_processor_ml.py`, `test_sabotagem_ml.py`).
+
+## [1.0.0] — Aula 24 — 2026-08-17
+
+### Adicionado
+- Módulo puro `src/operational_indicators.py` para cálculo centralizado e desacoplado dos 10 indicadores operacionais (`OperationalIndicators`, `RankedRule`, `_percentual()`, `CATALOGO_REGRAS`).
+- Orquestrador principal `dashboard/main.py` e CLI oficial (`python -m dashboard.main`) para o Dashboard Executivo da Aula 24.
+- Gerador do resumo executivo em Markdown `data/output/resumo_executivo.md` em linguagem de negócio e alinhado ao gabarito do Excel.
+- Abas `Ranking de Regras` (aba 7) e `Dicionário` (aba 8) no relatório Excel `relatorio_conferencia_lotes.xlsx`.
+- Suíte de testes unitários para a camada pura de indicadores em `tests/unit/test_operational_indicators.py`.
+- Teste de integração consolidado em `tests/integration/test_relatorio_consolidado.py`.
+- Checklist final de aceite da Aula 24 em `docs/CHECKLIST_ACEITE_AULA24.md`.
+
+### Alterado
+- Refatoração da validação em `dashboard/servico_validacao.py` adicionando `validar_registros_lista()` para preservar a lista de `RegistroValidado` sem conversões prematuras.
+- Relatório Excel refatorado para 8 abas (`Resumo`, `Todos`, `Válidos`, `Divergências`, `Ambíguos`, `Erros de Entrada`, `Ranking de Regras`, `Dicionário`).
+- Fachada `dashboard/gerar_relatorio.py` adaptada para delegar a execução ao novo orquestrador `dashboard/main.py`.
+- `dashboard/docker-compose.yml` atualizado para executar a CLI oficial `python -m dashboard.main`.
+- `.gitignore` ajustado para ignorar saídas geradas (`*.xlsx`, `*.pdf`, `resumo_executivo.md`, `*.log`, relatórios de cobertura).
+- `.github/workflows/ci-cd.yml` atualizado para preservar XML, HTML, log do pytest e os artefatos gerados da Aula 24.
+- Gráfico de rosca do Resumo corrigido para representar somente as quatro classificações, sem incluir o total processado.
+- Referências da tabela Resumo ajustadas: classificações são informativas e as metas ficam restritas às taxas de negócio.
+
+### Testes
+- A suíte possui cobertura para a origem e os intervalos dos gráficos, além da consistência entre Excel e Markdown.
+- A execução completa e a confirmação de cobertura devem ser registradas pelos artefatos do CI antes do aceite final.
+- Validação de chamada única a `calcular_indicadores()` por execução.
+
+### Documentação
+- `README.md` e `dashboard/README.md` atualizados com instruções, comandos CLI, arquitetura de fonte única e gabarito.
+- `PDD_Process_Design_Document.md` atualizado com a seção 20.1 detalhando a arquitetura da Aula 24, escopo de RN01–RN12 e rotulagem do ganho como estimativa didática.

@@ -1,0 +1,91 @@
+{
+  "timestamp": "2026-08-31T21:39:06.255817-04:00",
+  "total_testes": 6,
+  "total_sucesso": 6,
+  "aprovado_para_schedule": true,
+  "resultados": [
+    {
+      "bot": "RPA01_ColetaEstoque_DESKTOP",
+      "status": "SUCCESS",
+      "detalhes": {
+        "lote_id": "LOTE-001",
+        "produto": "TV 55 OLED",
+        "saldo_fisico": 150,
+        "localizacao": "DOCA-01",
+        "status_estoque": "LIBERADO",
+        "encontrado": true,
+        "origem": "DESKTOP_APP_GUI"
+      }
+    },
+    {
+      "bot": "RPA02_ColetaPedidos_WEB",
+      "status": "SUCCESS",
+      "detalhes": {
+        "arquivo_entrada": "data\\samples\\inspecao_lotes_dia.xlsx"
+      }
+    },
+    {
+      "bot": "RPA03_ConsolidacaoRegras_CORE",
+      "status": "SUCCESS",
+      "detalhes": {
+        "status_execucao": "SUCESSO",
+        "relatorio": "data\\output\\relatorio_divergencias_31082026_16.xlsx",
+        "total_registros": 1,
+        "total_divergencias": 1,
+        "total_regras_violadas": 2,
+        "total_lotes_validados": 0,
+        "total_revisao_humana": 0,
+        "total_rejeicoes_cadastro": 0,
+        "total_falhas_tecnicas": 0,
+        "indices_divergentes": [
+          0
+        ],
+        "divergencias": [
+          {
+            "_indice": 0,
+            "lote_id": "LOTE-SMOKE-01",
+            "regra_violada": "RN01; RN05",
+            "descricao_do_erro": "[RN01] Data '28/08/2026' fora da referência '14/06/2026'. | [RN05] Status 'OK' normalizado para 'APROVADO'.",
+            "acao_recomendada": "Corrigir a data para a referência do processo. | Registrar a normalização e seguir o fluxo automático.",
+            "severidade": "Média",
+            "origem_decisao": "fallback",
+            "confianca_ml": 0.0,
+            "causa_provavel_ml": "nao_classificado",
+            "motivo_fallback": "feature_flag_desativada"
+          }
+        ]
+      }
+    },
+    {
+      "bot": "RPA04_ClassificadorML_HYBRID",
+      "status": "SUCCESS",
+      "detalhes": {
+        "lote_id": "LOTE-SMOKE-ML",
+        "causa_provavel_ml": "nao_classificado",
+        "confianca_ml": 0.0,
+        "origem_decisao": "fallback",
+        "motivo_fallback": "feature_flag_desativada",
+        "latencia_ms": 0.0
+      }
+    },
+    {
+      "bot": "RPA05_RelatorioAlertas_NOTIF",
+      "status": "SUCCESS",
+      "detalhes": {
+        "evento": "SMOKE_TEST",
+        "nivel": "INFO",
+        "mensagem": "Smoke Test Smart Office",
+        "canal_utilizado": "LogLocal",
+        "sucesso": true,
+        "tentativas_falhas": []
+      }
+    },
+    {
+      "bot": "RPA06_ReprocessadorDeadLetter_SCHED",
+      "status": "SUCCESS",
+      "detalhes": {
+        "total_itens_dlq": 31
+      }
+    }
+  ]
+}

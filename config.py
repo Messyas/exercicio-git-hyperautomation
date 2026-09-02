@@ -71,6 +71,26 @@ def _env_int(name: str, default: int, *, minimum: int = 0) -> int:
     return convertido
 
 
+def _env_float(name: str, default: float, *, minimum: float = 0.0, maximum: float = 1.0) -> float:
+    """Lê um float do ambiente e valida seu intervalo."""
+    valor = os.getenv(name)
+    if valor is None or not valor.strip():
+        return default
+
+    try:
+        convertido = float(valor.strip())
+    except ValueError as exc:
+        raise ValueError(
+            f"A variável {name} deve conter um número decimal (valor recebido: {valor!r})."
+        ) from exc
+
+    if not (minimum <= convertido <= maximum):
+        raise ValueError(
+            f"A variável {name} deve estar entre {minimum} e {maximum} (valor recebido: {convertido})."
+        )
+    return convertido
+
+
 @dataclass(frozen=True)
 class Settings:
     """Configurações usadas pelas etapas atuais e futuras do bot."""
@@ -102,6 +122,31 @@ class Settings:
     datapool_local_dir: Path
     validator_activity_label: str
     timezone: str
+    ml_enabled: bool
+    ml_api_url: str
+    ml_timeout_ms: int
+    ml_failure_threshold: int
+    ml_model_path: Path
+    ml_confianca_minima: float
+    telegram_token: str | None
+    telegram_chat_id: str | None
+    whatsapp_enabled: bool
+    twilio_account_sid: str | None
+    twilio_auth_token: str | None
+    whatsapp_to: str | None
+    whatsapp_from: str | None
+    email_enabled: bool
+    smtp_server: str | None
+    smtp_port: int
+    email_from: str | None
+    email_to: str | None
+    gmail_enabled: bool
+    gmail_credentials_file: Path
+    gmail_token_file: Path
+    gmail_from: str | None
+    gmail_to: str | None
+    dead_letter_file: Path
+
 
 
 def get_settings() -> Settings:
@@ -109,7 +154,7 @@ def get_settings() -> Settings:
     return Settings(
         project_root=PROJECT_ROOT,
         output_dir=_env_path("BOT_OUTPUT_DIR", "data/output"),
-        log_dir=_env_path("BOT_LOG_DIR", "logs"),
+        log_dir=_env_path("BOT_LOG_DIR", "data/logs"),
         default_input_file=_env_path(
             "BOT_INPUT_FILE", "data/samples/inspecao_lotes_dia.xlsx"
         ),
@@ -126,7 +171,7 @@ def get_settings() -> Settings:
             "MAESTRO_ACTIVITY_LABEL", "auditoria-acessos"
         ).strip(),
         execution_report_file=_env_path(
-            "BOT_EXECUTION_REPORT_FILE", "logs/resumo_execucao.json"
+            "BOT_EXECUTION_REPORT_FILE", "data/logs/resumo_execucao.json"
         ),
         execution_id=(
             os.getenv("EXECUTION_ID")
@@ -138,16 +183,10 @@ def get_settings() -> Settings:
             os.getenv("BOT_ID") or "bot-conferencia-lotes"
         ).strip(),
         playwright_enabled=_env_bool("PLAYWRIGHT_ENABLED"),
-        playwright_url=os.getenv(
-            "BOT_URL",
-            os.getenv(
-                "PLAYWRIGHT_URL",
-                (
-                    "http://localhost:3000"
-                    if _running_from_botcity()
-                    else "http://frontend:3000"
-                ),
-            ),
+        playwright_url=(
+            os.getenv("BOT_URL")
+            or os.getenv("PLAYWRIGHT_URL")
+            or (PROJECT_ROOT / "web" / "index.html").as_uri()
         ).strip(),
         playwright_headless=_env_bool(
             "BOT_HEADLESS",
@@ -174,10 +213,39 @@ def get_settings() -> Settings:
             "DATAPOOL_LOCAL_DIR", "data/datapool"
         ),
         validator_activity_label=os.getenv(
-            "VALIDATOR_ACTIVITY_LABEL", "bot-lotes-validacao-mk7"
+            "VALIDATOR_ACTIVITY_LABEL", "messyas-bot-conferencia-v1"
         ).strip(),
         timezone=os.getenv("APP_TIMEZONE", "America/Manaus").strip(),
+        ml_enabled=_env_bool("ML_ENABLED", default=True),
+        ml_api_url=os.getenv("ML_API_URL", "http://127.0.0.1:8000").strip(),
+        ml_timeout_ms=_env_int("ML_TIMEOUT_MS", 1000, minimum=1),
+        ml_failure_threshold=_env_int("ML_FAILURE_THRESHOLD", 5, minimum=1),
+        ml_model_path=_env_path("ML_MODEL_PATH", "models/classificador_lotes.pkl"),
+        ml_confianca_minima=_env_float("ML_CONFIANCA_MINIMA", 0.70, minimum=0.0, maximum=1.0),
+        telegram_token=os.getenv("TELEGRAM_TOKEN") or None,
+        telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID") or None,
+        whatsapp_enabled=_env_bool("WHATSAPP_ENABLED", default=False),
+        twilio_account_sid=os.getenv("TWILIO_ACCOUNT_SID") or None,
+        twilio_auth_token=os.getenv("TWILIO_AUTH_TOKEN") or None,
+        whatsapp_to=os.getenv("WHATSAPP_TO") or None,
+        whatsapp_from=os.getenv("WHATSAPP_FROM") or None,
+        email_enabled=_env_bool("EMAIL_ENABLED", default=False),
+        smtp_server=os.getenv("SMTP_SERVER") or None,
+        smtp_port=_env_int("SMTP_PORT", 587),
+        email_from=os.getenv("EMAIL_FROM") or None,
+        email_to=os.getenv("EMAIL_TO") or None,
+        gmail_enabled=_env_bool("GMAIL_ENABLED", default=False),
+        gmail_credentials_file=_env_path(
+            "GMAIL_CREDENTIALS_FILE", "secrets/gmail_credentials.json"
+        ),
+        gmail_token_file=_env_path(
+            "GMAIL_TOKEN_FILE", "secrets/gmail_token.json"
+        ),
+        gmail_from=os.getenv("GMAIL_FROM") or None,
+        gmail_to=os.getenv("GMAIL_TO") or None,
+        dead_letter_file=_env_path("DEAD_LETTER_FILE", "data/output/dead_letter.jsonl"),
     )
+
 
 
 settings = get_settings()
